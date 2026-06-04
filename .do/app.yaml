@@ -1,0 +1,28 @@
+# DigitalOcean App Platform spec for D-Tours.
+# Create the app with:  doctl apps create --spec .do/app.yaml
+# (or in the DO console: Create App → GitHub → dapinitial/d-tours → it reads this)
+name: d-tours
+region: nyc
+services:
+  - name: web
+    github:
+      repo: dapinitial/d-tours
+      branch: main
+      deploy_on_push: true          # every push to main → auto-deploy
+    environment_slug: node-js
+    build_command: npm run build
+    run_command: node dist/server/entry.mjs
+    instance_size_slug: basic-xxs   # ~$5/mo; bump later if needed
+    instance_count: 1
+    http_port: 8080
+    envs:
+      # Astro node-standalone binds to these. PORT is injected by App Platform.
+      - key: HOST
+        value: "0.0.0.0"
+      # ── Fill these in the DO dashboard (encrypted) when you go live.
+      #    With none set, the app runs on mock data — totally fine to deploy as-is.
+      # - key: PUBLIC_SUPABASE_URL
+      # - key: PUBLIC_SUPABASE_ANON_KEY
+      # - key: SUPABASE_SERVICE_ROLE_KEY   (mark as SECRET)
+      # - key: MAPSHARE_FEED_URL
+      # - key: SMTP_HOST / SMTP_USER / SMTP_PASS / NOTIFY_EMAIL / NOTIFY_SMS_GATEWAY
