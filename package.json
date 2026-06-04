@@ -6,7 +6,7 @@
   "description": "D-Tours — AI travel-companion platform for spacelabforever.com (Austin → Squamish mega-loop). Visitor site + CMS + Shotgun comms.",
   "scripts": {
     "dev": "astro dev",
-    "start": "astro dev",
+    "start": "node ./dist/server/entry.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
