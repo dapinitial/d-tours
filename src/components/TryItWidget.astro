@@ -1,0 +1,87 @@
+---
+// "Try it where YOU are" — the conversion hook. A visitor uses their location
+// (or a preset) and Shotgun scouts real detours near them via the live engine.
+// No signup. This is what the QR window-sticker should land on.
+---
+<div class="tryit" data-reveal>
+  <div class="ti-head">
+    <span class="ti-avatar">📡</span>
+    <div>
+      <div class="ti-who">Shotgun</div>
+      <div class="muted ti-sub">Try me — where are you?</div>
+    </div>
+  </div>
+
+  <div class="ti-controls">
+    <button class="btn ti-geo" id="ti-geo">📍 Use my location</button>
+    <span class="muted ti-or">or try</span>
+    <div class="ti-presets">
+      <button class="chip-btn" data-lat="39.74" data-lng="-104.99">Denver</button>
+      <button class="chip-btn" data-lat="38.57" data-lng="-109.55">Moab</button>
+      <button class="chip-btn" data-lat="37.74" data-lng="-119.60">Yosemite</button>
+      <button class="chip-btn" data-lat="42.83" data-lng="-108.73">The Winds</button>
+    </div>
+  </div>
+
+  <div class="ti-out" id="ti-out" hidden>
+    <p class="ti-speech" id="ti-speech"></p>
+    <div class="ti-results" id="ti-results"></div>
+    <a class="btn ti-cta" href="#cheer">🤘 Want this for your trip? Join the Cheer Squad</a>
+  </div>
+</div>
+
+<script>
+  const out = document.getElementById('ti-out');
+  const speech = document.getElementById('ti-speech');
+  const results = document.getElementById('ti-results');
+
+  async function scout(lat, lng, label) {
+    out.hidden = false;
+    speech.textContent = `Scanning around ${label}…`;
+    results.innerHTML = '';
+    try {
+      const r = await fetch(`/api/ask?q=shotgun+detour&lat=${lat}&lng=${lng}`);
+      const j = await r.json();
+      speech.textContent = '🔊 ' + (j.speech || 'Hmm, nothing jumped out.');
+      results.innerHTML = (j.detours || []).map((d) =>
+        `<div class="ti-card"><span class="tc-emoji">${d.emoji}</span>
+         <span class="tc-title">${d.title}</span>
+         <span class="tc-meta">${d.off_route_mi} mi · ${d.type}</span></div>`).join('');
+    } catch {
+      speech.textContent = 'Network hiccup — try a preset above.';
+    }
+  }
+
+  document.querySelectorAll('.chip-btn').forEach((b) =>
+    b.addEventListener('click', () => scout(b.dataset.lat, b.dataset.lng, b.textContent)));
+
+  document.getElementById('ti-geo')?.addEventListener('click', () => {
+    if (!navigator.geolocation) { scout(39.74, -104.99, 'Denver'); return; }
+    speech.textContent = 'Getting your location…'; out.hidden = false;
+    navigator.geolocation.getCurrentPosition(
+      (p) => scout(p.coords.latitude.toFixed(4), p.coords.longitude.toFixed(4), 'you'),
+      () => { speech.textContent = 'Location blocked — try a preset above.'; out.hidden = false; },
+      { timeout: 8000 });
+  });
+</script>
+
+<style>
+  .tryit { background: linear-gradient(180deg, rgba(20,83,45,.25), var(--panel)); border: 1px solid rgba(52,211,153,.3); border-radius: var(--radius); padding: 1.5rem; }
+  .ti-head { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.1rem; }
+  .ti-avatar { width: 44px; height: 44px; border-radius: 50%; background: rgba(52,211,153,.15); display: grid; place-items: center; font-size: 1.3rem; border: 1px solid rgba(52,211,153,.35); }
+  .ti-who { font-weight: 800; }
+  .ti-sub { font-size: .82rem; }
+  .ti-controls { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; }
+  .ti-or { font-size: .85rem; }
+  .ti-presets { display: flex; gap: .4rem; flex-wrap: wrap; }
+  .chip-btn { font-family: var(--font-mono); font-size: .78rem; padding: .45rem .8rem; border-radius: 999px; background: rgba(255,255,255,.04); color: var(--text); border: 1px solid var(--border-2); cursor: pointer; min-height: 40px; }
+  .chip-btn:hover { border-color: var(--green); color: var(--green); }
+  .ti-out { margin-top: 1.2rem; }
+  .ti-speech { background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 12px; padding: .9rem 1rem; margin: 0 0 .9rem; }
+  .ti-results { display: grid; gap: .5rem; }
+  .ti-card { display: flex; align-items: center; gap: .6rem; padding: .55rem .75rem; background: rgba(255,255,255,.025); border: 1px solid var(--border); border-radius: 9px; }
+  .tc-emoji { font-size: 1.15rem; }
+  .tc-title { font-weight: 600; }
+  .tc-meta { margin-left: auto; font-family: var(--font-mono); font-size: .74rem; color: var(--muted); }
+  .ti-cta { margin-top: 1rem; }
+</style>

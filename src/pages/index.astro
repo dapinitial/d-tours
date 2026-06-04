@@ -7,6 +7,7 @@ import LiveMap from '../components/LiveMap.astro';
 import CareLayers from '../components/CareLayers.astro';
 import ShowcaseGallery from '../components/ShowcaseGallery.astro';
 import CheerSquad from '../components/CheerSquad.astro';
+import TryItWidget from '../components/TryItWidget.astro';
 import { getStops, getObjectives, getResources, getPosts, getDetours, getPlaylists } from '../lib/data';
 
 const [stops, objectives, resources, posts, detours, playlists] = await Promise.all([
@@ -27,6 +28,18 @@ const [stops, objectives, resources, posts, detours, playlists] = await Promise.
         <a href="/journal" class="btn">Follow the journey</a>
         <a href="/plan" class="btn ghost">📄 Trip plan / print</a>
       </div>
+    </div>
+  </section>
+
+  <!-- TRY IT (conversion hook) -->
+  <section class="alt">
+    <div class="container narrow">
+      <div class="section-head">
+        <p class="eyebrow">✨ Try it now</p>
+        <h2>See Shotgun work — near you</h2>
+        <p>No signup. Tap a spot (or use your location) and watch the live engine scout real detours.</p>
+      </div>
+      <TryItWidget />
     </div>
   </section>
 
@@ -103,7 +116,7 @@ const [stops, objectives, resources, posts, detours, playlists] = await Promise.
   </section>
 
   <!-- CHEER SQUAD -->
-  <section>
+  <section id="cheer">
     <div class="container">
       <div class="section-head">
         <p class="eyebrow">🎉 Cheer Squad</p>
