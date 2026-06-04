@@ -4,9 +4,12 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 // read at runtime via process.env so it works when set in the DO dashboard, with
 // import.meta.env fallbacks for local dev. Supports both the new sb_publishable_/
 // sb_secret_ keys and the legacy anon/service_role names.
-const url = import.meta.env.PUBLIC_SUPABASE_URL;
+// Build-time inlined value first, then runtime process.env (so it works whether DO
+// provides these at build or only at run time). Server-only module, so process is safe.
+const url = import.meta.env.PUBLIC_SUPABASE_URL ?? process.env.PUBLIC_SUPABASE_URL;
 const publishable =
-  import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+  import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.PUBLIC_SUPABASE_ANON_KEY ??
+  process.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.PUBLIC_SUPABASE_ANON_KEY;
 
 function secretKey(): string | undefined {
   return (
