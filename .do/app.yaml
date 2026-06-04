@@ -19,10 +19,11 @@ services:
       # Astro node-standalone binds to these. PORT is injected by App Platform.
       - key: HOST
         value: "0.0.0.0"
-      # ── Fill these in the DO dashboard (encrypted) when you go live.
-      #    With none set, the app runs on mock data — totally fine to deploy as-is.
-      # - key: PUBLIC_SUPABASE_URL
-      # - key: PUBLIC_SUPABASE_ANON_KEY
-      # - key: SUPABASE_SERVICE_ROLE_KEY   (mark as SECRET)
-      # - key: MAPSHARE_FEED_URL
-      # - key: SMTP_HOST / SMTP_USER / SMTP_PASS / NOTIFY_EMAIL / NOTIFY_SMS_GATEWAY
+      # Public Supabase values — safe to commit (publishable key is browser-safe).
+      - key: PUBLIC_SUPABASE_URL
+        value: "https://pucyvfwrosinnbgkremb.supabase.co"
+      - key: PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        value: "sb_publishable_kfsnkzkm3RgaEdSerxsLww_SLsvygIQ"
+      # ── Add in the DO dashboard as ENCRYPTED (never commit):
+      #    SUPABASE_SECRET_KEY (sb_secret_...) — server writes
+      #    MAPSHARE_FEED_URL, SMTP_*, NOTIFY_*  — comms (later)
