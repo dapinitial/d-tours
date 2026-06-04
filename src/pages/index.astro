@@ -6,10 +6,11 @@ import ShotgunCard from '../components/ShotgunCard.astro';
 import LiveMap from '../components/LiveMap.astro';
 import CareLayers from '../components/CareLayers.astro';
 import ShowcaseGallery from '../components/ShowcaseGallery.astro';
-import { getStops, getObjectives, getResources, getPosts, getDetours } from '../lib/data';
+import CheerSquad from '../components/CheerSquad.astro';
+import { getStops, getObjectives, getResources, getPosts, getDetours, getPlaylists } from '../lib/data';
 
-const [stops, objectives, resources, posts, detours] = await Promise.all([
-  getStops(), getObjectives(), getResources(), getPosts({ publishedOnly: true }), getDetours(),
+const [stops, objectives, resources, posts, detours, playlists] = await Promise.all([
+  getStops(), getObjectives(), getResources(), getPosts({ publishedOnly: true }), getDetours(), getPlaylists(),
 ]);
 ---
 <Base>
@@ -98,6 +99,18 @@ const [stops, objectives, resources, posts, detours] = await Promise.all([
         <p>Your own photos, published as you go (and enhanced with AI later, if visitors pitch in their keys).</p>
       </div>
       <ShowcaseGallery posts={posts} />
+    </div>
+  </section>
+
+  <!-- CHEER SQUAD -->
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">🎉 Cheer Squad</p>
+        <h2>Roll with us</h2>
+        <p>Fuel the trip, get the dispatch, send me a detour, or pick the soundtrack. The road's better with a crew.</p>
+      </div>
+      <CheerSquad playlists={playlists} />
     </div>
   </section>
 </Base>

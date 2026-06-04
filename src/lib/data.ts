@@ -48,3 +48,12 @@ export async function getDetours(): Promise<Detour[]> {
   // Detours are produced live by the look-ahead engine; mock for the skeleton.
   return mock.detours;
 }
+
+export async function getPlaylists() {
+  const sb = getSupabase();
+  if (!sb) return mock.playlists;
+  const { data, error } = await sb
+    .from('playlist_suggestions').select('*').eq('status', 'approved').order('created_at', { ascending: false });
+  if (error || !data?.length) return mock.playlists;
+  return data;
+}

@@ -59,6 +59,12 @@ export const posts: Post[] = [
   { id: 'p3', title: 'Into the Cirque (queued)', body: 'Big Sandy dirt road survived. No signal — this one is queued until we get Starlink back up at the rig.', created_at: '2026-07-14T01:00:00Z', published_at: null, lat: 42.7, lng: -109.2, media: [], author: 'David', like_count: 0, tier: 1 },
 ];
 
+export const playlists = [
+  { id: 'pl1', title: 'Desert Highways — indie folk', url: '#', kind: 'music', suggested_by: 'Chels' },
+  { id: 'pl2', title: 'The Push — Tommy Caldwell (audiobook)', url: '#', kind: 'audiobook', suggested_by: 'Jillian' },
+  { id: 'pl3', title: 'Lo-fi for long hauls', url: '#', kind: 'music', suggested_by: 'Derek' },
+];
+
 export const detours: Detour[] = [
   { id: 'd1', type: 'hot-spring', title: 'Saratoga Hobo Pool', emoji: '♨️', off_route_mi: 0.5, time_cost_min: 45, fits_slack: true, note: 'Free, 24/7, off US-287. You\'re +2hr ahead.' },
   { id: 'd2', type: 'weird', title: 'Garden of 1000 Buddhas', emoji: '🌀', off_route_mi: 8, time_cost_min: 60, fits_slack: true, note: 'Arlee, MT — on the way to Flathead.' },

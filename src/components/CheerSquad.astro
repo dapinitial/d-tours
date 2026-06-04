@@ -1,0 +1,121 @@
+---
+// Cheer Squad — how friends & followers rally the trip along.
+// Tip jar (env-configurable link) + subscribe + suggest-a-detour + playlist board.
+interface Props { playlists?: any[]; }
+const { playlists = [] } = Astro.props;
+const tipUrl = import.meta.env.PUBLIC_TIPJAR_URL ?? '';
+const kindEmoji: Record<string, string> = { music: '🎵', audiobook: '📖', podcast: '🎙️' };
+---
+<div class="cheer">
+  <!-- Fuel the trip (tip jar) -->
+  <div class="card fuel" data-reveal>
+    <h3><span class="emoji">🍦</span> Fuel the trip</h3>
+    <p class="muted">Chip in for gas, a coffee, or an ice cream down the road. Every little bit keeps the rig rolling.</p>
+    {tipUrl
+      ? <a class="btn" href={tipUrl} target="_blank" rel="noopener">⛽ Buy David a tank / a cone</a>
+      : <button class="btn" disabled title="Tip link coming soon">⛽ Tip jar — link coming soon</button>}
+    {!tipUrl && <p class="tiny muted">Paste a Ko-fi / Buy Me a Coffee / Stripe link into <code>PUBLIC_TIPJAR_URL</code> to activate.</p>}
+  </div>
+
+  <!-- Subscribe -->
+  <div class="card" data-reveal>
+    <h3><span class="emoji">📬</span> Get the dispatch</h3>
+    <p class="muted">Shotgun emails you the highlights — where I am, what I climbed, the weird detours.</p>
+    <form class="cs-form" id="subscribe-form">
+      <input type="email" name="email" placeholder="you@email.com" required />
+      <div class="row">
+        <label><input type="radio" name="cadence" value="weekly" checked /> Weekly</label>
+        <label><input type="radio" name="cadence" value="daily" /> Daily</label>
+      </div>
+      <button class="btn" type="submit">Subscribe</button>
+      <p class="msg" data-for="subscribe"></p>
+    </form>
+  </div>
+
+  <!-- Suggest a detour -->
+  <div class="card" data-reveal>
+    <h3><span class="emoji">💡</span> Send me a detour</h3>
+    <p class="muted">Know a hot spring, a taco truck, a roadside oddity on my route? Drop it — I'll get the good ones.</p>
+    <form class="cs-form" id="suggest-form">
+      <input type="text" name="title" placeholder="What is it? (e.g. Meow Wolf)" required />
+      <input type="text" name="location" placeholder="Where? (town / near what)" />
+      <input type="text" name="by" placeholder="Your name (optional)" />
+      <button class="btn ghost" type="submit">Suggest it</button>
+      <p class="msg" data-for="suggest"></p>
+    </form>
+  </div>
+
+  <!-- Co-pilot picks (playlist board) -->
+  <div class="card board" data-reveal>
+    <h3><span class="emoji">🎧</span> Co-pilot picks</h3>
+    <p class="muted">Music & audiobooks for the long hauls — suggested by the crew.</p>
+    <ul class="picks">
+      {playlists.map((p) => (
+        <li>
+          <span class="pk-emoji">{kindEmoji[p.kind] ?? '🎵'}</span>
+          <span class="pk-title">{p.url && p.url !== '#' ? <a href={p.url} target="_blank" rel="noopener">{p.title}</a> : p.title}</span>
+          <span class="pk-by muted">— {p.suggested_by}</span>
+        </li>
+      ))}
+    </ul>
+    <form class="cs-form inline" id="playlist-form">
+      <input type="text" name="title" placeholder="Add a track / album / audiobook" required />
+      <input type="url" name="url" placeholder="Link (optional)" />
+      <button class="btn ghost sm" type="submit">Add</button>
+      <p class="msg" data-for="playlist"></p>
+    </form>
+  </div>
+</div>
+
+<script>
+  const post = async (url, body, key) => {
+    const msg = document.querySelector(`.msg[data-for="${key}"]`);
+    if (msg) { msg.textContent = 'Sending…'; msg.className = 'msg'; }
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json();
+      if (msg) {
+        if (j.ok) { msg.textContent = key === 'subscribe' ? '🤘 You\'re on the list!' : '🙏 Got it — thank you!'; msg.className = 'msg ok'; }
+        else { msg.textContent = j.error || 'Hmm, try again.'; msg.className = 'msg err'; }
+      }
+      return j.ok;
+    } catch { if (msg) { msg.textContent = 'Network hiccup — try again.'; msg.className = 'msg err'; } return false; }
+  };
+
+  document.getElementById('subscribe-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault(); const f = e.target;
+    const ok = await post('/api/subscribe', { email: f.email.value, cadence: f.cadence.value }, 'subscribe');
+    if (ok) f.reset();
+  });
+  document.getElementById('suggest-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault(); const f = e.target;
+    const ok = await post('/api/suggest', { title: f.title.value, location: f.location.value, by: f.by.value }, 'suggest');
+    if (ok) f.reset();
+  });
+  document.getElementById('playlist-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault(); const f = e.target;
+    const ok = await post('/api/playlist', { title: f.title.value, url: f.url.value }, 'playlist');
+    if (ok) f.reset();
+  });
+</script>
+
+<style>
+  .cheer { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.1rem; }
+  @media (max-width: 760px) { .cheer { grid-template-columns: 1fr; } }
+  .card.fuel { background: linear-gradient(180deg, rgba(251,191,36,.12), var(--panel)); border-color: rgba(251,191,36,.3); }
+  .card h3 { display: flex; align-items: center; gap: .5rem; }
+  .cs-form { display: grid; gap: .6rem; margin-top: .9rem; }
+  .cs-form input { width: 100%; background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .7rem .85rem; font: inherit; min-height: 44px; }
+  .cs-form .row { display: flex; gap: 1.2rem; color: var(--muted); font-size: .9rem; }
+  .cs-form.inline { grid-template-columns: 1fr auto; align-items: start; gap: .5rem; }
+  .cs-form.inline .msg { grid-column: 1 / -1; }
+  .btn.sm { padding: .55rem 1rem; }
+  .msg { font-size: .85rem; margin: 0; min-height: 1.1em; }
+  .msg.ok { color: var(--green); }
+  .msg.err { color: var(--red); }
+  .tiny { font-size: .75rem; margin-top: .6rem; }
+  code { font-family: var(--font-mono); color: var(--green); }
+  .board .picks { list-style: none; padding: 0; margin: .9rem 0; display: grid; gap: .5rem; }
+  .board .picks li { display: flex; align-items: center; gap: .5rem; font-size: .9rem; padding: .5rem .65rem; background: rgba(255,255,255,.025); border: 1px solid var(--border); border-radius: 9px; }
+  .pk-by { font-size: .8rem; margin-left: auto; }
+</style>
