@@ -167,5 +167,11 @@ hr.rule { border: 0; height: 1px; background: var(--border); margin: 0; }
    scoped per-page rules can't reach the header/footer components). The /plan
    page keeps its nav on screen but prints clean. */
 @media print {
-  .site-header, .site-footer, .cursor-dot, .cursor-ring, .print-only-hide { display: none !important; }
+  .site-header, .site-footer, .tabbar, .cursor-dot, .cursor-ring, .print-only-hide { display: none !important; }
+}
+
+/* Mobile: leave room for the bottom tab bar so content isn't hidden behind it. */
+@media (max-width: 640px) {
+  body { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
+  .map { height: 360px !important; }       /* shorter map = less thumb-scrolling */
 }
