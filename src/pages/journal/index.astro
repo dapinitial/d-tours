@@ -1,0 +1,65 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getPosts } from '../../lib/data';
+const posts = await getPosts();
+---
+<Base title="D-Tours · Journal">
+  <section>
+    <div class="container narrow">
+      <div class="section-head">
+        <p class="eyebrow">📓 The Journal</p>
+        <h2>Dispatches from the loop</h2>
+        <p>Posts publish when there's signal. Queued ones flush the moment the Starlink dish goes up at the rig.</p>
+      </div>
+
+      <div class="feed">
+        {posts.map((p) => (
+          <article id={p.id} class="post" data-reveal>
+            <div class="p-head">
+              <h3>{p.title}</h3>
+              {p.published_at
+                ? <span class="chip">{new Date(p.published_at).toLocaleDateString()}</span>
+                : <span class="chip amber">queued · Tier 1</span>}
+            </div>
+            <p class="p-body">{p.body}</p>
+            <div class="p-foot">
+              {(p.lat && p.lng) && <span class="mono muted">📍 {p.lat.toFixed(2)}, {p.lng.toFixed(2)}</span>}
+              <button class="like" data-post={p.id}>🤘 <span class="count">{p.like_count ?? 0}</span></button>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div class="comment-note card">
+        <h3>💬 Comments are crew-only</h3>
+        <p class="muted">Likes are open. Written comments are gated to invited friends &amp; family via a magic link (no passwords). Sign-in lands here once Supabase auth is wired.</p>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  // optimistic like; POSTs to /api/like (no-op success in mock mode)
+  document.querySelectorAll('.like').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const span = btn.querySelector('.count');
+      span.textContent = String(Number(span.textContent) + 1);
+      btn.setAttribute('disabled', 'true');
+      try { await fetch('/api/like', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post: btn.dataset.post }) }); } catch {}
+    });
+  });
+</script>
+
+<style>
+  .container.narrow { width: min(100% - 2.5rem, 760px); }
+  .feed { display: grid; gap: 1.1rem; }
+  .post { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.4rem; }
+  .p-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .6rem; }
+  .p-head h3 { margin: 0; }
+  .p-body { color: var(--muted); margin: 0; }
+  .p-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 1rem; }
+  .like { background: rgba(255,255,255,.04); border: 1px solid var(--border-2); color: var(--text); padding: .4rem .8rem; border-radius: 999px; cursor: pointer; transition: all .2s var(--ease); }
+  .like:hover:not([disabled]) { border-color: var(--green); color: var(--green); }
+  .like[disabled] { opacity: .6; cursor: default; }
+  .comment-note { margin-top: 2rem; }
+</style>

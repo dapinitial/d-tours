@@ -1,0 +1,36 @@
+---
+import type { Objective } from '../lib/types';
+interface Props { objectives: Objective[]; }
+const { objectives } = Astro.props;
+const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chip red' };
+---
+<div class="table-wrap" data-reveal>
+  <table class="data">
+    <thead>
+      <tr>
+        <th>Objective</th>
+        <th>Region</th>
+        <th>Commitment / Length</th>
+        <th>Technical Grade</th>
+        <th>Key Hazard</th>
+      </tr>
+    </thead>
+    <tbody>
+      {objectives.map((o) => (
+        <tr>
+          <td><strong>{o.name}</strong>{o.discipline && <div class="muted disc">{o.discipline}</div>}</td>
+          <td class="muted">{o.region}</td>
+          <td>{o.commitment}</td>
+          <td class="mono">{o.grade}</td>
+          <td><span class={sev[o.severity]}>{o.hazard}</span></td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+<p class="muted hint">Tap any column header to sort.</p>
+
+<style>
+  .disc { font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; margin-top: .2rem; }
+  .hint { font-size: .8rem; margin-top: .6rem; }
+</style>

@@ -1,0 +1,42 @@
+---
+const links = [
+  { href: '/', label: 'Home' },
+  { href: '/journal', label: 'Journal' },
+  { href: '/plan', label: 'Trip Plan' },
+  { href: '/cms', label: 'CMS' },
+];
+const path = Astro.url.pathname;
+---
+<header class="site-header">
+  <div class="container bar">
+    <a href="/" class="brand">
+      <span class="brand-mark">🚐</span>
+      <span class="brand-name">D&#8209;TOURS</span>
+      <span class="brand-sub">with Shotgun</span>
+    </a>
+    <nav>
+      {links.map((l) => (
+        <a href={l.href} class:list={['navlink', { active: path === l.href }]}>{l.label}</a>
+      ))}
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(12px);
+    background: rgba(10,15,22,.72);
+    border-bottom: 1px solid var(--border);
+  }
+  .bar { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .brand { display: flex; align-items: baseline; gap: .5rem; color: var(--text); font-weight: 800; letter-spacing: .02em; }
+  .brand-mark { font-size: 1.3rem; }
+  .brand-name { font-size: 1.1rem; }
+  .brand-sub { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .2em; text-transform: uppercase; color: var(--green); }
+  nav { display: flex; gap: .35rem; }
+  .navlink { padding: .45rem .8rem; border-radius: 999px; font-size: .9rem; color: var(--muted); }
+  .navlink:hover { color: var(--text); background: rgba(255,255,255,.04); }
+  .navlink.active { color: var(--green); background: rgba(52,211,153,.1); }
+  @media (max-width: 560px) { .brand-sub { display: none; } nav { gap: 0; } .navlink { padding: .4rem .55rem; font-size: .82rem; } }
+</style>

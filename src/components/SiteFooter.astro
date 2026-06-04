@@ -1,0 +1,27 @@
+---
+import { isMock } from '../lib/data';
+---
+<footer class="site-footer">
+  <div class="container">
+    <div class="row">
+      <div>
+        <div class="f-brand">🚐 D&#8209;TOURS</div>
+        <p class="muted">An AI travel companion on the Austin → Squamish mega-loop.<br/>spacelabforever.com</p>
+      </div>
+      <div class="status">
+        <span class="chip sky">{isMock ? '◍ mock data' : '● live (Supabase)'}</span>
+        <span class="chip">v0.1 skeleton</span>
+      </div>
+    </div>
+    <hr class="rule" />
+    <p class="muted small">Built with Astro + Supabase · Shotgun runs on the home iMac (Claude Max) · © {new Date().getFullYear()}</p>
+  </div>
+</footer>
+
+<style>
+  .site-footer { padding: 3rem 0 4rem; border-top: 1px solid var(--border); margin-top: 2rem; }
+  .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .f-brand { font-weight: 800; margin-bottom: .4rem; }
+  .status { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .small { font-size: .82rem; margin-top: 1rem; }
+</style>

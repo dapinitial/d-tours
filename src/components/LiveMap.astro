@@ -1,0 +1,66 @@
+---
+// Live "where's David" map. Loads Leaflet from CDN at runtime (graceful: shows a
+// static placeholder if offline). Polls /api/mapshare for the latest inReach dot.
+---
+<div class="map-wrap" data-reveal>
+  <div id="dtours-map" class="map">
+    <div class="map-fallback">
+      <span class="big">🛰️</span>
+      <p>Live map loads here — polling the inReach MapShare feed for the current dot.</p>
+      <p class="muted">Set <code>MAPSHARE_FEED_URL</code> to go live.</p>
+    </div>
+  </div>
+  <div class="legend">
+    <span class="chip sky">● current position</span>
+    <span class="chip">— planned route</span>
+    <span class="chip amber">◆ rendezvous</span>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script>
+  async function initMap() {
+    // @ts-ignore — Leaflet attaches to window
+    if (!window.L) return; // offline / CDN blocked → keep fallback
+    const el = document.getElementById('dtours-map');
+    if (!el) return;
+    el.innerHTML = '';
+    // @ts-ignore
+    const L = window.L;
+    const map = L.map(el, { scrollWheelZoom: false }).setView([42.5, -108], 5);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19,
+    }).addTo(map);
+
+    // route (mock order; later from /stops)
+    const route = [
+      [30.27,-97.74],[32.78,-96.80],[35.5,-97.5],[38.4,-105.2],[40.0,-105.0],
+      [42.7,-109.2],[42.1,-113.7],[48.3,-114.0],[47.66,-117.43],[48.59,-120.4],[49.7,-123.15]
+    ];
+    L.polyline(route, { color: '#34d399', weight: 2, opacity: .7, dashArray: '6 6' }).addTo(map);
+
+    try {
+      const res = await fetch('/api/mapshare');
+      const j = await res.json();
+      if (j.lat && j.lng) {
+        L.circleMarker([j.lat, j.lng], { radius: 8, color: '#38bdf8', fillColor: '#38bdf8', fillOpacity: .9 })
+          .addTo(map).bindPopup(`David · ${j.when ?? 'now'}`).openPopup();
+        map.setView([j.lat, j.lng], 6);
+      }
+    } catch {}
+  }
+  const s = document.createElement('script');
+  s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  s.onload = initMap;
+  s.onerror = () => {}; // stay on fallback when offline
+  document.head.appendChild(s);
+</script>
+
+<style>
+  .map-wrap { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .map { height: 440px; width: 100%; background: #0b1018; }
+  .map-fallback { height: 100%; display: grid; place-content: center; text-align: center; gap: .3rem; padding: 2rem; }
+  .map-fallback .big { font-size: 3rem; }
+  .map-fallback code { font-family: var(--font-mono); color: var(--green); }
+  .legend { display: flex; gap: .5rem; padding: .8rem 1rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+</style>

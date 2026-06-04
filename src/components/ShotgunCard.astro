@@ -1,0 +1,57 @@
+---
+// A sample Shotgun "transmission" — shows the companion's voice. In production
+// this is composed by the home-iMac Claude Max agent and pushed via notifier.
+import type { Detour } from '../lib/types';
+interface Props { detours?: Detour[]; }
+const { detours = [] } = Astro.props;
+---
+<div class="shotgun" data-reveal>
+  <div class="head">
+    <span class="avatar">📡</span>
+    <div>
+      <div class="who">Shotgun</div>
+      <div class="muted chan">via iMessage → email → SMS → inReach</div>
+    </div>
+    <span class="chip live">● transmitting</span>
+  </div>
+  <div class="bubble">
+    <p>You've got until <strong>Aug 1</strong> to make Ricardo's wedding. On the way to Whitley,
+    swing through <strong>Deep Ellum</strong> for beers, hit the rez in OK, then take
+    <strong>Chels &amp; Jillian</strong> on a hike.</p>
+    <p>Lake + hot spring ahead if you want to rinse off, shave, and reset. You've been sitting
+    3 hrs — rest area in 8 mi has a field for a quick mobility flow.</p>
+    <p><strong>Derek's solar camper</strong> is 40 min from Flathead — meet him there. 🤝</p>
+  </div>
+  {detours.length > 0 && (
+    <div class="detours">
+      <div class="muted label">Detours that fit your slack:</div>
+      {detours.filter((d) => d.fits_slack).slice(0, 3).map((d) => (
+        <div class="detour">
+          <span class="d-emoji">{d.emoji}</span>
+          <span class="d-title">{d.title}</span>
+          <span class="d-meta mono">{d.off_route_mi}mi · ~{d.time_cost_min}min</span>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
+
+<style>
+  .shotgun {
+    background: linear-gradient(180deg, rgba(20,83,45,.22), var(--panel));
+    border: 1px solid rgba(52,211,153,.3); border-radius: var(--radius); padding: 1.4rem;
+  }
+  .head { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; background: rgba(52,211,153,.15); display: grid; place-items: center; font-size: 1.3rem; border: 1px solid rgba(52,211,153,.35); }
+  .who { font-weight: 800; }
+  .chan { font-size: .68rem; font-family: var(--font-mono); letter-spacing: .04em; }
+  .chip.live { margin-left: auto; }
+  .bubble { background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; }
+  .bubble p { margin: 0 0 .7rem; }
+  .bubble p:last-child { margin-bottom: 0; }
+  .detours { margin-top: 1rem; display: grid; gap: .45rem; }
+  .label { font-size: .72rem; text-transform: uppercase; letter-spacing: .12em; }
+  .detour { display: flex; align-items: center; gap: .6rem; padding: .5rem .7rem; background: rgba(255,255,255,.025); border: 1px solid var(--border); border-radius: 9px; }
+  .d-title { font-weight: 600; }
+  .d-meta { margin-left: auto; color: var(--muted); font-size: .78rem; }
+</style>

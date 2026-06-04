@@ -1,0 +1,119 @@
+---
+import Base from '../layouts/Base.astro';
+import { getStops, getObjectives, getResources } from '../lib/data';
+const [stops, objectives, resources] = await Promise.all([getStops(), getObjectives(), getResources()]);
+const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chip red' };
+const logistics = resources.filter((r) => r.layer === 'logistics' || r.layer === 'life');
+
+const packing = [
+  { emoji: '🧗', title: 'Alpine Hardware', items: ['Double rack to 3"', '60m half ropes', 'Alpine draws', 'Helmet', 'Nut tool + cordelette'] },
+  { emoji: '🐻', title: 'Backcountry / Wildlife Safety', items: ['Bear spray on chest harness', 'Certified bear canister', 'Tire protection (porcupines!)', 'First-aid + SAM splint'] },
+  { emoji: '⚡', title: 'Comms & Power', items: ['Starlink Mini + cables', 'EcoFlow + solar (charges e-bikes!)', 'inReach Mini (subscription on)', 'goTenna pair charged', 'Gaia GPS maps downloaded'] },
+  { emoji: '🚐', title: 'Vehicle / Life', items: ['Offline maps downloaded', 'National Parks Pass', 'Wedding attire (Aug 1!)', 'SUPs + pump + PFDs', 'e-MTBs + rack + tools'] },
+];
+---
+<Base title="D-Tours · Trip Plan" bare={true}>
+  <article class="plan container">
+    <header class="plan-head">
+      <div>
+        <p class="eyebrow">🚐 D-Tours · Offline Beta</p>
+        <h1>Austin → Squamish<br/>The Road Trip Mega-Loop</h1>
+      </div>
+      <button class="btn print-only-hide" onclick="window.print()">🖨️ Print / Save PDF</button>
+    </header>
+
+    <!-- ROUTE -->
+    <h2>🗺️ Route sequence</h2>
+    <ol class="route">
+      {stops.map((s) => (
+        <li class:list={{ hard: s.flex === 'hard' }}>
+          <span class="r-emoji">{s.emoji}</span>
+          <span class="r-name">{s.name}</span>
+          {s.date && <span class="r-date">{s.date}</span>}
+          {s.sub && <span class="r-sub">{s.sub}</span>}
+        </li>
+      ))}
+    </ol>
+
+    <!-- OBJECTIVES -->
+    <h2>🧗 Climbing objectives</h2>
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Objective</th><th>Region</th><th>Commitment</th><th>Grade</th><th>Hazard</th></tr></thead>
+        <tbody>
+          {objectives.map((o) => (
+            <tr>
+              <td><strong>{o.name}</strong></td>
+              <td>{o.region}</td>
+              <td>{o.commitment}</td>
+              <td class="mono">{o.grade}</td>
+              <td><span class={sev[o.severity]}>{o.hazard}</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- LOGISTICS -->
+    <h2>🏕️ Logistics, friends &amp; basecamps</h2>
+    <div class="grid cols-3">
+      {logistics.map((r) => (
+        <div class="card"><h3><span class="emoji">{r.emoji}</span>{r.title}</h3><p class="muted">{r.body}</p></div>
+      ))}
+    </div>
+
+    <!-- PACKING -->
+    <h2>🎒 Packing &amp; gear checklist</h2>
+    <div class="grid cols-4">
+      {packing.map((col) => (
+        <div class="card">
+          <h3><span class="emoji">{col.emoji}</span>{col.title}</h3>
+          <ul class="check">
+            {col.items.map((it) => <li><span class="box"></span>{it}</li>)}
+          </ul>
+        </div>
+      ))}
+    </div>
+  </article>
+</Base>
+
+<style>
+  .plan { padding: 2.5rem 0 4rem; }
+  .plan-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.5rem; margin-bottom: 2.5rem; }
+  .plan h2 { margin-top: 3rem; padding-top: 1.2rem; border-top: 1px solid var(--border); }
+  .route { list-style: none; counter-reset: step; padding: 0; display: grid; gap: .55rem; }
+  .route li { counter-increment: step; display: flex; align-items: baseline; gap: .6rem; padding: .6rem .85rem; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
+  .route li::before { content: counter(step); font-family: var(--font-mono); font-size: .72rem; color: var(--green); min-width: 1.4em; }
+  .route li.hard { border-color: rgba(251,113,133,.4); }
+  .r-emoji { font-size: 1.1rem; }
+  .r-name { font-weight: 700; }
+  .r-date { font-family: var(--font-mono); font-size: .72rem; color: var(--green); }
+  .r-sub { color: var(--muted); font-size: .85rem; }
+  ul.check { list-style: none; padding: 0; margin: .5rem 0 0; display: grid; gap: .5rem; }
+  ul.check li { display: flex; align-items: center; gap: .55rem; font-size: .9rem; }
+  .box { width: 15px; height: 15px; border: 1.5px solid var(--border-2); border-radius: 4px; flex: 0 0 auto; }
+
+  /* ════════ PRINT / PDF — Letter, light bg, crisp black, no awkward breaks ════════ */
+  @media print {
+    @page { size: letter; margin: 0.6in; }
+    :root {
+      --bg:#fff; --bg-2:#fff; --panel:#fff; --panel-2:#fafafa;
+      --border:#cbd5e1; --border-2:#94a3b8;
+      --text:#0b1220; --muted:#334155; --faint:#64748b; --green:#15803d; --green-2:#166534;
+    }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { background:#fff !important; color:#000 !important; font-size: 11pt; }
+    .site-header, .site-footer, .print-only-hide, .cursor-dot, .cursor-ring { display: none !important; }
+    [data-reveal] { opacity: 1 !important; transform: none !important; }
+    h1, h2, h3 { color:#000 !important; break-after: avoid; break-inside: avoid; }
+    h2 { font-size: 15pt; border-top: 1px solid #cbd5e1; }
+    .card, .route li, table, tr, .table-wrap { break-inside: avoid; }
+    thead { display: table-header-group; }
+    table.data { min-width: 0; font-size: 9.5pt; }
+    a { color:#000 !important; text-decoration: none; }
+    .chip { border:1px solid #999 !important; color:#000 !important; background:#fff !important; }
+    .grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
+    .box { border-color:#333 !important; }
+    .plan h2 { margin-top: 1.4rem; }
+  }
+</style>

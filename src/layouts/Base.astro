@@ -1,0 +1,79 @@
+---
+import '../styles/global.css';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** hide chrome for the print-friendly plan page */
+  bare?: boolean;
+}
+const {
+  title = 'D-Tours · Austin → Squamish',
+  description = 'An AI travel companion riding shotgun on the mega-loop. Live map, journal, and weird-and-wonderful detours.',
+  bare = false,
+} = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#0a0f16" />
+    <title>{title}</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚐</text></svg>" />
+  </head>
+  <body>
+    {!bare && <SiteHeader />}
+    <main>
+      <slot />
+    </main>
+    {!bare && <SiteFooter />}
+
+    <script>
+      // ── reveal on scroll ──
+      const io = new IntersectionObserver((entries) => {
+        for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      }, { threshold: 0.12 });
+      document.querySelectorAll('[data-reveal]').forEach((el) => io.observe(el));
+
+      // ── custom cursor (pointer-fine only) ──
+      if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+        const dot = document.createElement('div'); dot.className = 'cursor-dot';
+        const ring = document.createElement('div'); ring.className = 'cursor-ring';
+        document.body.append(dot, ring);
+        document.body.classList.add('has-custom-cursor');
+        let rx = 0, ry = 0, x = 0, y = 0;
+        addEventListener('mousemove', (e) => { x = e.clientX; y = e.clientY; dot.style.transform = `translate(${x}px,${y}px) translate(-50%,-50%)`; });
+        const loop = () => { rx += (x - rx) * 0.18; ry += (y - ry) * 0.18; ring.style.transform = `translate(${rx}px,${ry}px) translate(-50%,-50%)`; requestAnimationFrame(loop); };
+        loop();
+        document.querySelectorAll('a, button, .card, th').forEach((el) => {
+          el.addEventListener('mouseenter', () => ring.classList.add('hot'));
+          el.addEventListener('mouseleave', () => ring.classList.remove('hot'));
+        });
+      }
+
+      // ── sortable tables ──
+      document.querySelectorAll('table.data').forEach((table) => {
+        const ths = table.querySelectorAll('thead th');
+        ths.forEach((th, col) => th.addEventListener('click', () => {
+          const tbody = table.querySelector('tbody');
+          const rows = Array.from(tbody.querySelectorAll('tr'));
+          const asc = th.getAttribute('aria-sort') !== 'ascending';
+          ths.forEach((o) => o.removeAttribute('aria-sort'));
+          th.setAttribute('aria-sort', asc ? 'ascending' : 'descending');
+          rows.sort((a, b) => {
+            const av = a.children[col].textContent.trim();
+            const bv = b.children[col].textContent.trim();
+            const an = parseFloat(av), bn = parseFloat(bv);
+            const cmp = (!isNaN(an) && !isNaN(bn)) ? an - bn : av.localeCompare(bv);
+            return asc ? cmp : -cmp;
+          });
+          rows.forEach((r) => tbody.appendChild(r));
+        }));
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,113 @@
+---
+import Base from '../layouts/Base.astro';
+import Timeline from '../components/Timeline.astro';
+import ObjectivesTable from '../components/ObjectivesTable.astro';
+import ShotgunCard from '../components/ShotgunCard.astro';
+import LiveMap from '../components/LiveMap.astro';
+import CareLayers from '../components/CareLayers.astro';
+import ShowcaseGallery from '../components/ShowcaseGallery.astro';
+import { getStops, getObjectives, getResources, getPosts, getDetours } from '../lib/data';
+
+const [stops, objectives, resources, posts, detours] = await Promise.all([
+  getStops(), getObjectives(), getResources(), getPosts({ publishedOnly: true }), getDetours(),
+]);
+---
+<Base>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="container">
+      <p class="eyebrow" data-reveal>Austin → Squamish · Summer 2026</p>
+      <h1 data-reveal>THE ROAD&nbsp;TRIP<br/><span class="accent">MEGA&#8209;LOOP</span></h1>
+      <p class="lede" data-reveal>
+        An AI travel companion riding shotgun — tracking deadlines, surfacing weird-and-wonderful
+        detours that fit the time you have, and getting you to every rendezvous on schedule.
+      </p>
+      <div class="cta" data-reveal>
+        <a href="/journal" class="btn">Follow the journey</a>
+        <a href="/plan" class="btn ghost">📄 Trip plan / print</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">🗺️ The Route</p>
+        <h2>Eleven stops, one hard deadline</h2>
+        <p>Ricardo's wedding (Aug 1) is the fixed wall everything bends around. Everything in green has slack — that's where the detours live.</p>
+      </div>
+      <Timeline stops={stops} />
+    </div>
+  </section>
+
+  <!-- LIVE MAP -->
+  <section class="alt">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">🛰️ Live</p>
+        <h2>Where's David right now?</h2>
+        <p>The dot is the only feed that stays live off-grid — inReach satellite breadcrumbs polled from MapShare, even with the Starlink dish stowed.</p>
+      </div>
+      <LiveMap />
+    </div>
+  </section>
+
+  <!-- SHOTGUN -->
+  <section>
+    <div class="container narrow">
+      <div class="section-head">
+        <p class="eyebrow">📡 Your Companion</p>
+        <h2>Meet Shotgun</h2>
+        <p>A sample transmission. In the wild, Shotgun composes these on the home iMac (Claude Max) and routes them to whatever can reach you: iMessage → email → SMS → inReach.</p>
+      </div>
+      <ShotgunCard detours={detours} />
+    </div>
+  </section>
+
+  <!-- OBJECTIVES -->
+  <section class="alt">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">🧗 The Objectives</p>
+        <h2>Climbing beta</h2>
+        <p>The headline sends — trad, sport, alpine and scrambles across the loop.</p>
+      </div>
+      <ObjectivesTable objectives={objectives} />
+    </div>
+  </section>
+
+  <!-- CARE LAYERS -->
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">🤝 The Four Layers</p>
+        <h2>Shotgun's got your back</h2>
+        <p>Not just a map — a companion watching four things at once so weeks in the car keep you healthy, clean, and stoked.</p>
+      </div>
+      <CareLayers resources={resources} />
+    </div>
+  </section>
+
+  <!-- GALLERY -->
+  <section class="alt">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">📸 From the Road</p>
+        <h2>Latest dispatches</h2>
+        <p>Your own photos, published as you go (and enhanced with AI later, if visitors pitch in their keys).</p>
+      </div>
+      <ShowcaseGallery posts={posts} />
+    </div>
+  </section>
+</Base>
+
+<style>
+  .hero { padding: clamp(4rem, 12vw, 9rem) 0 clamp(3rem, 7vw, 6rem); }
+  .hero h1 { margin: 0 0 1.3rem; }
+  .hero .accent { color: var(--green); }
+  .lede { max-width: 620px; font-size: clamp(1.05rem, 2vw, 1.3rem); color: var(--muted); }
+  .cta { display: flex; gap: .8rem; margin-top: 2rem; flex-wrap: wrap; }
+  section.alt { background: linear-gradient(180deg, transparent, rgba(255,255,255,.012), transparent); }
+  .container.narrow { width: min(100% - 2.5rem, 760px); }
+</style>

@@ -1,0 +1,59 @@
+---
+import type { Stop } from '../lib/types';
+interface Props { stops: Stop[]; }
+const { stops } = Astro.props;
+const ordered = [...stops].sort((a, b) => a.order - b.order);
+const flexLabel: Record<string, string> = { hard: 'fixed', soft: 'flex', open: 'open' };
+const statusOf = (s: Stop) => s.status ?? 'confirmed';
+---
+<div class="timeline" data-reveal>
+  <div class="track">
+    {ordered.map((s, i) => (
+      <div class:list={['node', statusOf(s), { hard: s.flex === 'hard', rdv: !!s.rendezvous }]}>
+        <div class="dot">{s.emoji}</div>
+        {i < ordered.length - 1 && <div class="line" />}
+        <div class="meta">
+          <div class="name">{s.name}</div>
+          {s.date && <div class="date">{s.date}</div>}
+          {s.sub && <div class="sub muted">{s.sub}</div>}
+          <div class="tags">
+            <span class:list={['flex-chip', s.flex]}>{flexLabel[s.flex]}</span>
+            {statusOf(s) === 'proposed' && <span class="prop-chip proposed">✦ proposed</span>}
+            {statusOf(s) === 'suggested' && <span class="prop-chip suggested">◌ suggested</span>}
+            {(s.off_route_mi != null) && <span class="off mono">{s.off_route_mi}mi · {s.time_cost_min}min</span>}
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
+<style>
+  .timeline { overflow-x: auto; padding: 1rem 0 1.5rem; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  .track { display: flex; min-width: max-content; gap: 0; padding: 0 .25rem; }
+  .node { position: relative; width: 168px; flex: 0 0 auto; padding-top: 46px; }
+  .dot {
+    position: absolute; top: 0; left: 0; width: 42px; height: 42px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 1.15rem; z-index: 2;
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1.5px solid var(--border-2);
+  }
+  .node.hard .dot { border-color: var(--red); box-shadow: 0 0 0 4px rgba(251,113,133,.12); }
+  .node.rdv .dot { border-color: var(--sky); box-shadow: 0 0 0 4px rgba(56,189,248,.12); }
+  .node.proposed .dot { border-style: dashed; border-color: var(--sky); }
+  .node.suggested .dot { border-style: dashed; border-color: var(--amber); }
+  .node.proposed, .node.suggested { opacity: .92; }
+  .line { position: absolute; top: 20px; left: 42px; right: 0; height: 2px; background: linear-gradient(90deg, var(--border-2), var(--border)); z-index: 1; }
+  .meta { padding-right: 1rem; }
+  .name { font-weight: 700; }
+  .date { font-family: var(--font-mono); font-size: .72rem; color: var(--green); letter-spacing: .04em; }
+  .sub { font-size: .8rem; line-height: 1.35; margin-top: .15rem; }
+  .tags { display: flex; gap: .35rem; flex-wrap: wrap; align-items: center; margin-top: .5rem; }
+  .flex-chip { font-family: var(--font-mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; padding: .15rem .45rem; border-radius: 999px; border: 1px solid var(--border-2); color: var(--muted); }
+  .flex-chip.hard { color: var(--red); border-color: rgba(251,113,133,.4); }
+  .flex-chip.soft { color: var(--green); border-color: rgba(52,211,153,.35); }
+  .prop-chip { font-family: var(--font-mono); font-size: .58rem; letter-spacing: .08em; text-transform: uppercase; padding: .15rem .4rem; border-radius: 999px; border: 1px dashed; }
+  .prop-chip.proposed { color: var(--sky); border-color: rgba(56,189,248,.5); }
+  .prop-chip.suggested { color: var(--amber); border-color: rgba(251,191,36,.5); }
+  .off { font-size: .62rem; color: var(--faint); }
+</style>

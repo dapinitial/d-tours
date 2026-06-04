@@ -1,0 +1,141 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getPosts, getStops, isMock } from '../../lib/data';
+const [posts, stops] = await Promise.all([getPosts(), getStops()]);
+const queued = posts.filter((p) => !p.published_at).length;
+const proposals = stops
+  .filter((s) => s.status === 'proposed' || s.status === 'suggested')
+  .sort((a, b) => a.order - b.order);
+---
+<Base title="D-Tours · CMS">
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">🗂️ Control</p>
+        <h2>CMS — run the trip from anywhere</h2>
+        <p>Phone or laptop. Post by typing here, or text Shotgun and it posts for you. {isMock && <strong>(mock mode — wire Supabase to persist)</strong>}.</p>
+      </div>
+
+      <div class="stats grid cols-4">
+        <div class="stat card"><div class="n">{posts.length}</div><div class="muted">posts</div></div>
+        <div class="stat card"><div class="n">{queued}</div><div class="muted">queued (Tier 1)</div></div>
+        <div class="stat card"><div class="n">{stops.length}</div><div class="muted">stops</div></div>
+        <div class="stat card"><div class="n mono">{isMock ? 'MOCK' : 'LIVE'}</div><div class="muted">data source</div></div>
+      </div>
+
+      <div class="grid cols-2 editor-row">
+        <div class="card">
+          <h3>✍️ New post</h3>
+          <form class="composer" onsubmit="return false">
+            <input type="text" placeholder="Title — e.g. 'Topped out the Spearhead'" />
+            <textarea rows="5" placeholder="What happened out there?"></textarea>
+            <div class="composer-foot">
+              <label class="file">📷 Add photo<input type="file" accept="image/*" hidden /></label>
+              <div class="actions">
+                <button class="btn ghost">Queue (Tier 1)</button>
+                <button class="btn">Publish</button>
+              </div>
+            </div>
+          </form>
+          <p class="muted tiny">Uploads land in Supabase Storage; EXIF GPS auto-drops a map marker. (Wired in the next pass.)</p>
+        </div>
+
+        <div class="card">
+          <h3>🤖 Shotgun controls</h3>
+          <div class="ctl"><span>Daily digest</span><button class="btn ghost sm" id="run-digest">Send now</button></div>
+          <div class="ctl"><span>D-Tours look-ahead</span><button class="btn ghost sm" id="run-dtours">Scan corridor</button></div>
+          <div class="ctl"><span>MapShare position</span><button class="btn ghost sm" id="run-map">Refresh dot</button></div>
+          <pre id="ctl-out" class="out muted">Output appears here…</pre>
+        </div>
+      </div>
+
+      <div class="card proposals">
+        <h3>🌀 D-Tours proposals — Shotgun found these on the fly</h3>
+        <p class="muted tiny">Approve to drop it into the live itinerary (no deploy — instant). This is the same action a "YES" text triggers.</p>
+        {proposals.length === 0 && <p class="muted">Nothing staged right now.</p>}
+        <div class="prop-list">
+          {proposals.map((s) => (
+            <div class="prop" data-id={s.id}>
+              <span class="p-emoji">{s.emoji}</span>
+              <div class="p-meta">
+                <div class="p-name">{s.name} <span class={`tag ${s.status}`}>{s.status}</span></div>
+                <div class="muted p-sub">{s.sub}{s.off_route_mi != null && ` · ${s.off_route_mi}mi · ~${s.time_cost_min}min`}{s.note && ` · ${s.note}`}</div>
+              </div>
+              <div class="p-actions">
+                <button class="btn sm approve" data-id={s.id}>✓ Add</button>
+                <button class="btn ghost sm decline" data-id={s.id}>✕</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div class="card next">
+        <h3>🚧 Wired next</h3>
+        <ul>
+          <li>Supabase magic-link auth (owner + crew roles)</li>
+          <li>Itinerary editor with the <code>flex</code> field that powers detours</li>
+          <li>Comment moderation queue</li>
+          <li>BYOK / donation AI media enhancement (owner-approved)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  const out = document.getElementById('ctl-out');
+  const hit = async (url, label) => {
+    out.textContent = `${label}…`;
+    try { const r = await fetch(url, { method: 'POST' }); out.textContent = JSON.stringify(await r.json(), null, 2); }
+    catch (e) { out.textContent = `error: ${e}`; }
+  };
+  document.getElementById('run-digest')?.addEventListener('click', () => hit('/api/digest', 'Composing digest'));
+  document.getElementById('run-dtours')?.addEventListener('click', () => hit('/api/dtours', 'Scanning corridor'));
+  document.getElementById('run-map')?.addEventListener('click', () => hit('/api/mapshare', 'Polling MapShare'));
+
+  // approve / decline staged proposals → mutate itinerary on the fly
+  const act = async (id, action) => {
+    const row = document.querySelector(`.prop[data-id="${id}"]`);
+    if (row) row.style.opacity = '0.4';
+    try {
+      const r = await fetch('/api/itinerary', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, id }) });
+      const j = await r.json();
+      if (row) { row.style.transition = 'all .4s'; row.style.height = '0'; setTimeout(() => row.remove(), 400); }
+      if (out) out.textContent = `${action === 'promote' ? 'Added to itinerary' : 'Declined'}: ${id}\n${JSON.stringify(j)}`;
+    } catch (e) { if (out) out.textContent = `error: ${e}`; }
+  };
+  document.querySelectorAll('.approve').forEach((b) => b.addEventListener('click', () => act(b.dataset.id, 'promote')));
+  document.querySelectorAll('.decline').forEach((b) => b.addEventListener('click', () => act(b.dataset.id, 'decline')));
+</script>
+
+<style>
+  .stats { margin-bottom: 1.5rem; }
+  .stat { text-align: center; }
+  .stat .n { font-size: 2rem; font-weight: 800; color: var(--green); }
+  .editor-row { align-items: start; }
+  .composer { display: grid; gap: .7rem; }
+  .composer input, .composer textarea { width: 100%; background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .7rem .85rem; font: inherit; }
+  .composer-foot { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .file { cursor: pointer; color: var(--muted); font-size: .9rem; }
+  .actions { display: flex; gap: .5rem; }
+  .tiny { font-size: .78rem; margin-top: .8rem; }
+  .ctl { display: flex; justify-content: space-between; align-items: center; padding: .6rem 0; border-bottom: 1px solid var(--border); }
+  .ctl:last-of-type { border-bottom: 0; }
+  .btn.sm { padding: .45rem .9rem; font-size: .85rem; }
+  .out { margin-top: 1rem; background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; padding: .8rem; font-size: .78rem; white-space: pre-wrap; max-height: 220px; overflow: auto; }
+  .next ul { margin: .5rem 0 0; padding-left: 1.2rem; color: var(--muted); }
+  .next li { margin: .3rem 0; }
+  code { font-family: var(--font-mono); color: var(--green); }
+  .proposals { margin-bottom: 1.5rem; }
+  .prop-list { display: grid; gap: .6rem; margin-top: 1rem; }
+  .prop { display: flex; align-items: center; gap: .8rem; padding: .7rem .85rem; background: rgba(255,255,255,.025); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .p-emoji { font-size: 1.4rem; }
+  .p-meta { flex: 1; min-width: 0; }
+  .p-name { font-weight: 700; }
+  .p-sub { font-size: .82rem; }
+  .p-actions { display: flex; gap: .4rem; flex: 0 0 auto; }
+  .tag { font-family: var(--font-mono); font-size: .58rem; text-transform: uppercase; letter-spacing: .08em; padding: .12rem .4rem; border-radius: 999px; border: 1px dashed; margin-left: .3rem; }
+  .tag.proposed { color: var(--sky); border-color: rgba(56,189,248,.5); }
+  .tag.suggested { color: var(--amber); border-color: rgba(251,191,36,.5); }
+</style>
