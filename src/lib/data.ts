@@ -3,7 +3,7 @@
 // behind these functions so swapping mock ↔ live is a one-line concern.
 import { getSupabase, supabaseConfigured } from './supabase';
 import * as mock from './mock';
-import type { Stop, Objective, Resource, Post, Detour } from './types';
+import type { Stop, Objective, Resource, Post, Detour, GearItem } from './types';
 
 export const isMock = !supabaseConfigured;
 
@@ -47,6 +47,14 @@ export async function getPosts(opts: { publishedOnly?: boolean } = {}): Promise<
 export async function getDetours(): Promise<Detour[]> {
   // Detours are produced live by the look-ahead engine; mock for the skeleton.
   return mock.detours;
+}
+
+export async function getGear(): Promise<GearItem[]> {
+  const sb = getSupabase();
+  if (!sb) return mock.gear;
+  const { data, error } = await sb.from('gear').select('*');
+  if (error || !data?.length) return mock.gear;
+  return data as GearItem[];
 }
 
 export async function getPlaylists() {

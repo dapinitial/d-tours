@@ -1,0 +1,91 @@
+---
+import Base from '../layouts/Base.astro';
+import { getGear } from '../lib/data';
+import type { GearItem } from '../lib/types';
+
+const gear = await getGear();
+const needsAttention = gear.filter((g) => g.status !== 'packed');
+const categories = [...new Set(gear.map((g) => g.category))];
+const byCat = (c: string) => gear.filter((g) => g.category === c);
+
+const statusClass: Record<string, string> = {
+  packed: 'chip', repair: 'chip amber', replace: 'chip amber', loaned: 'chip sky', missing: 'chip red',
+};
+const statusLabel: Record<string, string> = {
+  packed: '✓ packed', repair: '🔧 repair', replace: '↻ replace', loaned: '➦ loaned', missing: '⚠ missing',
+};
+const line = (g: GearItem) => g.loaned_to ? `Loaned to ${g.loaned_to}` : g.note;
+---
+<Base title="D-Tours · Gear">
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">🎒 The Rig</p>
+        <h2>Gear & status</h2>
+        <p>Everything in the rig — and what needs attention before it bites me on the wall.</p>
+      </div>
+
+      <!-- summary -->
+      <div class="summary" data-reveal>
+        <div class="stat"><div class="n">{gear.length}</div><div class="muted">items</div></div>
+        <div class="stat"><div class="n green">{gear.filter((g) => g.status === 'packed').length}</div><div class="muted">packed</div></div>
+        <div class="stat"><div class="n amber">{needsAttention.length}</div><div class="muted">need attention</div></div>
+      </div>
+
+      {needsAttention.length > 0 && (
+        <div class="attention card" data-reveal>
+          <h3>⚠️ Needs attention</h3>
+          <div class="att-list">
+            {needsAttention.map((g) => (
+              <div class="att">
+                <span>{g.emoji} {g.name}</span>
+                <span class={statusClass[g.status]}>{statusLabel[g.status]}</span>
+                {line(g) && <span class="muted att-note">{line(g)}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <!-- by category -->
+      <div class="cats">
+        {categories.map((c) => (
+          <div class="cat card" data-reveal>
+            <h3>{c}</h3>
+            <ul class="items">
+              {byCat(c).map((g) => (
+                <li>
+                  <span class="g-emoji">{g.emoji}</span>
+                  <span class="g-name">{g.name}{g.qty && g.qty > 1 && <span class="qty muted"> ×{g.qty}</span>}</span>
+                  <span class={statusClass[g.status]}>{statusLabel[g.status]}</span>
+                  {line(g) && <span class="muted g-note">{line(g)}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .summary { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+  .summary .stat { flex: 1; text-align: center; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
+  .summary .n { font-size: 2rem; font-weight: 800; }
+  .n.green { color: var(--green); } .n.amber { color: var(--amber); }
+  .attention { border-color: rgba(251,191,36,.35); background: linear-gradient(180deg, rgba(251,191,36,.08), var(--panel)); margin-bottom: 1.5rem; }
+  .att-list { display: grid; gap: .55rem; margin-top: .8rem; }
+  .att { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+  .att-note { font-size: .82rem; width: 100%; }
+  .cats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.1rem; }
+  @media (max-width: 720px) { .cats { grid-template-columns: 1fr; } .summary { flex-wrap: wrap; } }
+  .cat .items { list-style: none; padding: 0; margin: .8rem 0 0; display: grid; gap: .6rem; }
+  .cat li { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
+  .g-emoji { font-size: 1.15rem; }
+  .g-name { font-weight: 600; }
+  .qty { font-weight: 400; }
+  .g-note { font-size: .8rem; width: 100%; padding-left: 1.7rem; }
+  .cat .chip { margin-left: auto; }
+  @media (max-width: 720px) { .cat .chip { margin-left: 0; } }
+</style>

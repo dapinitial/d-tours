@@ -1,7 +1,7 @@
 // Mock data so the app runs with ZERO secrets configured. The data layer
 // (data.ts) uses these whenever Supabase env vars are absent. Content mirrors
 // the real Austin → Squamish trip from SPEC.md.
-import type { Stop, Objective, Resource, Post, Detour } from './types';
+import type { Stop, Objective, Resource, Post, Detour, GearItem } from './types';
 
 export const stops: Stop[] = [
   { id: 's1', order: 1, name: 'Austin', sub: 'Launch', emoji: '🚀', flex: 'open', region: 'TX', date: 'Early July' },
@@ -57,6 +57,36 @@ export const posts: Post[] = [
   { id: 'p1', title: 'Rolling out of Austin', body: 'Rig loaded — double rack, two SUPs, the e-bikes, and a porcupine-proof plan. Shotgun riding shotgun. First stop: beers in Deep Ellum.', created_at: '2026-07-03T15:00:00Z', published_at: '2026-07-03T15:00:00Z', lat: 30.2672, lng: -97.7431, media: [], author: 'David', like_count: 12, tier: 2 },
   { id: 'p2', title: 'Shelf Road sampler', body: 'Pocketed limestone and a heat that means dawn patrol only. 5.10s felt honest. Shotgun found us a creek to soak in after.', created_at: '2026-07-08T23:00:00Z', published_at: '2026-07-08T23:00:00Z', lat: 38.4, lng: -105.2, media: [], author: 'David', like_count: 8, tier: 2 },
   { id: 'p3', title: 'Into the Cirque (queued)', body: 'Big Sandy dirt road survived. No signal — this one is queued until we get Starlink back up at the rig.', created_at: '2026-07-14T01:00:00Z', published_at: null, lat: 42.7, lng: -109.2, media: [], author: 'David', like_count: 0, tier: 1 },
+];
+
+export const gear: GearItem[] = [
+  // Climbing
+  { id: 'g1', name: 'Double rack to 3"', category: 'Climbing', emoji: '🧗', status: 'packed', qty: 2 },
+  { id: 'g2', name: 'Set of nuts + nut tool', category: 'Climbing', emoji: '🔩', status: 'packed' },
+  { id: 'g3', name: 'Alpine draws', category: 'Climbing', emoji: '🪢', status: 'packed', qty: 12 },
+  { id: 'g4', name: 'TC Pros', category: 'Climbing', emoji: '🥾', status: 'repair', note: 'Resole due before the Winds.' },
+  { id: 'g5', name: 'Helmet', category: 'Climbing', emoji: '⛑️', status: 'packed' },
+  { id: 'g6', name: '#3 Camalot', category: 'Climbing', emoji: '🔧', status: 'loaned', loaned_to: 'Derek (get it back at Flathead)' },
+  // Ropes
+  { id: 'g7', name: '60m half ropes', category: 'Ropes', emoji: '🧵', status: 'packed', qty: 2 },
+  // Water
+  { id: 'g8', name: 'Inflatable SUPs + pump', category: 'Water', emoji: '🏄', status: 'packed', qty: 2 },
+  { id: 'g9', name: 'PFDs', category: 'Water', emoji: '🦺', status: 'packed', qty: 2 },
+  // Bikes
+  { id: 'g10', name: 'E-MTBs + rack', category: 'Bikes', emoji: '🚵', status: 'packed', qty: 2 },
+  { id: 'g11', name: 'Spare tubes', category: 'Bikes', emoji: '🛞', status: 'replace', note: 'Down to one — restock.' },
+  // Comms & Power
+  { id: 'g12', name: 'Starlink Mini + cables', category: 'Comms & Power', emoji: '🛰️', status: 'packed' },
+  { id: 'g13', name: 'EcoFlow + solar', category: 'Comms & Power', emoji: '🔋', status: 'packed' },
+  { id: 'g14', name: 'inReach Mini', category: 'Comms & Power', emoji: '📡', status: 'packed', note: 'Subscription active.' },
+  { id: 'g15', name: 'goTenna pair', category: 'Comms & Power', emoji: '📻', status: 'packed', qty: 2 },
+  // Camp / Wildlife
+  { id: 'g16', name: 'Bear canister', category: 'Camp', emoji: '🐻', status: 'packed' },
+  { id: 'g17', name: 'Bear spray (chest harness)', category: 'Camp', emoji: '🧴', status: 'packed', qty: 2 },
+  // Vehicle / Life
+  { id: 'g18', name: 'Tire protection / recovery boards', category: 'Vehicle', emoji: '🛻', status: 'packed' },
+  { id: 'g19', name: 'Wedding attire', category: 'Vehicle', emoji: '🤵', status: 'packed', note: 'For Ricardo — Aug 1!' },
+  { id: 'g20', name: 'National Parks Pass', category: 'Vehicle', emoji: '🎫', status: 'packed' },
 ];
 
 export const playlists = [

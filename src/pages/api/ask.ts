@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { lookAhead, type PoiCategory } from '../../lib/dtours/overpass';
-import { getStops } from '../../lib/data';
+import { getStops, getGear } from '../../lib/data';
 
 export const prerender = false;
 
@@ -42,7 +42,7 @@ export const GET: APIRoute = async ({ url }) => {
   }
 
   // status / orientation
-  if (/(where am i|status|schedule|deadline|how far|next stop|wedding)/.test(q)) {
+  if (!q.includes('gear') && /(where am i|status|schedule|deadline|how far|next stop|wedding)/.test(q)) {
     const stops = await getStops();
     const live = stops.filter((s) => (s.status ?? 'confirmed') === 'confirmed').sort((a, b) => a.order - b.order);
     const hard = live.find((s) => s.flex === 'hard');
@@ -55,6 +55,29 @@ export const GET: APIRoute = async ({ url }) => {
   // staging a stop
   if (/^(add|stop at|let's hit|pull over|put)/.test(q)) {
     return speak(`Roger — staging that as a proposed stop. Reply yes to lock it into the itinerary.`, { action: 'proposed' });
+  }
+
+  // gear lookup — "did I pack the rack?", "where's my bear spray?", "gear status"
+  if (/(did i (pack|bring)|where('?s| is) my|do i have|gear|packed|pack)/.test(q)) {
+    const gear = await getGear();
+    // score each item by # of distinctive words matched; best wins (so "bear
+    // spray" beats "bear canister")
+    let best: any = null, bestScore = 0;
+    for (const g of gear) {
+      const score = g.name.toLowerCase().split(/\W+/).filter((w) => w.length > 3 && q.includes(w)).length;
+      if (score > bestScore) { bestScore = score; best = g; }
+    }
+    if (best) {
+      const where = best.status === 'packed' ? `packed${best.qty && best.qty > 1 ? ` (×${best.qty})` : ''}`
+        : best.status === 'loaned' ? `loaned to ${best.loaned_to}` : best.status;
+      return speak(`${best.name}: ${where}.${best.note ? ` ${best.note}` : ''}`, { gear: best });
+    }
+    if (/(gear|packed|pack)/.test(q)) {
+      const attention = gear.filter((g) => g.status !== 'packed');
+      if (attention.length) return speak(`${gear.filter((g) => g.status === 'packed').length} of ${gear.length} packed. Needs attention: ${attention.map((g) => g.name).join(', ')}.`, { attention });
+      return speak('All gear packed and accounted for. 🤘');
+    }
+    // "where's my X" with no gear match → fall through to other intents
   }
 
   // category detour

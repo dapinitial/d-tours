@@ -73,6 +73,22 @@ export interface Comment {
   approved: boolean;             // gated: crew-only via magic link, owner-moderated
 }
 
+export type GearStatus = 'packed' | 'repair' | 'replace' | 'loaned' | 'missing';
+
+/** A piece of kit in the rig. Shotgun can answer "did I pack the #4?" and nag
+ *  about repairs/replacements/loans. */
+export interface GearItem {
+  id: string;
+  name: string;
+  category: string;          // Climbing / Ropes / Water / Bikes / Comms & Power / Camp / Vehicle
+  emoji?: string;
+  status: GearStatus;
+  qty?: number;
+  note?: string;
+  loaned_to?: string;
+  objectives?: string[];     // which objectives this kit is for
+}
+
 /** A Shotgun suggestion produced by the D-Tours look-ahead engine. */
 export interface Detour {
   id: string;
