@@ -1,0 +1,56 @@
+---
+import Base from '../layouts/Base.astro';
+const next = Astro.url.searchParams.get('next') ?? '/cms';
+const denied = Astro.url.searchParams.get('denied');
+---
+<Base title="D-Tours · Sign in">
+  <section>
+    <div class="container narrow">
+      <div class="section-head">
+        <p class="eyebrow">🔐 Owners only</p>
+        <h2>Sign in</h2>
+        <p>Enter your email and we'll send a magic link — no passwords. Only trip owners can reach the CMS.</p>
+      </div>
+      {denied && <p class="denied">⚠️ That account isn't an owner here. Sign in with the email your trip is registered to.</p>}
+      <form id="login-form" data-next={next} class="card login-card">
+        <input type="email" id="email" name="email" placeholder="you@email.com" required autocomplete="email" />
+        <button class="btn" type="submit">Send magic link</button>
+        <p class="msg" id="msg"></p>
+      </form>
+    </div>
+  </section>
+
+  <script>
+    import { createBrowserClient } from '@supabase/ssr';
+    const url = import.meta.env.PUBLIC_SUPABASE_URL;
+    const key = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+    const form = document.getElementById('login-form');
+    const msg = document.getElementById('msg');
+    if (url && key && form) {
+      const sb = createBrowserClient(url, key);
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = (document.getElementById('email')).value;
+        const next = form.dataset.next || '/cms';
+        msg.textContent = 'Sending…'; msg.className = 'msg';
+        const { error } = await sb.auth.signInWithOtp({
+          email,
+          options: { emailRedirectTo: location.origin + '/auth/callback?next=' + encodeURIComponent(next) },
+        });
+        if (error) { msg.textContent = error.message; msg.className = 'msg err'; }
+        else { msg.textContent = '✅ Check your email for the magic link!'; msg.className = 'msg ok'; }
+      });
+    } else if (msg) {
+      msg.textContent = 'Auth not configured yet (no Supabase keys).'; msg.className = 'msg err';
+    }
+  </script>
+
+  <style>
+    .container.narrow { width: min(100% - 2.5rem, 520px); }
+    .login-card { display: grid; gap: .8rem; }
+    .login-card input { width: 100%; background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .8rem .9rem; font: inherit; min-height: 46px; }
+    .denied { background: rgba(251,113,133,.1); border: 1px solid rgba(251,113,133,.3); color: var(--red); padding: .8rem 1rem; border-radius: 10px; margin-bottom: 1rem; }
+    .msg { margin: 0; min-height: 1.2em; font-size: .9rem; }
+    .msg.ok { color: var(--green); } .msg.err { color: var(--red); }
+  </style>
+</Base>

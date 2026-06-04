@@ -1,7 +1,9 @@
 ---
 import Base from '../../layouts/Base.astro';
 import { getPosts, getStops, isMock } from '../../lib/data';
-const [posts, stops] = await Promise.all([getPosts(), getStops()]);
+const user = Astro.locals.user;
+const tid = Astro.locals.tenantId;
+const [posts, stops] = await Promise.all([getPosts({ tenantId: tid }), getStops(tid)]);
 const queued = posts.filter((p) => !p.published_at).length;
 const proposals = stops
   .filter((s) => s.status === 'proposed' || s.status === 'suggested')
@@ -15,6 +17,13 @@ const proposals = stops
         <h2>CMS — run the trip from anywhere</h2>
         <p>Phone or laptop. Post by typing here, or text Shotgun and it posts for you. {isMock && <strong>(mock mode — wire Supabase to persist)</strong>}.</p>
       </div>
+
+      {user && (
+        <div class="user-bar">
+          <span class="muted">🔐 Signed in as <strong>{user.name ?? user.email}</strong></span>
+          <form method="POST" action="/auth/signout"><button class="btn ghost sm" type="submit">Sign out</button></form>
+        </div>
+      )}
 
       <div class="stats grid cols-4">
         <div class="stat card"><div class="n">{posts.length}</div><div class="muted">posts</div></div>
@@ -110,6 +119,8 @@ const proposals = stops
 </script>
 
 <style>
+  .user-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem 1rem; background: rgba(52,211,153,.07); border: 1px solid rgba(52,211,153,.25); border-radius: 10px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .user-bar form { margin: 0; }
   .stats { margin-bottom: 1.5rem; }
   .stat { text-align: center; }
   .stat .n { font-size: 2rem; font-weight: 800; color: var(--green); }
