@@ -6,8 +6,9 @@ import node from '@astrojs/node';
 // (likes/comments, digest triggers) alongside mostly-prerendered marketing pages.
 // Visitor pages opt into `export const prerender = true` for speed; CMS + API stay dynamic.
 export default defineConfig({
-  site: 'https://spacelabforever.com',
+  site: 'https://shotgundetour.com',
   output: 'server',
   adapter: node({ mode: 'standalone' }),
   server: { port: 4321, host: true },
+  devToolbar: { enabled: false }, // hide the local dev toolbar (dev-only; never on prod)
 });
