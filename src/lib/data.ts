@@ -2,7 +2,7 @@
 // mock data so the app is clickable with zero secrets. When Supabase IS
 // configured, queries are scoped to a tenant and return that tenant's real data
 // (even if empty) — never mock — so tenants stay isolated.
-import { getSupabase, supabaseConfigured } from './supabase';
+import { getSupabase, getSupabaseAdmin, supabaseConfigured } from './supabase';
 import * as mock from './mock';
 import type { Stop, Objective, Resource, Post, Detour, GearItem, Source } from './types';
 
@@ -117,9 +117,11 @@ export async function getSources(tenantId?: string): Promise<Source[]> {
   return error ? [] : (data as Source[]);
 }
 
-/** Follower detour suggestions awaiting the owner's approval (CMS moderation). */
+/** Follower detour suggestions awaiting the owner's approval (CMS moderation).
+ *  Owner-only data → read via service role (the table has no public RLS policy
+ *  by design, so the anon client would return nothing). Server-side use only. */
 export async function getSuggestions(tenantId?: string, status = 'pending') {
-  const sb = getSupabase();
+  const sb = getSupabaseAdmin();
   if (!sb) return [];
   const tid = await resolveTid(tenantId);
   let q = sb.from('suggestions').select('*').eq('status', status).order('created_at', { ascending: false });
@@ -128,9 +130,10 @@ export async function getSuggestions(tenantId?: string, status = 'pending') {
   return error ? [] : (data ?? []);
 }
 
-/** Pending friend suggestions awaiting the owner's approval (CMS moderation). */
+/** Pending music picks awaiting the owner's approval (CMS moderation). Owner-only
+ *  → service role: the public policy only exposes 'approved' rows. Server-side use only. */
 export async function getPlaylistSuggestions(tenantId?: string, status = 'pending') {
-  const sb = getSupabase();
+  const sb = getSupabaseAdmin();
   if (!sb) return [];
   const tid = await resolveTid(tenantId);
   let q = sb.from('playlist_suggestions').select('*').eq('status', status).order('created_at', { ascending: false });
