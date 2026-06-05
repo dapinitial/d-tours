@@ -117,6 +117,41 @@ export async function getSources(tenantId?: string): Promise<Source[]> {
   return error ? [] : (data as Source[]);
 }
 
+/** Pending friend suggestions awaiting the owner's approval (CMS moderation). */
+export async function getPlaylistSuggestions(tenantId?: string, status = 'pending') {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const tid = await resolveTid(tenantId);
+  let q = sb.from('playlist_suggestions').select('*').eq('status', status).order('created_at', { ascending: false });
+  if (tid) q = q.eq('tenant_id', tid);
+  const { data, error } = await q;
+  return error ? [] : (data ?? []);
+}
+
+/** The most recently spun track = "now playing". */
+export async function getNowPlaying(tenantId?: string) {
+  const sb = getSupabase();
+  if (!sb) return (mock.playlists as any[])[0] ?? null;
+  const tid = await resolveTid(tenantId);
+  let q = sb.from('playlist_suggestions').select('*').not('played_at', 'is', null)
+    .order('played_at', { ascending: false }).limit(1);
+  if (tid) q = q.eq('tenant_id', tid);
+  const { data, error } = await q.maybeSingle();
+  return error ? null : data;
+}
+
+/** The soundtrack so far — everything actually played, newest first. */
+export async function getSoundtrack(tenantId?: string) {
+  const sb = getSupabase();
+  if (!sb) return mock.playlists as any[];
+  const tid = await resolveTid(tenantId);
+  let q = sb.from('playlist_suggestions').select('*').not('played_at', 'is', null)
+    .order('played_at', { ascending: false });
+  if (tid) q = q.eq('tenant_id', tid);
+  const { data, error } = await q;
+  return error ? [] : (data ?? []);
+}
+
 export async function getDetours(): Promise<Detour[]> {
   // Detours are produced live by the look-ahead engine; mock for the skeleton.
   return mock.detours;

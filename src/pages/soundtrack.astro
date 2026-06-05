@@ -1,0 +1,99 @@
+---
+import Base from '../layouts/Base.astro';
+import { getNowPlaying, getSoundtrack } from '../lib/data';
+const [nowPlaying, soundtrack] = await Promise.all([getNowPlaying(), getSoundtrack()]);
+const kindEmoji: Record<string, string> = { music: '🎵', audiobook: '📖', podcast: '🎙️' };
+const fmt = (d?: string) => d ? new Date(d).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
+---
+<Base title="D-Tours · The Mixtape">
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">🎶 The Mixtape</p>
+        <h2>The soundtrack of the trip</h2>
+        <p>What we're blasting across the country — and the crew picks fueling the long hauls. Suggest a track and you might hear it somewhere in Wyoming.</p>
+      </div>
+
+      {nowPlaying && (
+        <div class="now card">
+          <div class="np-label">▶ Now playing</div>
+          <div class="np-title">{kindEmoji[(nowPlaying as any).kind] ?? '🎵'} {(nowPlaying as any).url ? <a href={(nowPlaying as any).url} target="_blank" rel="noopener">{(nowPlaying as any).title}</a> : (nowPlaying as any).title}</div>
+          <div class="np-meta muted">
+            {(nowPlaying as any).region && <span>📍 {(nowPlaying as any).region}</span>}
+            <span>— picked by {(nowPlaying as any).suggested_by}</span>
+          </div>
+        </div>
+      )}
+
+      <h3 class="log-head">The soundtrack so far</h3>
+      {soundtrack.length === 0
+        ? <p class="muted">No tracks spun yet — be the first to suggest one below. 🎧</p>
+        : (
+          <ol class="log">
+            {soundtrack.map((t: any) => (
+              <li class="track">
+                <span class="t-emoji">{kindEmoji[t.kind] ?? '🎵'}</span>
+                <span class="t-title">{t.url ? <a href={t.url} target="_blank" rel="noopener">{t.title}</a> : t.title}</span>
+                <span class="t-meta muted">{t.region ? t.region + ' · ' : ''}{fmt(t.played_at)} · {t.suggested_by}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+
+      <!-- Suggest a track (public → pending → owner approves/spins) -->
+      <div class="card suggest" data-reveal>
+        <h3>🎧 Suggest a track</h3>
+        <p class="muted">Music, an audiobook, a podcast — drop it for the road. The good ones get spun.</p>
+        <form class="cs-form" id="suggest-track">
+          <input type="text" name="title" placeholder="Track / album / audiobook" required />
+          <input type="url" name="url" placeholder="Link (Spotify / YouTube — optional)" />
+          <div class="row">
+            <label><input type="radio" name="kind" value="music" checked /> 🎵 Music</label>
+            <label><input type="radio" name="kind" value="audiobook" /> 📖 Audiobook</label>
+            <label><input type="radio" name="kind" value="podcast" /> 🎙️ Podcast</label>
+          </div>
+          <input type="text" name="by" placeholder="Your name (optional)" />
+          <button class="btn" type="submit">Suggest it</button>
+          <p class="msg" id="suggest-msg"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    document.getElementById('suggest-track')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target as HTMLFormElement;
+      const msg = document.getElementById('suggest-msg');
+      msg.textContent = 'Sending…'; msg.className = 'msg';
+      try {
+        const r = await fetch('/api/playlist', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: (f.title as any).value, url: (f.url as any).value, kind: (f.kind as any).value, by: (f.by as any).value }),
+        });
+        const j = await r.json();
+        if (j.ok) { msg.textContent = '🙏 Got it — listen for it on the road!'; msg.className = 'msg ok'; f.reset(); }
+        else { msg.textContent = j.error || 'Try again.'; msg.className = 'msg err'; }
+      } catch { msg.textContent = 'Network hiccup — try again.'; msg.className = 'msg err'; }
+    });
+  </script>
+
+  <style>
+    .now { background: linear-gradient(180deg, rgba(52,211,153,.14), var(--panel)); border-color: rgba(52,211,153,.35); margin-bottom: 1.5rem; }
+    .np-label { font-family: var(--font-mono); font-size: .7rem; text-transform: uppercase; letter-spacing: .12em; color: var(--green); }
+    .np-title { font-size: 1.5rem; font-weight: 800; margin: .3rem 0; }
+    .np-meta { display: flex; gap: .6rem; flex-wrap: wrap; font-size: .9rem; }
+    .log-head { margin: 1.5rem 0 .8rem; }
+    .log { list-style: none; padding: 0; margin: 0; display: grid; gap: .45rem; counter-reset: t; }
+    .track { display: flex; align-items: center; gap: .6rem; padding: .6rem .8rem; background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 10px; }
+    .t-emoji { font-size: 1.1rem; }
+    .t-title { font-weight: 600; }
+    .t-meta { margin-left: auto; font-family: var(--font-mono); font-size: .72rem; text-align: right; }
+    .suggest { margin-top: 1.8rem; }
+    .cs-form { display: grid; gap: .6rem; margin-top: .9rem; }
+    .cs-form input[type=text], .cs-form input[type=url] { width: 100%; background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .7rem .85rem; font: inherit; min-height: 44px; }
+    .cs-form .row { display: flex; gap: 1rem; flex-wrap: wrap; color: var(--muted); font-size: .9rem; }
+    .msg { font-size: .85rem; margin: 0; min-height: 1.1em; }
+    .msg.ok { color: var(--green); } .msg.err { color: var(--red); }
+  </style>
+</Base>

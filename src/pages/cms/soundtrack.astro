@@ -1,0 +1,138 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getPlaylistSuggestions, getPlaylists, getNowPlaying } from '../../lib/data';
+const tid = Astro.locals.tenantId;
+const [pending, approved, nowPlaying] = await Promise.all([
+  getPlaylistSuggestions(tid, 'pending'), getPlaylists(tid), getNowPlaying(tid),
+]);
+const kindEmoji: Record<string, string> = { music: '🎵', audiobook: '📖', podcast: '🎙️' };
+---
+<Base title="D-Tours · Soundtrack">
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">🎶 Soundtrack</p>
+        <h2>The mixtape control room</h2>
+        <p>Approve crew suggestions, then <strong>spin</strong> a track to set what's playing now — it logs to the public <a href="/soundtrack">Mixtape</a>.</p>
+        <a href="/cms" class="muted back">← back to CMS</a>
+      </div>
+
+      <div class="where card">
+        <label>📍 Where are we right now? <input id="region" placeholder="e.g. Crossing Montana" /></label>
+        <span class="muted tiny">Tags the track you spin (optional).</span>
+      </div>
+
+      {nowPlaying && <p class="np">▶ Now playing: <strong>{kindEmoji[(nowPlaying as any).kind] ?? '🎵'} {(nowPlaying as any).title}</strong></p>}
+
+      <h3>🆕 Crew suggestions {pending.length > 0 && <span class="badge">{pending.length}</span>}</h3>
+      {pending.length === 0
+        ? <p class="muted">No new suggestions right now.</p>
+        : (
+          <div class="rows">
+            {pending.map((p: any) => (
+              <div class="row" data-id={p.id}>
+                <span class="r-emoji">{kindEmoji[p.kind] ?? '🎵'}</span>
+                <div class="r-body">
+                  <div class="r-title">{p.url ? <a href={p.url} target="_blank" rel="noopener">{p.title}</a> : p.title}</div>
+                  <div class="r-by muted">— {p.suggested_by}</div>
+                </div>
+                <button class="btn sm act" data-act="play">▶ Spin</button>
+                <button class="btn ghost sm act" data-act="approve">＋ Queue</button>
+                <button class="btn ghost sm act" data-act="decline">✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+      <h3 class="approved-head">🎧 In rotation</h3>
+      {approved.length === 0
+        ? <p class="muted">Nothing queued yet — approve a suggestion above or add one below.</p>
+        : (
+          <div class="rows">
+            {approved.map((p: any) => (
+              <div class="row" data-id={p.id}>
+                <span class="r-emoji">{kindEmoji[p.kind] ?? '🎵'}</span>
+                <div class="r-body">
+                  <div class="r-title">{p.title} {p.played_at && <span class="muted tiny">· played</span>}</div>
+                  <div class="r-by muted">— {p.suggested_by}{p.region ? ` · ${p.region}` : ''}</div>
+                </div>
+                <button class="btn sm act" data-act="play">▶ Spin</button>
+                <button class="btn ghost sm act" data-act="remove">🗑️</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+      <div class="card add">
+        <h3>＋ Add your own</h3>
+        <div class="cs-form">
+          <input id="a-title" placeholder="Track / album / audiobook" />
+          <input id="a-url" type="url" placeholder="Link (optional)" />
+          <label class="chk"><input type="checkbox" id="a-play" /> spin it now</label>
+          <button id="add" class="btn">Add</button>
+        </div>
+      </div>
+      <div id="toast" class="toast"></div>
+    </div>
+  </section>
+
+  <script>
+    const region = () => (document.getElementById('region') as HTMLInputElement).value.trim() || undefined;
+    const toastEl = document.getElementById('toast');
+    const toast = (m: string, err = false) => { toastEl.textContent = m; toastEl.className = 'toast show' + (err ? ' err' : ''); setTimeout(() => toastEl.className = 'toast', 1600); };
+    const post = async (body: any) => {
+      const r = await fetch('/api/soundtrack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json(); if (!j.ok) toast(j.error || 'Failed', true); return j;
+    };
+
+    document.querySelectorAll('.act').forEach((b) => b.addEventListener('click', async (e) => {
+      const btn = e.currentTarget as HTMLElement;
+      const row = btn.closest('.row') as HTMLElement;
+      const act = btn.dataset.act!;
+      const body: any = { action: act, id: row.dataset.id };
+      if (act === 'play') body.track = { region: region() };
+      const j = await post(body);
+      if (j.ok) {
+        if (act === 'play') { toast('▶ Now playing'); setTimeout(() => location.reload(), 700); }
+        else { row.remove(); toast(act === 'approve' ? 'Queued ✓' : 'Done'); }
+      }
+    }));
+
+    document.getElementById('add')!.addEventListener('click', async () => {
+      const title = (document.getElementById('a-title') as HTMLInputElement).value.trim();
+      if (!title) { toast('Name a track', true); return; }
+      const j = await post({ action: 'add', track: {
+        title,
+        url: (document.getElementById('a-url') as HTMLInputElement).value.trim() || undefined,
+        play: (document.getElementById('a-play') as HTMLInputElement).checked,
+        region: region(),
+      }});
+      if (j.ok) { toast('Added ✓'); setTimeout(() => location.reload(), 700); }
+    });
+  </script>
+
+  <style>
+    .back { display: inline-block; margin-top: .5rem; font-size: .9rem; }
+    .where { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .where label { display: flex; align-items: center; gap: .5rem; flex: 1; }
+    .where input { flex: 1; background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: .55rem .7rem; font: inherit; min-width: 12rem; }
+    .np { background: rgba(52,211,153,.1); border: 1px solid rgba(52,211,153,.3); border-radius: 9px; padding: .6rem .9rem; }
+    .badge { font-family: var(--font-mono); font-size: .7rem; background: var(--amber); color: #2a1a00; padding: .1rem .45rem; border-radius: 999px; }
+    .approved-head { margin-top: 1.6rem; }
+    .rows { display: grid; gap: .5rem; }
+    .row { display: flex; align-items: center; gap: .7rem; padding: .7rem .85rem; background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 11px; flex-wrap: wrap; }
+    .r-emoji { font-size: 1.2rem; }
+    .r-body { flex: 1; min-width: 8rem; }
+    .r-title { font-weight: 700; }
+    .r-by { font-size: .8rem; }
+    .act { white-space: nowrap; }
+    .btn.sm { padding: .45rem .8rem; font-size: .85rem; }
+    .add { margin-top: 1.6rem; }
+    .cs-form { display: grid; gap: .6rem; margin-top: .8rem; }
+    .cs-form input[type=text], .cs-form input[type=url], #a-title, #a-url { width: 100%; background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .7rem .85rem; font: inherit; }
+    .chk { display: flex; align-items: center; gap: .5rem; color: var(--muted); font-size: .9rem; }
+    .toast { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--green); color: #06210f; padding: .6rem 1.1rem; border-radius: 999px; font-weight: 700; opacity: 0; pointer-events: none; transition: all .3s var(--ease); z-index: 300; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.err { background: var(--red); color: #2a0a0f; }
+  </style>
+</Base>
