@@ -16,10 +16,11 @@ Tools Shotgun uses: the **Supabase MCP** (read/write the itinerary — user-scop
 ## ▶︎ Test it now (fakechat — no permissions, no Mac lock-in)
 
 1. Make sure the app is running (for the scout): from the repo root, `npm run dev`.
-2. Launch Shotgun with the test channel:
+2. Launch Shotgun with the test channel (Haiku = cheap + fast; `--model` is
+   per-session, so it never touches your other Opus sessions):
    ```sh
    cd shotgun
-   claude --channels plugin:fakechat@claude-plugins-official
+   claude --model claude-haiku-4-5 --channels plugin:fakechat@claude-plugins-official
    ```
 3. First launch asks you to **approve the Supabase MCP** — say yes (one-time).
 4. fakechat prints a **localhost URL** — open it and text Shotgun. Try:
@@ -38,7 +39,7 @@ If the voice/decisions feel right, we go live.
    ```sh
    claude plugin install telegram@claude-plugins-official
    cd shotgun
-   claude --channels plugin:telegram@claude-plugins-official   # set the bot token as its config prompts
+   claude --model claude-haiku-4-5 --channels plugin:telegram@claude-plugins-official   # set the bot token as its config prompts
    ```
 3. Message your bot, pair your account (the plugin gates by access control).
 4. Share **live location** with the bot so Shotgun always knows where you are.

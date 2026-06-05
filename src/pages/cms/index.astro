@@ -41,18 +41,21 @@ const proposals = stops
       <div class="grid cols-2 editor-row">
         <div class="card">
           <h3>✍️ New post</h3>
-          <form class="composer" onsubmit="return false">
-            <input type="text" placeholder="Title — e.g. 'Topped out the Spearhead'" />
-            <textarea rows="5" placeholder="What happened out there?"></textarea>
+          <form class="composer" id="composer" onsubmit="return false">
+            <input id="post-title" type="text" placeholder="Title — e.g. 'Topped out the Spearhead'" />
+            <textarea id="post-body" rows="4" placeholder="What happened out there?"></textarea>
+            <input id="post-video" type="url" placeholder="📹 Video link (YouTube / Vimeo — optional)" />
+            <div id="thumbs" class="thumbs"></div>
             <div class="composer-foot">
-              <label class="file">📷 Add photo<input type="file" accept="image/*" hidden /></label>
+              <label class="file">📷 Add photos<input id="post-photos" type="file" accept="image/*" multiple hidden /></label>
               <div class="actions">
-                <button class="btn ghost">Queue (Tier 1)</button>
-                <button class="btn">Publish</button>
+                <button class="btn ghost" id="post-queue">Queue (Tier 1)</button>
+                <button class="btn" id="post-publish">Publish</button>
               </div>
             </div>
+            <p class="msg" id="post-msg"></p>
           </form>
-          <p class="muted tiny">Uploads land in Supabase Storage; EXIF GPS auto-drops a map marker. (Wired in the next pass.)</p>
+          <p class="muted tiny">Photos upload to Supabase Storage; video links embed. Publish goes live now; Queue holds for the next signal.</p>
         </div>
 
         <div class="card">
@@ -122,6 +125,46 @@ const proposals = stops
   };
   document.querySelectorAll('.approve').forEach((b) => b.addEventListener('click', () => act(b.dataset.id, 'promote')));
   document.querySelectorAll('.decline').forEach((b) => b.addEventListener('click', () => act(b.dataset.id, 'decline')));
+
+  // ── post composer: upload photos → collect URLs → create post ──
+  const uploaded = [];            // public URLs of uploaded photos
+  const thumbs = document.getElementById('thumbs');
+  const pmsg = document.getElementById('post-msg');
+  const setMsg = (m, err = false) => { if (pmsg) { pmsg.textContent = m; pmsg.className = 'msg' + (err ? ' err' : ' ok'); } };
+
+  document.getElementById('post-photos')?.addEventListener('change', async (e) => {
+    const files = [...e.target.files];
+    for (const file of files) {
+      const ph = document.createElement('div'); ph.className = 'thumb loading'; ph.textContent = '⏳';
+      thumbs.appendChild(ph);
+      const fd = new FormData(); fd.append('file', file);
+      try {
+        const r = await fetch('/api/upload', { method: 'POST', body: fd });
+        const j = await r.json();
+        if (j.ok && j.url) { uploaded.push(j.url); ph.className = 'thumb'; ph.style.backgroundImage = `url(${j.url})`; ph.textContent = ''; }
+        else { ph.className = 'thumb err'; ph.textContent = '⚠️'; setMsg(j.error || 'Upload failed', true); }
+      } catch { ph.className = 'thumb err'; ph.textContent = '⚠️'; setMsg('Upload failed', true); }
+    }
+    e.target.value = '';
+  });
+
+  const submitPost = async (published) => {
+    const title = document.getElementById('post-title').value.trim();
+    const body = document.getElementById('post-body').value.trim();
+    const video = document.getElementById('post-video').value.trim();
+    const media = [...uploaded, ...(video ? [video] : [])];
+    if (!title && !body && !media.length) { setMsg('Add a title, some words, or a photo.', true); return; }
+    setMsg('Saving…');
+    try {
+      const r = await fetch('/api/post', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, body, media, published }) });
+      const j = await r.json();
+      if (j.ok) { setMsg(published ? '✅ Published!' : '🕒 Queued.'); setTimeout(() => location.reload(), 800); }
+      else setMsg(j.error || 'Failed', true);
+    } catch { setMsg('Network hiccup — try again.', true); }
+  };
+  document.getElementById('post-publish')?.addEventListener('click', () => submitPost(true));
+  document.getElementById('post-queue')?.addEventListener('click', () => submitPost(false));
 </script>
 
 <style>
@@ -137,7 +180,16 @@ const proposals = stops
   .composer input, .composer textarea { width: 100%; background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .7rem .85rem; font: inherit; }
   .composer-foot { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
   .file { cursor: pointer; color: var(--muted); font-size: .9rem; }
+  .file:hover { color: var(--green); }
   .actions { display: flex; gap: .5rem; }
+  .thumbs { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .thumbs:empty { display: none; }
+  .thumb { width: 64px; height: 64px; border-radius: 8px; background: var(--bg-2) center/cover no-repeat; border: 1px solid var(--border); display: grid; place-items: center; font-size: 1.1rem; }
+  .thumb.loading { animation: pulse 1s infinite; }
+  .thumb.err { border-color: var(--red); }
+  @keyframes pulse { 50% { opacity: .5; } }
+  .msg { font-size: .85rem; margin: 0; min-height: 1.1em; }
+  .msg.ok { color: var(--green); } .msg.err { color: var(--red); }
   .tiny { font-size: .78rem; margin-top: .8rem; }
   .ctl { display: flex; justify-content: space-between; align-items: center; padding: .6rem 0; border-bottom: 1px solid var(--border); }
   .ctl:last-of-type { border-bottom: 0; }

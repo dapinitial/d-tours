@@ -2,6 +2,18 @@
 import Base from '../../layouts/Base.astro';
 import { getPosts } from '../../lib/data';
 const posts = await getPosts();
+
+// Classify a media URL so we can render photos inline and video as an embed.
+function media(url: string): { type: 'image' | 'youtube' | 'vimeo' | 'link'; embed?: string } {
+  if (/\.(jpe?g|png|webp|gif|heic|avif)(\?|$)/i.test(url) || url.includes('/storage/v1/object/public/media/')) {
+    return { type: 'image' };
+  }
+  const yt = url.match(/(?:youtube\.com\/.*[?&]v=|youtu\.be\/|youtube\.com\/shorts\/)([\w-]{11})/);
+  if (yt) return { type: 'youtube', embed: `https://www.youtube.com/embed/${yt[1]}` };
+  const vm = url.match(/vimeo\.com\/(\d+)/);
+  if (vm) return { type: 'vimeo', embed: `https://player.vimeo.com/video/${vm[1]}` };
+  return { type: 'link' };
+}
 ---
 <Base title="D-Tours · Journal">
   <section>
@@ -21,7 +33,19 @@ const posts = await getPosts();
                 ? <span class="chip">{new Date(p.published_at).toLocaleDateString()}</span>
                 : <span class="chip amber">queued · Tier 1</span>}
             </div>
-            <p class="p-body">{p.body}</p>
+            {p.body && <p class="p-body">{p.body}</p>}
+
+            {p.media && p.media.length > 0 && (
+              <div class={`gallery n${Math.min(p.media.length, 4)}`}>
+                {p.media.map((url) => {
+                  const m = media(url);
+                  if (m.type === 'image') return <a class="shot" href={url} target="_blank" rel="noopener"><img src={url} loading="lazy" alt="" /></a>;
+                  if (m.embed) return <div class="video"><iframe src={m.embed} loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>;
+                  return <a class="medialink" href={url} target="_blank" rel="noopener">▶ Watch →</a>;
+                })}
+              </div>
+            )}
+
             <div class="p-foot">
               {(p.lat && p.lng) && <span class="mono muted">📍 {p.lat.toFixed(2)}, {p.lng.toFixed(2)}</span>}
               <button class="like" data-post={p.id}>🤘 <span class="count">{p.like_count ?? 0}</span></button>
@@ -57,6 +81,17 @@ const posts = await getPosts();
   .p-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .6rem; }
   .p-head h3 { margin: 0; }
   .p-body { color: var(--muted); margin: 0; }
+  .gallery { display: grid; gap: .4rem; margin-top: .9rem; border-radius: 12px; overflow: hidden; }
+  .gallery.n2, .gallery.n4 { grid-template-columns: 1fr 1fr; }
+  .gallery.n3 { grid-template-columns: 1fr 1fr; }
+  .gallery.n3 .shot:first-child, .gallery.n3 .video:first-child { grid-column: 1 / -1; }
+  .shot { display: block; }
+  .shot img { width: 100%; height: 100%; max-height: 460px; object-fit: cover; display: block; transition: transform .3s var(--ease); }
+  .shot:hover img { transform: scale(1.02); }
+  .gallery.n1 .shot img { max-height: 560px; }
+  .video { grid-column: 1 / -1; position: relative; aspect-ratio: 16 / 9; }
+  .video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 12px; }
+  .medialink { grid-column: 1 / -1; padding: .8rem; text-align: center; background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 10px; color: var(--green); font-weight: 700; }
   .p-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 1rem; }
   .like { background: rgba(255,255,255,.04); border: 1px solid var(--border-2); color: var(--text); padding: .4rem .8rem; border-radius: 999px; cursor: pointer; transition: all .2s var(--ease); }
   .like:hover:not([disabled]) { border-color: var(--green); color: var(--green); }
