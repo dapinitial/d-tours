@@ -35,7 +35,7 @@ const TAGS: Record<PoiCategory, string[]> = {
   camp:       ['tourism=camp_site'],
   fitness:    ['leisure=fitness_station'],
   track:      ['leisure=track'],
-  climbing:   ['sport=climbing', 'leisure=sports_centre'],
+  climbing:   ['sport=climbing'],   // real crags/gyms only — NOT leisure=sports_centre (catches ballfields)
   rec_center: ['leisure=sports_centre', 'amenity=community_centre'],
   viewpoint:  ['tourism=viewpoint'],
   water_body: ['leisure=slipway', 'natural=water'],

@@ -24,6 +24,12 @@ const {
     <meta name="theme-color" content="#0a0f16" />
     <title>{title}</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚐</text></svg>" />
+    <!-- PWA: installable, full-screen on the phone / CarPlay -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="D-Tours" />
   </head>
   <body>
     {!bare && <SiteHeader />}
@@ -33,6 +39,11 @@ const {
     {!bare && <SiteFooter />}
 
     <script>
+      // ── register the PWA service worker ──
+      if ('serviceWorker' in navigator) {
+        addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+      }
+
       // ── reveal on scroll ──
       const io = new IntersectionObserver((entries) => {
         for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }

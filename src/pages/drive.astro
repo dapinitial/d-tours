@@ -1,0 +1,192 @@
+---
+import Base from '../layouts/Base.astro';
+// Drive Mode — the in-truck co-pilot. Live GPS scans the corridor ahead via the
+// key-free OSM engine; tap a card to drop it onto the live itinerary. Built for a
+// glance: big targets, high contrast, works on CarPlay. Public to scout; the Add
+// action needs an owner session (David signs in once on the phone).
+---
+<Base title="D-Tours · Drive Mode" bare={true}>
+  <div class="drive">
+    <header class="topbar">
+      <span class="brand">📡 Drive Mode</span>
+      <span id="status" class="status idle">idle</span>
+      <a href="/" class="close" aria-label="exit">✕</a>
+    </header>
+
+    <div id="signin" class="signin" hidden>
+      🔒 <a href="/login?next=/drive">Sign in</a> to drop stops onto your plan.
+    </div>
+
+    <main class="stage">
+      <div id="idle-pane" class="idle-pane">
+        <p class="big">Ready to roll?</p>
+        <p class="muted">I'll watch the road ahead and surface gas, water, swimming holes, BBQ, viewpoints and crags as they come up.</p>
+        <button id="start" class="primary">▶ Start scouting</button>
+      </div>
+
+      <div id="live-pane" class="live-pane" hidden>
+        <div class="readout">
+          <div class="r-item"><span id="speed" class="r-val">—</span><span class="r-lab">mph</span></div>
+          <div class="r-item"><span id="coords" class="r-val sm">getting fix…</span><span class="r-lab">position</span></div>
+          <div class="r-item"><span id="lastscan" class="r-val sm">—</span><span class="r-lab">last scan</span></div>
+        </div>
+        <div class="controls">
+          <button id="rescan" class="ghost">⟳ Rescan</button>
+          <button id="stop" class="ghost stop">⏸ Stop</button>
+        </div>
+        <p id="speech" class="speech">Locking on…</p>
+        <div id="cards" class="cards"></div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const statusEl = $('status'), speechEl = $('speech'), cardsEl = $('cards');
+    const CATS = 'water,fuel,food,camp,viewpoint,climbing,water_body';
+    let watchId = null, last = null, lastScanAt = 0, scanning = false;
+    const added = new Set();
+
+    const setStatus = (txt, cls) => { statusEl.textContent = txt; statusEl.className = 'status ' + cls; };
+    const fmtTime = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const miBetween = (a, b) => {
+      const R = 3958.8, toRad = (d) => d * Math.PI / 180;
+      const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
+      const h = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLng/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
+    };
+
+    async function scan(pos) {
+      if (scanning) return;
+      scanning = true; setStatus('scanning…', 'busy');
+      try {
+        const r = await fetch(`/api/dtours?lat=${pos.lat.toFixed(4)}&lng=${pos.lng.toFixed(4)}&radius=20000&cats=${CATS}`);
+        const j = await r.json();
+        lastScanAt = Date.now(); $('lastscan').textContent = fmtTime(lastScanAt);
+        render(j.detours || []);
+        setStatus('live', 'live');
+      } catch {
+        speechEl.textContent = '📵 Signal hiccup — I\'ll retry as we move.';
+        setStatus('no signal', 'idle');
+      } finally { scanning = false; }
+    }
+
+    function render(detours) {
+      const list = detours
+        .filter((d) => d.title && d.title !== 'Viewpoint')
+        .sort((a, b) => a.off_route_mi - b.off_route_mi)
+        .slice(0, 8);
+      speechEl.textContent = list.length
+        ? `🔊 ${list.length} things coming up within reach.`
+        : '🔊 Open road — nothing notable nearby right now.';
+      cardsEl.innerHTML = list.map((d) => {
+        const done = added.has(d.id);
+        return `<div class="card${done ? ' done' : ''}" data-id="${d.id}">
+          <span class="c-emoji">${d.emoji}</span>
+          <div class="c-body">
+            <div class="c-title">${d.title}</div>
+            <div class="c-meta">${d.off_route_mi} mi · ~${d.time_cost_min} min · ${d.type}</div>
+          </div>
+          <button class="c-add${done ? ' added' : ''}" data-detour='${JSON.stringify(d).replace(/'/g, "&#39;")}' title="${done ? 'Tap to remove from plan' : 'Add to plan'}">${done ? '✓' : '＋'}</button>
+        </div>`;
+      }).join('');
+      cardsEl.querySelectorAll('.c-add').forEach((b) => b.addEventListener('click', onToggle));
+    }
+
+    // ＋ adds the detour to the plan; tap the ✓ again to remove it. The staged
+    // stop reuses the detour id, so removal is just a delete by that id.
+    async function onToggle(e) {
+      const btn = e.currentTarget;
+      const detour = JSON.parse(btn.dataset.detour);
+      const isAdding = !added.has(detour.id);
+      btn.disabled = true; btn.textContent = '…';
+      try {
+        const body = isAdding ? { action: 'stage', detour } : { action: 'remove', id: detour.id };
+        const r = await fetch('/api/itinerary', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        });
+        if (r.status === 401 || r.status === 403) { $('signin').hidden = false; reset(btn, false); return; }
+        const j = await r.json();
+        if (!j.ok) { reset(btn, !isAdding); return; }
+        if (isAdding) { added.add(detour.id); navigator.vibrate?.(40); reset(btn, true); }
+        else { added.delete(detour.id); reset(btn, false); }
+      } catch { reset(btn, !isAdding); }
+    }
+    function reset(btn, done) {
+      btn.disabled = false;
+      btn.textContent = done ? '✓' : '＋';
+      btn.classList.toggle('added', done);
+      btn.title = done ? 'Tap to remove from plan' : 'Add to plan';
+      btn.closest('.card').classList.toggle('done', done);
+    }
+
+    function onPos(p) {
+      const pos = { lat: p.coords.latitude, lng: p.coords.longitude };
+      last = pos;
+      $('coords').textContent = `${pos.lat.toFixed(3)}, ${pos.lng.toFixed(3)}`;
+      const mph = p.coords.speed != null && p.coords.speed >= 0 ? Math.round(p.coords.speed * 2.237) : null;
+      $('speed').textContent = mph != null ? mph : '—';
+      // Re-scan when we've moved >3mi OR it's been >2min since the last scan.
+      const moved = scanFrom ? miBetween(scanFrom, pos) : Infinity;
+      if (moved > 3 || Date.now() - lastScanAt > 120000) { scanFrom = pos; scan(pos); }
+    }
+    let scanFrom = null;
+
+    function start() {
+      $('idle-pane').hidden = true; $('live-pane').hidden = false;
+      if (!navigator.geolocation) { speechEl.textContent = 'No GPS on this device.'; return; }
+      setStatus('locating…', 'busy');
+      watchId = navigator.geolocation.watchPosition(onPos,
+        () => { speechEl.textContent = '📍 Location blocked — enable it in settings.'; setStatus('no gps', 'idle'); },
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 });
+    }
+    function stop() {
+      if (watchId != null) navigator.geolocation.clearWatch(watchId);
+      watchId = null; $('live-pane').hidden = true; $('idle-pane').hidden = false; setStatus('idle', 'idle');
+    }
+
+    $('start').addEventListener('click', start);
+    $('stop').addEventListener('click', stop);
+    $('rescan').addEventListener('click', () => { if (last) { scanFrom = last; scan(last); } });
+    addEventListener('beforeunload', () => { if (watchId != null) navigator.geolocation.clearWatch(watchId); });
+  </script>
+
+  <style>
+    /* class display rules (e.g. .idle-pane { display:grid }) otherwise beat the
+       browser's [hidden] style — force hidden to actually hide. */
+    [hidden] { display: none !important; }
+    .drive { min-height: 100dvh; display: flex; flex-direction: column; background: radial-gradient(1200px 600px at 50% -10%, #10243a, var(--bg)); }
+    .topbar { display: flex; align-items: center; gap: .75rem; padding: 1rem 1.2rem; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: rgba(10,15,22,.85); backdrop-filter: blur(8px); z-index: 5; }
+    .brand { font-weight: 800; font-size: 1.05rem; }
+    .status { margin-left: auto; font-family: var(--font-mono); font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; padding: .25rem .6rem; border-radius: 999px; border: 1px solid var(--border); }
+    .status.live { color: var(--green); border-color: rgba(52,211,153,.5); }
+    .status.busy { color: var(--amber); border-color: rgba(251,191,36,.5); }
+    .status.idle { color: var(--muted); }
+    .close { color: var(--muted); text-decoration: none; font-size: 1.1rem; width: 40px; height: 40px; display: grid; place-items: center; }
+    .signin { background: rgba(251,191,36,.12); border-bottom: 1px solid rgba(251,191,36,.35); padding: .7rem 1.2rem; font-size: .9rem; }
+    .signin a { color: var(--amber); font-weight: 700; }
+    .stage { flex: 1; padding: 1.2rem; padding-bottom: max(2.5rem, env(safe-area-inset-bottom)); }
+    .idle-pane { max-width: 32rem; margin: 8vh auto 0; text-align: center; display: grid; gap: 1.1rem; padding-bottom: 3rem; }
+    .idle-pane .big { font-size: 1.8rem; font-weight: 800; margin: 0; }
+    .primary { font-size: 1.25rem; font-weight: 800; padding: 1.1rem 1.5rem; border: none; border-radius: 16px; background: var(--green); color: #06210f; cursor: pointer; min-height: 64px; }
+    .readout { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; margin-bottom: 1rem; }
+    .r-item { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: .8rem; text-align: center; }
+    .r-val { display: block; font-size: 1.8rem; font-weight: 800; line-height: 1; }
+    .r-val.sm { font-size: .9rem; font-family: var(--font-mono); }
+    .r-lab { font-size: .65rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .controls { display: flex; gap: .6rem; margin-bottom: 1rem; }
+    .ghost { flex: 1; font-size: 1rem; font-weight: 700; padding: .9rem; border: 1px solid var(--border-2); border-radius: 12px; background: rgba(255,255,255,.04); color: var(--text); cursor: pointer; min-height: 52px; }
+    .ghost.stop { color: var(--amber); }
+    .speech { background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 12px; padding: .9rem 1rem; margin: 0 0 1rem; font-size: 1.05rem; }
+    .cards { display: grid; gap: .7rem; }
+    .card { display: flex; align-items: center; gap: .9rem; padding: 1rem; background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 14px; }
+    .card.done { opacity: .55; border-color: rgba(52,211,153,.5); }
+    .c-emoji { font-size: 1.8rem; }
+    .c-body { flex: 1; min-width: 0; }
+    .c-title { font-weight: 700; font-size: 1.1rem; }
+    .c-meta { font-family: var(--font-mono); font-size: .78rem; color: var(--muted); margin-top: .2rem; }
+    .c-add { width: 56px; height: 56px; flex: 0 0 auto; border-radius: 14px; border: none; background: var(--green); color: #06210f; font-size: 1.6rem; font-weight: 800; cursor: pointer; }
+    .c-add.added { background: rgba(52,211,153,.18); color: var(--green); border: 1px solid rgba(52,211,153,.5); }
+    .c-add:disabled { opacity: .6; cursor: default; }
+  </style>
+</Base>

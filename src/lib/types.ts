@@ -22,6 +22,8 @@ export interface Stop {
   rendezvous?: string;   // e.g. "Derek (solar camper) from Grand Rapids"
   status?: StopStatus;   // default 'confirmed' when absent
   kind?: StopKind;       // 'sidequest' / 'pitstop' for D-Tours additions
+  lat?: number;          // coords let a live GPS fix locate you within the journey
+  lng?: number;
   source?: 'david' | 'shotgun';  // who added it
   note?: string;
   off_route_mi?: number; // for side-quests / pit-stops

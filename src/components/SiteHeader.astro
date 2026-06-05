@@ -1,6 +1,7 @@
 ---
 const links = [
   { href: '/', label: 'Home', icon: '🏠' },
+  { href: '/drive', label: 'Drive', icon: '📡' },
   { href: '/journal', label: 'Journal', icon: '📓' },
   { href: '/plan', label: 'Plan', icon: '🗺️' },
   { href: '/gear', label: 'Gear', icon: '🎒' },
@@ -57,7 +58,7 @@ const isActive = (href: string) => href === '/' ? path === '/' : path.startsWith
     .top-nav { display: none; }            /* hide top links on phones */
     .brand-sub { display: none; }
     .tabbar {
-      display: grid; grid-template-columns: repeat(5, 1fr);
+      display: grid; grid-template-columns: repeat(6, 1fr);
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 200;
       background: rgba(10,15,22,.92);
       backdrop-filter: blur(14px);

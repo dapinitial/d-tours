@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getSupabaseAdmin } from '../../lib/supabase';
 import { supabaseServer, authConfigured } from '../../lib/supabaseServer';
+import { detourToStop } from '../../lib/dtours/propose';
 
 export const prerender = false;
 
@@ -25,7 +26,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   let payload: any = {};
   try { payload = await request.json(); } catch {}
-  const { action, stop, id, items } = payload;
+  const { action, stop, id, items, detour } = payload;
   if (!action) return json({ ok: false, error: 'missing action' }, 400);
 
   const sb = getSupabaseAdmin();
@@ -46,6 +47,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         const { error } = await scoped(sb.from('stops').update(stop).eq('id', id ?? stop?.id));
         if (error) throw error;
         return json({ ok: true, action, id: id ?? stop?.id });
+      }
+      case 'stage': {
+        // Drive Mode dropped a live detour onto the plan. Stage it (proposed/
+        // suggested) just past the current last stop so it shows as "coming up".
+        if (!detour) return json({ ok: false, error: 'missing detour' }, 400);
+        const { data: last } = await scoped(
+          sb.from('stops').select('order').order('order', { ascending: false }).limit(1),
+        ).maybeSingle();
+        const after = Math.ceil(Number(last?.order ?? 0)) + 1;
+        const row = { ...detourToStop(detour, after - 0.5), order: after, ...(tid ? { tenant_id: tid } : {}) };
+        const { error } = await sb.from('stops').upsert(row);
+        if (error) throw error;
+        return json({ ok: true, action, id: row.id, order: after });
       }
       case 'reorder': {
         for (const it of items ?? []) {

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0a0f16"/>
+  <!-- winding route -->
+  <path d="M150 410 C150 330 360 330 360 250 C360 170 150 170 150 100"
+        fill="none" stroke="#34d399" stroke-width="26" stroke-linecap="round"
+        stroke-dasharray="2 46"/>
+  <path d="M150 410 C150 330 360 330 360 250 C360 170 150 170 150 100"
+        fill="none" stroke="#34d399" stroke-width="10" stroke-linecap="round" opacity="0.35"/>
+  <!-- start dot -->
+  <circle cx="150" cy="410" r="22" fill="#34d399"/>
+  <!-- destination pin -->
+  <path d="M150 60 C118 60 92 86 92 118 C92 160 150 196 150 196 C150 196 208 160 208 118 C208 86 182 60 150 60 Z"
+        fill="#fbbf24"/>
+  <circle cx="150" cy="116" r="22" fill="#0a0f16"/>
+</svg>
