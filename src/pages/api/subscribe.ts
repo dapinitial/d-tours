@@ -18,7 +18,7 @@ export const POST: APIRoute = async ({ request }) => {
   const tid = (await getDefaultTenant())?.id ?? null;
   const { error } = await sb.from('subscribers')
     .upsert({ email, cadence, tenant_id: tid }, { onConflict: 'tenant_id,email' });
-  if (error) return json({ ok: false, error: error.message }, 500);
+  if (error) { console.error('[subscribe]', error.message); return json({ ok: false, error: 'Couldn’t save that — try again in a moment.' }, 500); }
   return json({ ok: true, cadence });
 };
 

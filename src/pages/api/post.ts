@@ -47,7 +47,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (!sb) return json({ ok: true, mock: true, ...row });
 
   const { data, error } = await sb.from('posts').insert(row).select('id').single();
-  if (error) return json({ ok: false, error: error.message }, 500);
+  if (error) { console.error('[post]', error.message); return json({ ok: false, error: 'Couldn’t save the post — try again.' }, 500); }
   return json({ ok: true, id: data?.id, published: !!p.published });
 };
 

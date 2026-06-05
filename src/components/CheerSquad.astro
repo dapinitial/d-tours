@@ -7,15 +7,14 @@ const tipUrl = import.meta.env.PUBLIC_TIPJAR_URL ?? '';
 const kindEmoji: Record<string, string> = { music: '🎵', audiobook: '📖', podcast: '🎙️' };
 ---
 <div class="cheer">
-  <!-- Fuel the trip (tip jar) -->
-  <div class="card fuel" data-reveal>
-    <h3><span class="emoji">🍦</span> Fuel the trip</h3>
-    <p class="muted">Chip in for gas, a coffee, or an ice cream down the road. Every little bit keeps the rig rolling.</p>
-    {tipUrl
-      ? <a class="btn" href={tipUrl} target="_blank" rel="noopener">⛽ Buy David a tank / a cone</a>
-      : <button class="btn" disabled title="Tip link coming soon">⛽ Tip jar — link coming soon</button>}
-    {!tipUrl && <p class="tiny muted">Paste a Ko-fi / Buy Me a Coffee / Stripe link into <code>PUBLIC_TIPJAR_URL</code> to activate.</p>}
-  </div>
+  <!-- Fuel the trip (tip jar) — only shown once a real tip link is configured -->
+  {tipUrl && (
+    <div class="card fuel" data-reveal>
+      <h3><span class="emoji">🍦</span> Fuel the trip</h3>
+      <p class="muted">Chip in for gas, a coffee, or an ice cream down the road. Every little bit keeps the rig rolling.</p>
+      <a class="btn" href={tipUrl} target="_blank" rel="noopener">⛽ Buy David a tank / a cone</a>
+    </div>
+  )}
 
   <!-- Subscribe -->
   <div class="card" data-reveal>

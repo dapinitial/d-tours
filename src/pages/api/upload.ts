@@ -39,7 +39,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const path = `${tid ?? 'shared'}/${id}.${EXT[file.type]}`;
   const buf = await file.arrayBuffer();
   const { error } = await sb.storage.from('media').upload(path, buf, { contentType: file.type, upsert: false });
-  if (error) return json({ ok: false, error: error.message }, 500);
+  if (error) { console.error('[upload]', error.message); return json({ ok: false, error: 'Upload failed — try again.' }, 500); }
 
   const { data } = sb.storage.from('media').getPublicUrl(path);
   return json({ ok: true, url: data.publicUrl });

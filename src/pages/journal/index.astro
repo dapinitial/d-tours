@@ -31,7 +31,7 @@ function media(url: string): { type: 'image' | 'youtube' | 'vimeo' | 'link'; emb
               <h3>{p.title}</h3>
               {p.published_at
                 ? <span class="chip">{new Date(p.published_at).toLocaleDateString()}</span>
-                : <span class="chip amber">queued · Tier 1</span>}
+                : <span class="chip amber">queued</span>}
             </div>
             {p.body && <p class="p-body">{p.body}</p>}
 
@@ -56,7 +56,7 @@ function media(url: string): { type: 'image' | 'youtube' | 'vimeo' | 'link'; emb
 
       <div class="comment-note card">
         <h3>💬 Comments are crew-only</h3>
-        <p class="muted">Likes are open. Written comments are gated to invited friends &amp; family via a magic link (no passwords). Sign-in lands here once Supabase auth is wired.</p>
+        <p class="muted">Likes are open to everyone. Written comments are reserved for invited friends &amp; family — coming soon.</p>
       </div>
     </div>
   </section>

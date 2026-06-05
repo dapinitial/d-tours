@@ -27,7 +27,7 @@ export const POST: APIRoute = async ({ request }) => {
   if (!sb) return json({ ok: true, mock: true, ...row });
 
   const { error } = await sb.from('playlist_suggestions').insert(row);
-  if (error) return json({ ok: false, error: error.message }, 500);
+  if (error) { console.error('[playlist]', error.message); return json({ ok: false, error: 'Couldn’t add that — try again.' }, 500); }
   return json({ ok: true });
 };
 

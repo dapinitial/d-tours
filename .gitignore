@@ -7,3 +7,8 @@ dist/
 *.log
 .vercel/
 .output/
+
+# installed agent skills (tooling, not app code)
+.agents/
+skills-lock.json
+.claude/skills/

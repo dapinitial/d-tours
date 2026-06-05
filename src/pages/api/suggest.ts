@@ -66,7 +66,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   };
   if (!sb) return json({ ok: true, mock: true, ...row });
   const { error } = await sb.from('suggestions').insert(row);
-  if (error) return json({ ok: false, error: error.message }, 500);
+  if (error) { console.error('[suggest]', error.message); return json({ ok: false, error: 'Couldn’t send that — try again.' }, 500); }
   return json({ ok: true });
 };
 
