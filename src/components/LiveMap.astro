@@ -1,20 +1,21 @@
 ---
-// "Where's everyone" map. Loads Leaflet from CDN (graceful fallback if offline).
-// Draws every registered trip's route + current position from /api/trips, and
-// marks the rendezvous points where two routes meet — David & Derek in relation.
+// "Where's David" map — David by default; tap "See the brothers" to overlay
+// Derek's route + position and the 🤝 rendezvous points (both at once). Loads
+// Leaflet from CDN with a graceful offline fallback. Data from /api/trips.
 ---
 <div class="map-wrap" data-reveal>
   <div id="dtours-map" class="map">
     <div class="map-fallback">
       <span class="big">🛰️</span>
-      <p>Live map loads here — routes + current positions for everyone on the road.</p>
-      <p class="muted">Set <code>MAPSHARE_FEED_URL</code> for the live inReach dot.</p>
+      <p>Live map loads here — David's route + current position from the inReach feed.</p>
+      <p class="muted">Set <code>MAPSHARE_FEED_URL</code> for the live dot.</p>
     </div>
   </div>
   <div class="legend">
     <span class="chip" style="--c:#34d399">● David</span>
-    <span class="chip" style="--c:#fb923c">● Derek</span>
-    <span class="chip" style="--c:#fbbf24">◆ rendezvous</span>
+    <span class="chip bro" style="--c:#fb923c" hidden>● Derek</span>
+    <span class="chip bro" style="--c:#fbbf24" hidden>◆ rendezvous</span>
+    <button id="bros-toggle" class="bros-btn" hidden>👬 See the brothers</button>
   </div>
 </div>
 
@@ -32,35 +33,54 @@
 
     let data;
     try { data = await (await fetch('/api/trips')).json(); } catch { return; }
-    const all = [];
+    const trips = data.trips || [];
+    if (!trips.length) return;
 
-    for (const trip of (data.trips || [])) {
-      if (!trip.route?.length) continue;
-      // planned route
-      L.polyline(trip.route, { color: trip.color, weight: 3, opacity: .75, dashArray: '6 7' }).addTo(map);
-      // stop dots
+    // Draw one trip's route + stops + current position onto a target layer.
+    const drawTrip = (trip, target) => {
+      const pts = [];
+      L.polyline(trip.route, { color: trip.color, weight: 3, opacity: .75, dashArray: '6 7' }).addTo(target);
       for (const s of (trip.stops || [])) {
         L.circleMarker([s.lat, s.lng], { radius: 4, color: trip.color, fillColor: trip.color, fillOpacity: .9, weight: 1 })
-          .addTo(map).bindPopup(`${s.emoji} ${s.name} <span style="opacity:.6">· ${trip.name}</span>`);
+          .addTo(target).bindPopup(`${s.emoji} ${s.name} <span style="opacity:.6">· ${trip.name}</span>`);
       }
-      // current position (bigger, pulsing-style ring)
       if (trip.position) {
         const p = trip.position;
         L.circleMarker([p.lat, p.lng], { radius: 9, color: '#fff', weight: 2, fillColor: trip.color, fillOpacity: 1 })
-          .addTo(map)
-          .bindPopup(`<b>${trip.name}</b> · ${p.when}${p.live ? '' : ' <span style="opacity:.6">(approx — set MapShare feed)</span>'}`);
+          .addTo(target).bindPopup(`<b>${trip.name}</b> · ${p.when}${p.live ? '' : ' <span style="opacity:.6">(approx)</span>'}`);
       }
-      trip.route.forEach((c) => all.push(c));
-    }
+      (trip.route || []).forEach((c) => pts.push(c));
+      return pts;
+    };
 
-    // rendezvous diamonds
+    // David (first trip) is always visible.
+    const davidPts = drawTrip(trips[0], map);
+    const davidBounds = L.latLngBounds(davidPts);
+    map.fitBounds(davidBounds.pad(0.15));
+
+    // The brothers overlay (Derek + rendezvous) lives in a toggleable group.
+    const others = L.layerGroup();
+    const allPts = [...davidPts];
+    for (const trip of trips.slice(1)) allPts.push(...drawTrip(trip, others));
     for (const r of (data.rendezvous || [])) {
-      L.marker([r.lat, r.lng], {
-        icon: L.divIcon({ className: 'rdv', html: '◆', iconSize: [22, 22] }),
-      }).addTo(map).bindPopup(`<b>🤝 Rendezvous</b> · ${r.name}`);
+      L.marker([r.lat, r.lng], { icon: L.divIcon({ className: 'rdv', html: '◆', iconSize: [22, 22] }) })
+        .addTo(others).bindPopup(`<b>🤝 Rendezvous</b> · ${r.name}`);
     }
+    const allBounds = L.latLngBounds(allPts);
 
-    if (all.length) map.fitBounds(L.latLngBounds(all).pad(0.15));
+    // Wire the toggle (only if there's actually a brother to show).
+    const btn = document.getElementById('bros-toggle');
+    const broChips = [...document.querySelectorAll('.legend .chip.bro')];
+    if (btn && trips.length > 1) {
+      btn.hidden = false;
+      let shown = false;
+      btn.addEventListener('click', () => {
+        shown = !shown;
+        if (shown) { others.addTo(map); map.fitBounds(allBounds.pad(0.15)); btn.textContent = '👤 Just David'; }
+        else { map.removeLayer(others); map.fitBounds(davidBounds.pad(0.15)); btn.textContent = '👬 See the brothers'; }
+        broChips.forEach((c) => (c.hidden = !shown));
+      });
+    }
   }
   const s = document.createElement('script');
   s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
@@ -70,15 +90,16 @@
 </script>
 
 <style>
-  /* position+z-index establishes a stacking context so Leaflet's internal panes
-     (z-index 400–700) and controls can't paint above the sticky site header. */
+  /* position+z-index = own stacking context so Leaflet panes can't paint over the sticky header */
   .map-wrap { position: relative; z-index: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
   .map { height: 440px; width: 100%; background: #0b1018; }
   .map-fallback { height: 100%; display: grid; place-content: center; text-align: center; gap: .3rem; padding: 2rem; }
   .map-fallback .big { font-size: 3rem; }
   .map-fallback code { font-family: var(--font-mono); color: var(--green); }
-  .legend { display: flex; gap: .8rem; padding: .8rem 1rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .legend { display: flex; align-items: center; gap: .8rem; padding: .8rem 1rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
   .legend .chip { color: var(--c, var(--muted)); font-size: .82rem; font-weight: 600; }
+  .bros-btn { margin-left: auto; background: rgba(251,146,60,.12); border: 1px solid rgba(251,146,60,.4); color: #fb923c; font-weight: 700; font-size: .82rem; padding: .4rem .8rem; border-radius: 999px; cursor: pointer; }
+  .bros-btn:hover { background: rgba(251,146,60,.2); }
   :global(.rdv) { color: #fbbf24; font-size: 18px; line-height: 22px; text-align: center; text-shadow: 0 0 6px rgba(251,191,36,.8); }
   :global(.leaflet-popup-content) { font-family: inherit; }
 </style>
