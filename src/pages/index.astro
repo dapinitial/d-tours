@@ -33,7 +33,8 @@ const shareImg = posts.flatMap((p) => p.media ?? [])
       </p>
       <div class="cta" data-reveal>
         <a href="/journal" class="btn">Follow the journey</a>
-        <a href="/plan" class="btn ghost">📄 Trip plan / print</a>
+        <a href="#live" class="btn ghost">🛰️ Where are the brothers?</a>
+        <a href="/plan" class="btn ghost">📄 Trip plan</a>
       </div>
     </div>
   </section>
@@ -63,12 +64,12 @@ const shareImg = posts.flatMap((p) => p.media ?? [])
   </section>
 
   <!-- LIVE MAP -->
-  <section class="alt">
+  <section class="alt" id="live">
     <div class="container">
       <div class="section-head">
         <p class="eyebrow">🛰️ Live</p>
-        <h2>Where's David right now?</h2>
-        <p>The dot is the only feed that stays live off-grid — inReach satellite breadcrumbs polled from MapShare, even with the Starlink dish stowed.</p>
+        <h2>Where are the brothers?</h2>
+        <p>David and Derek are running two routes that converge at the wedding. Both paths, both positions, and the 🤝 rendezvous points where they meet — the dots stay live off-grid via inReach satellite breadcrumbs.</p>
       </div>
       <LiveMap />
     </div>
