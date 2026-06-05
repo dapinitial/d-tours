@@ -1,0 +1,143 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getStops } from '../../lib/data';
+const tid = Astro.locals.tenantId;
+const stops = (await getStops(tid)).sort((a, b) => a.order - b.order);
+const flexes = ['hard', 'soft', 'open'];
+---
+<Base title="D-Tours · Edit Itinerary">
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">🗺️ Editor</p>
+        <h2>Edit your itinerary</h2>
+        <p>Drag the ⠿ handle to reorder. Edit any field — it saves on blur. Everything here is owner-only and scoped to your trip.</p>
+        <a href="/cms" class="muted back">← back to CMS</a>
+      </div>
+
+      <div id="rows" class="rows">
+        {stops.map((s) => (
+          <div class="row" draggable="true" data-id={s.id}>
+            <span class="handle" title="Drag to reorder">⠿</span>
+            <input class="emoji" data-field="emoji" value={s.emoji ?? ''} maxlength="3" aria-label="emoji" />
+            <div class="fields">
+              <input class="name" data-field="name" value={s.name} placeholder="Stop name" />
+              <input class="sub" data-field="sub" value={s.sub ?? ''} placeholder="Subtitle / note" />
+              <div class="meta-row">
+                <input class="date" data-field="date" value={s.date ?? ''} placeholder="Date (e.g. Aug 1)" />
+                <input class="region" data-field="region" value={s.region ?? ''} placeholder="Region" />
+                <select class="flex" data-field="flex">
+                  {flexes.map((f) => <option value={f} selected={s.flex === f}>{f}</option>)}
+                </select>
+                {(s.status && s.status !== 'confirmed') && <span class={`badge ${s.status}`}>{s.status}</span>}
+              </div>
+            </div>
+            <button class="del" title="Delete stop" aria-label="delete">🗑️</button>
+          </div>
+        ))}
+      </div>
+
+      <button id="add-stop" class="btn ghost add">＋ Add stop</button>
+      <div id="toast" class="toast"></div>
+    </div>
+  </section>
+
+  <script>
+    const list = document.getElementById('rows');
+    const toastEl = document.getElementById('toast');
+    const toast = (m, err = false) => { toastEl.textContent = m; toastEl.className = 'toast show' + (err ? ' err' : ''); setTimeout(() => toastEl.className = 'toast', 1600); };
+    const post = async (body) => {
+      const r = await fetch('/api/itinerary', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json();
+      if (!j.ok) toast(j.error || 'Save failed', true);
+      return j;
+    };
+
+    // ── inline field edits (save on change/blur) ──
+    function wireFields(root) {
+      root.querySelectorAll('[data-field]').forEach((inp) => {
+        inp.addEventListener('change', async () => {
+          const row = inp.closest('.row');
+          const j = await post({ action: 'update', id: row.dataset.id, stop: { [inp.dataset.field]: inp.value } });
+          if (j.ok) toast('Saved ✓');
+        });
+      });
+    }
+    // ── delete ──
+    function wireDelete(root) {
+      root.querySelectorAll('.del').forEach((btn) => btn.addEventListener('click', async () => {
+        const row = btn.closest('.row');
+        if (!confirm('Delete this stop?')) return;
+        const j = await post({ action: 'remove', id: row.dataset.id });
+        if (j.ok) { row.remove(); toast('Deleted'); persistOrder(); }
+      }));
+    }
+    // ── drag-to-reorder ──
+    let dragEl = null;
+    function wireDrag(root) {
+      root.querySelectorAll('.row').forEach((row) => {
+        row.addEventListener('dragstart', () => { dragEl = row; setTimeout(() => row.classList.add('dragging'), 0); });
+        row.addEventListener('dragend', () => { row.classList.remove('dragging'); dragEl = null; persistOrder(); });
+      });
+    }
+    list.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (!dragEl) return;
+      const after = afterEl(e.clientY);
+      if (after == null) list.appendChild(dragEl);
+      else list.insertBefore(dragEl, after);
+    });
+    function afterEl(y) {
+      const els = [...list.querySelectorAll('.row:not(.dragging)')];
+      return els.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        return (offset < 0 && offset > closest.offset) ? { offset, element: child } : closest;
+      }, { offset: -Infinity }).element;
+    }
+    let saveTimer;
+    function persistOrder() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(async () => {
+        const items = [...list.querySelectorAll('.row')].map((row, i) => ({ id: row.dataset.id, order: i + 1 }));
+        const j = await post({ action: 'reorder', items });
+        if (j.ok) toast('Order saved ✓');
+      }, 400);
+    }
+
+    // ── add ──
+    document.getElementById('add-stop').addEventListener('click', async () => {
+      const id = (crypto.randomUUID ? crypto.randomUUID() : 'new-' + Math.random().toString(36).slice(2));
+      const order = list.querySelectorAll('.row').length + 1;
+      const j = await post({ action: 'add', stop: { id, name: 'New stop', emoji: '📍', flex: 'soft', status: 'confirmed', order } });
+      if (j.ok) location.reload();
+    });
+
+    wireFields(list); wireDelete(list); wireDrag(list);
+  </script>
+
+  <style>
+    .back { display: inline-block; margin-top: .5rem; font-size: .9rem; }
+    .rows { display: grid; gap: .6rem; }
+    .row { display: flex; align-items: flex-start; gap: .7rem; padding: .8rem; background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 12px; }
+    .row.dragging { opacity: .5; border-color: var(--green); }
+    .handle { cursor: grab; color: var(--faint); font-size: 1.2rem; padding-top: .3rem; user-select: none; }
+    .handle:active { cursor: grabbing; }
+    .emoji { width: 3rem; text-align: center; font-size: 1.1rem; }
+    .fields { flex: 1; display: grid; gap: .4rem; min-width: 0; }
+    .meta-row { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+    .row input, .row select { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: .5rem .6rem; font: inherit; }
+    .row .name { font-weight: 700; }
+    .meta-row .date, .meta-row .region { width: 9rem; font-size: .85rem; }
+    .meta-row .flex { font-size: .85rem; }
+    .del { background: transparent; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; padding: .45rem .55rem; font-size: .9rem; }
+    .del:hover { border-color: var(--red); }
+    .badge { font-family: var(--font-mono); font-size: .6rem; text-transform: uppercase; letter-spacing: .08em; padding: .15rem .4rem; border-radius: 999px; border: 1px dashed; }
+    .badge.proposed { color: var(--sky); border-color: rgba(56,189,248,.5); }
+    .badge.suggested { color: var(--amber); border-color: rgba(251,191,36,.5); }
+    .add { margin-top: 1.2rem; }
+    .toast { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--green); color: #06210f; padding: .6rem 1.1rem; border-radius: 999px; font-weight: 700; opacity: 0; pointer-events: none; transition: all .3s var(--ease); z-index: 300; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.err { background: var(--red); color: #2a0a0f; }
+  </style>
+</Base>

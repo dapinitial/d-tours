@@ -33,9 +33,11 @@ const denied = Astro.url.searchParams.get('denied');
         const email = (document.getElementById('email')).value;
         const next = form.dataset.next || '/cms';
         msg.textContent = 'Sending…'; msg.className = 'msg';
+        // No query string on the redirect — it must match the Supabase allowlist
+        // EXACTLY, or Supabase falls back to the Site URL (wrong origin).
         const { error } = await sb.auth.signInWithOtp({
           email,
-          options: { emailRedirectTo: location.origin + '/auth/callback?next=' + encodeURIComponent(next) },
+          options: { emailRedirectTo: location.origin + '/auth/callback' },
         });
         if (error) { msg.textContent = error.message; msg.className = 'msg err'; }
         else { msg.textContent = '✅ Check your email for the magic link!'; msg.className = 'msg ok'; }

@@ -4,6 +4,15 @@ import { supabaseServer, authConfigured } from './lib/supabaseServer';
 // Gate the CMS: must be signed in AND an owner. Sets locals.tenantId so CMS pages
 // only ever see the owner's own trip. Everything else stays public.
 export const onRequest = defineMiddleware(async (ctx, next) => {
+  // Safety net: if an auth ?code lands anywhere other than /auth/callback (e.g.
+  // Supabase fell back to the Site URL root), exchange it here and move on.
+  const code = ctx.url.searchParams.get('code');
+  if (code && authConfigured && ctx.url.pathname !== '/auth/callback') {
+    const supabase = supabaseServer(ctx.cookies, ctx.request.headers);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    return ctx.redirect(error ? '/login?denied=1' : '/cms');
+  }
+
   if (ctx.url.pathname.startsWith('/cms')) {
     if (!authConfigured) return next(); // local/mock mode: leave CMS open
 

@@ -32,6 +32,10 @@ const proposals = stops
         <div class="stat card"><div class="n mono">{isMock ? 'MOCK' : 'LIVE'}</div><div class="muted">data source</div></div>
       </div>
 
+      <div class="quick-links">
+        <a class="btn ghost sm" href="/cms/itinerary">🗺️ Edit itinerary</a>
+      </div>
+
       <div class="grid cols-2 editor-row">
         <div class="card">
           <h3>✍️ New post</h3>
@@ -122,9 +126,11 @@ const proposals = stops
   .user-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem 1rem; background: rgba(52,211,153,.07); border: 1px solid rgba(52,211,153,.25); border-radius: 10px; margin-bottom: 1.5rem; flex-wrap: wrap; }
   .user-bar form { margin: 0; }
   .stats { margin-bottom: 1.5rem; }
+  .quick-links { margin-bottom: 1.5rem; display: flex; gap: .5rem; flex-wrap: wrap; }
   .stat { text-align: center; }
   .stat .n { font-size: 2rem; font-weight: 800; color: var(--green); }
-  .editor-row { align-items: start; }
+  .editor-row { align-items: stretch; margin-bottom: 1.5rem; }
+  .editor-row > .card { display: flex; flex-direction: column; }
   .composer { display: grid; gap: .7rem; }
   .composer input, .composer textarea { width: 100%; background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .7rem .85rem; font: inherit; }
   .composer-foot { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
