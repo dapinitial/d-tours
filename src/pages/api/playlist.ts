@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getSupabaseAdmin } from '../../lib/supabase';
+import { getDefaultTenant } from '../../lib/data';
 
 export const prerender = false;
 
@@ -12,15 +13,17 @@ export const POST: APIRoute = async ({ request }) => {
   if (!title) return json({ ok: false, error: 'Name a track, album, or audiobook.' }, 400);
   if (!['music', 'audiobook', 'podcast'].includes(kind)) kind = 'music';
 
+  const sb = getSupabaseAdmin();
+  const tid = sb ? ((await getDefaultTenant())?.id ?? null) : null;
   const row = {
     title,
     url: String(url).slice(0, 300) || null,
     kind,
     suggested_by: String(by).slice(0, 60) || 'a follower',
     status: 'pending' as const,
+    tenant_id: tid,
   };
 
-  const sb = getSupabaseAdmin();
   if (!sb) return json({ ok: true, mock: true, ...row });
 
   const { error } = await sb.from('playlist_suggestions').insert(row);

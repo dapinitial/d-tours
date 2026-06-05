@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getSupabaseAdmin } from '../../lib/supabase';
+import { getDefaultTenant } from '../../lib/data';
 
 export const prerender = false;
 
@@ -14,7 +15,9 @@ export const POST: APIRoute = async ({ request }) => {
   const sb = getSupabaseAdmin();
   if (!sb) return json({ ok: true, mock: true, email, cadence });
 
-  const { error } = await sb.from('subscribers').upsert({ email, cadence }, { onConflict: 'email' });
+  const tid = (await getDefaultTenant())?.id ?? null;
+  const { error } = await sb.from('subscribers')
+    .upsert({ email, cadence, tenant_id: tid }, { onConflict: 'tenant_id,email' });
   if (error) return json({ ok: false, error: error.message }, 500);
   return json({ ok: true, cadence });
 };

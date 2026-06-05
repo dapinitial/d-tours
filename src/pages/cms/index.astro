@@ -1,9 +1,11 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { getPosts, getStops, isMock } from '../../lib/data';
+import { getPosts, getStops, getSuggestions, isMock } from '../../lib/data';
 const user = Astro.locals.user;
 const tid = Astro.locals.tenantId;
-const [posts, stops] = await Promise.all([getPosts({ tenantId: tid }), getStops(tid)]);
+const [posts, stops, fanSuggestions] = await Promise.all([
+  getPosts({ tenantId: tid }), getStops(tid), getSuggestions(tid, 'pending'),
+]);
 const queued = posts.filter((p) => !p.published_at).length;
 const proposals = stops
   .filter((s) => s.status === 'proposed' || s.status === 'suggested')
@@ -88,6 +90,27 @@ const proposals = stops
         </div>
       </div>
 
+      <div class="card proposals">
+        <h3>📨 Follower suggestions {fanSuggestions.length > 0 && <span class="tag suggested">{fanSuggestions.length}</span>}</h3>
+        <p class="muted tiny">Detours your crew sent in. Approve → drops onto the itinerary as a proposed stop.</p>
+        {fanSuggestions.length === 0 && <p class="muted">No new follower suggestions.</p>}
+        <div class="prop-list">
+          {fanSuggestions.map((s: any) => (
+            <div class="prop" data-fan={s.id}>
+              <span class="p-emoji">💡</span>
+              <div class="p-meta">
+                <div class="p-name">{s.title}</div>
+                <div class="muted p-sub">{[s.location, s.note].filter(Boolean).join(' · ')} — {s.suggested_by}</div>
+              </div>
+              <div class="p-actions">
+                <button class="btn sm fan-approve" data-id={s.id}>✓ Add</button>
+                <button class="btn ghost sm fan-decline" data-id={s.id}>✕</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div class="card next">
         <h3>🚧 Wired next</h3>
         <ul>
@@ -125,6 +148,20 @@ const proposals = stops
   };
   document.querySelectorAll('.approve').forEach((b) => b.addEventListener('click', () => act(b.dataset.id, 'promote')));
   document.querySelectorAll('.decline').forEach((b) => b.addEventListener('click', () => act(b.dataset.id, 'decline')));
+
+  // follower detour suggestions → approve (stages a proposed stop) / decline
+  const fanAct = async (id, action) => {
+    const row = document.querySelector(`.prop[data-fan="${id}"]`);
+    if (row) row.style.opacity = '0.4';
+    try {
+      const r = await fetch('/api/suggest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, id }) });
+      const j = await r.json();
+      if (j.ok && row) { row.style.transition = 'all .4s'; row.style.height = '0'; setTimeout(() => row.remove(), 400); }
+      if (out) out.textContent = `${action === 'approve' ? 'Staged to itinerary' : 'Declined'}: ${id}\n${JSON.stringify(j)}`;
+    } catch (e) { if (out) out.textContent = `error: ${e}`; if (row) row.style.opacity = '1'; }
+  };
+  document.querySelectorAll('.fan-approve').forEach((b) => b.addEventListener('click', () => fanAct(b.dataset.id, 'approve')));
+  document.querySelectorAll('.fan-decline').forEach((b) => b.addEventListener('click', () => fanAct(b.dataset.id, 'decline')));
 
   // ── post composer: upload photos → collect URLs → create post ──
   const uploaded = [];            // public URLs of uploaded photos

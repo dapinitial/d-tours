@@ -117,6 +117,17 @@ export async function getSources(tenantId?: string): Promise<Source[]> {
   return error ? [] : (data as Source[]);
 }
 
+/** Follower detour suggestions awaiting the owner's approval (CMS moderation). */
+export async function getSuggestions(tenantId?: string, status = 'pending') {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const tid = await resolveTid(tenantId);
+  let q = sb.from('suggestions').select('*').eq('status', status).order('created_at', { ascending: false });
+  if (tid) q = q.eq('tenant_id', tid);
+  const { data, error } = await q;
+  return error ? [] : (data ?? []);
+}
+
 /** Pending friend suggestions awaiting the owner's approval (CMS moderation). */
 export async function getPlaylistSuggestions(tenantId?: string, status = 'pending') {
   const sb = getSupabase();
