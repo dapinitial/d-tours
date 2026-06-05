@@ -13,8 +13,15 @@ import { getStops, getObjectives, getResources, getPosts, getDetours, getPlaylis
 const [stops, objectives, resources, posts, detours, playlists] = await Promise.all([
   getStops(), getObjectives(), getResources(), getPosts({ publishedOnly: true }), getDetours(), getPlaylists(),
 ]);
+// Share card uses the latest real trip photo when one exists (storage URLs are absolute).
+const shareImg = posts.flatMap((p) => p.media ?? [])
+  .find((m) => /\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(m) || m.includes('/storage/v1/object/public/media/'));
 ---
-<Base>
+<Base
+  title="D-Tours · Austin → Squamish, Summer 2026"
+  description="Follow a 3-month climbing road trip riding shotgun with an AI co-pilot — live detours, the trip mixtape, and the journal from the road."
+  image={shareImg}
+>
   <!-- HERO -->
   <section class="hero">
     <div class="container">

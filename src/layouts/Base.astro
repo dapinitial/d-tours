@@ -6,14 +6,20 @@ import SiteFooter from '../components/SiteFooter.astro';
 interface Props {
   title?: string;
   description?: string;
+  /** Social share image — absolute URL or site-relative path (e.g. a post's first photo). */
+  image?: string;
   /** hide chrome for the print-friendly plan page */
   bare?: boolean;
 }
 const {
   title = 'D-Tours · Austin → Squamish',
   description = 'An AI travel companion riding shotgun on the mega-loop. Live map, journal, and weird-and-wonderful detours.',
+  image = '/og-default.png',
   bare = false,
 } = Astro.props;
+// Absolute URLs for OG/Twitter (sharers need fully-qualified). Astro.site = https://shotgundetour.com
+const ogImage = new URL(image, Astro.site).href;
+const ogUrl = new URL(Astro.url.pathname, Astro.site).href;
 ---
 <!doctype html>
 <html lang="en">
@@ -23,6 +29,20 @@ const {
     <meta name="description" content={description} />
     <meta name="theme-color" content="#0a0f16" />
     <title>{title}</title>
+    <link rel="canonical" href={ogUrl} />
+    <!-- Social share cards (iMessage / WhatsApp / Instagram / Facebook / X) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="D-Tours" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={ogUrl} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚐</text></svg>" />
     <!-- PWA: installable, full-screen on the phone / CarPlay -->
     <link rel="manifest" href="/manifest.webmanifest" />

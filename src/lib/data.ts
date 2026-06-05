@@ -166,7 +166,23 @@ export async function getSoundtrack(tenantId?: string) {
   return error ? [] : (data ?? []);
 }
 
-export async function getDetours(): Promise<Detour[]> {
-  // Detours are produced live by the look-ahead engine; mock for the skeleton.
-  return mock.detours;
+/** Shotgun's staged finds — the proposed/suggested stops the look-ahead engine
+ *  dropped onto the plan, shaped as Detours for the homepage card + digest.
+ *  Falls back to mock so the showcase isn't empty before anything's staged. */
+export async function getDetours(tenantId?: string): Promise<Detour[]> {
+  const stops = await getStops(tenantId);
+  const staged = stops
+    .filter((s) => s.status === 'proposed' || s.status === 'suggested')
+    .map((s): Detour => ({
+      id: s.id,
+      type: s.kind === 'pitstop' ? 'pitstop' : (s.kind ?? 'sidequest'),
+      title: s.name,
+      emoji: s.emoji ?? '📍',
+      off_route_mi: s.off_route_mi ?? 0,
+      time_cost_min: s.time_cost_min ?? 0,
+      lat: s.lat, lng: s.lng,
+      fits_slack: s.flex !== 'hard',
+      note: s.note,
+    }));
+  return staged.length ? staged : mock.detours;
 }

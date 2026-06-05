@@ -14,8 +14,13 @@ function media(url: string): { type: 'image' | 'youtube' | 'vimeo' | 'link'; emb
   if (vm) return { type: 'vimeo', embed: `https://player.vimeo.com/video/${vm[1]}` };
   return { type: 'link' };
 }
+const shareImg = posts.flatMap((p) => p.media ?? []).find((m) => media(m).type === 'image');
 ---
-<Base title="D-Tours · Journal">
+<Base
+  title="D-Tours · The Journal"
+  description="Dispatches from the road — photos, video, and stories from the Austin → Squamish climbing loop."
+  image={shareImg}
+>
   <section>
     <div class="container narrow">
       <div class="section-head">
