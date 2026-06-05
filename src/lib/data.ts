@@ -4,7 +4,7 @@
 // (even if empty) — never mock — so tenants stay isolated.
 import { getSupabase, supabaseConfigured } from './supabase';
 import * as mock from './mock';
-import type { Stop, Objective, Resource, Post, Detour, GearItem } from './types';
+import type { Stop, Objective, Resource, Post, Detour, GearItem, Source } from './types';
 
 export const isMock = !supabaseConfigured;
 
@@ -105,6 +105,16 @@ export async function getPlaylists(tenantId?: string) {
   if (tid) q = q.eq('tenant_id', tid);
   const { data, error } = await q;
   return error ? [] : data;
+}
+
+export async function getSources(tenantId?: string): Promise<Source[]> {
+  const sb = getSupabase();
+  if (!sb) return mock.sources;
+  const tid = await resolveTid(tenantId);
+  let q = sb.from('sources').select('*').order('created_at', { ascending: false });
+  if (tid) q = q.eq('tenant_id', tid);
+  const { data, error } = await q;
+  return error ? [] : (data as Source[]);
 }
 
 export async function getDetours(): Promise<Detour[]> {

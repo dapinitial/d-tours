@@ -1,7 +1,7 @@
 // Mock data so the app runs with ZERO secrets configured. The data layer
 // (data.ts) uses these whenever Supabase env vars are absent. Content mirrors
 // the real Austin → Squamish trip from SPEC.md.
-import type { Stop, Objective, Resource, Post, Detour, GearItem } from './types';
+import type { Stop, Objective, Resource, Post, Detour, GearItem, Source } from './types';
 
 export const stops: Stop[] = [
   { id: 's1', order: 1, name: 'Austin', sub: 'Launch', emoji: '🚀', flex: 'open', region: 'TX', date: 'Early July' },
@@ -93,6 +93,12 @@ export const playlists = [
   { id: 'pl1', title: 'Desert Highways — indie folk', url: '#', kind: 'music', suggested_by: 'Chels' },
   { id: 'pl2', title: 'The Push — Tommy Caldwell (audiobook)', url: '#', kind: 'audiobook', suggested_by: 'Jillian' },
   { id: 'pl3', title: 'Lo-fi for long hauls', url: '#', kind: 'music', suggested_by: 'Derek' },
+];
+
+export const sources: Source[] = [
+  { id: 'src1', url: 'https://en.wikipedia.org/wiki/Cirque_of_the_Towers', title: 'Cirque of the Towers — Wikipedia', note: 'History + geology for the landmark blurb.', tag: 'wikipedia', stop_id: 's6', status: 'new' },
+  { id: 'src2', url: 'https://www.mountainproject.com/area/105841045/cirque-of-the-towers', title: 'Cirque of the Towers — Mountain Project', note: 'Pull the classic traverse beta + current approach notes.', tag: 'mountain-project', objective_id: 'o4', status: 'new' },
+  { id: 'src3', url: 'https://forecast.weather.gov/MapClick.php?lat=42.77&lon=-109.2', title: 'NWS — Winds forecast', note: 'Current conditions for our window.', tag: 'forecast', stop_id: 's6', status: 'enriched', beta: 'Mock beta: high pressure mid-week, afternoon thunderstorms likely after 2pm. Start alpine objectives before dawn.', beta_updated_at: '2026-06-01T12:00:00Z' },
 ];
 
 export const detours: Detour[] = [

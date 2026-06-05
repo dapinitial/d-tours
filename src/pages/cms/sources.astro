@@ -1,0 +1,181 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getSources, getStops, getObjectives } from '../../lib/data';
+const tid = Astro.locals.tenantId;
+const [sources, stops, objectives] = await Promise.all([
+  getSources(tid), getStops(tid), getObjectives(tid),
+]);
+const TAGS = ['general', 'wikipedia', 'mountain-project', 'wta', 'alltrails', 'forecast', 'avalanche'];
+// Resolve a pin id → a human label for display.
+const stopName = (id?: string | null) => stops.find((s) => s.id === id)?.name;
+const objName = (id?: string | null) => objectives.find((o) => o.id === id)?.name;
+const statusMeta: Record<string, { emoji: string; label: string }> = {
+  new: { emoji: '⏳', label: 'queued' },
+  enriched: { emoji: '✅', label: 'enriched' },
+  error: { emoji: '⚠️', label: 'error' },
+};
+---
+<Base title="D-Tours · Sources & Beta">
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">📡 Beta library</p>
+        <h2>Feed links for Claude to read</h2>
+        <p>Paste a URL and a note about what to pull. Optionally pin it to a stop or objective. Our Claude reads the queued ones, distills the page, and writes the beta back here.</p>
+        <a href="/cms" class="muted back">← back to CMS</a>
+      </div>
+
+      <!-- ── add a source ── -->
+      <div class="card add-card">
+        <h3>＋ Add a source</h3>
+        <div class="composer">
+          <input id="f-url" type="url" placeholder="https://… (link to read)" />
+          <input id="f-title" placeholder="Title (optional — Claude can fill it in)" />
+          <div class="composer-row">
+            <select id="f-tag">
+              {TAGS.map((t) => <option value={t}>{t}</option>)}
+            </select>
+            <select id="f-pin">
+              <option value="">📌 Pin to… (optional)</option>
+              <optgroup label="Stops">
+                {stops.map((s) => <option value={`stop:${s.id}`}>{s.emoji ?? '📍'} {s.name}</option>)}
+              </optgroup>
+              <optgroup label="Objectives">
+                {objectives.map((o) => <option value={`obj:${o.id}`}>🎯 {o.name}</option>)}
+              </optgroup>
+            </select>
+          </div>
+          <input id="f-note" placeholder="Note: what should Claude pull? e.g. “current conditions + approach beta”" />
+          <div class="composer-foot">
+            <span class="muted tiny">Queued links wait for the next enrich pass.</span>
+            <button id="add-source" class="btn">Add to library</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── the library ── -->
+      <div id="rows" class="rows">
+        {sources.length === 0 && <p class="muted empty">No sources yet — paste your first link above.</p>}
+        {sources.map((s) => {
+          const m = statusMeta[s.status] ?? statusMeta.new;
+          const pin = s.stop_id ? stopName(s.stop_id) : s.objective_id ? objName(s.objective_id) : null;
+          return (
+            <div class="row" data-id={s.id} data-status={s.status}>
+              <div class="row-head">
+                <span class={`status ${s.status}`} title={m.label}>{m.emoji}</span>
+                <a class="title" href={s.url} target="_blank" rel="noopener">{s.title || s.url}</a>
+                <button class="del" title="Remove" aria-label="remove">🗑️</button>
+              </div>
+              <div class="meta-row">
+                <select class="tag" data-field="tag">
+                  {TAGS.map((t) => <option value={t} selected={s.tag === t}>{t}</option>)}
+                </select>
+                <select class="pin" data-field="pin">
+                  <option value="">📌 unpinned</option>
+                  <optgroup label="Stops">
+                    {stops.map((st) => <option value={`stop:${st.id}`} selected={s.stop_id === st.id}>{st.emoji ?? '📍'} {st.name}</option>)}
+                  </optgroup>
+                  <optgroup label="Objectives">
+                    {objectives.map((o) => <option value={`obj:${o.id}`} selected={s.objective_id === o.id}>🎯 {o.name}</option>)}
+                  </optgroup>
+                </select>
+                {pin && <span class="pin-chip">📌 {pin}</span>}
+              </div>
+              <input class="note" data-field="note" value={s.note ?? ''} placeholder="What should Claude pull?" />
+              {s.beta && (
+                <details class="beta" open>
+                  <summary>📡 beta {s.beta_updated_at && <span class="muted tiny">· {new Date(s.beta_updated_at).toLocaleDateString()}</span>}</summary>
+                  <div class="beta-body">{s.beta}</div>
+                </details>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div id="toast" class="toast"></div>
+    </div>
+  </section>
+
+  <script>
+    const list = document.getElementById('rows');
+    const toastEl = document.getElementById('toast');
+    const toast = (m, err = false) => { toastEl.textContent = m; toastEl.className = 'toast show' + (err ? ' err' : ''); setTimeout(() => toastEl.className = 'toast', 1600); };
+    const post = async (body) => {
+      const r = await fetch('/api/sources', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json();
+      if (!j.ok) toast(j.error || 'Save failed', true);
+      return j;
+    };
+    // "stop:abc" / "obj:xyz" → { stop_id, objective_id }
+    const splitPin = (v) => ({
+      stop_id: v.startsWith('stop:') ? v.slice(5) : null,
+      objective_id: v.startsWith('obj:') ? v.slice(4) : null,
+    });
+
+    // ── inline edits (tag / pin / note save on change) ──
+    list?.querySelectorAll('[data-field]').forEach((inp) => {
+      inp.addEventListener('change', async () => {
+        const row = inp.closest('.row');
+        const field = inp.dataset.field;
+        const patch = field === 'pin' ? splitPin(inp.value) : { [field]: inp.value };
+        const j = await post({ action: 'update', id: row.dataset.id, source: patch });
+        if (j.ok) toast('Saved ✓');
+      });
+    });
+
+    // ── delete ──
+    list?.querySelectorAll('.del').forEach((btn) => btn.addEventListener('click', async () => {
+      const row = btn.closest('.row');
+      if (!confirm('Remove this source?')) return;
+      const j = await post({ action: 'remove', id: row.dataset.id });
+      if (j.ok) { row.remove(); toast('Removed'); }
+    }));
+
+    // ── add ──
+    document.getElementById('add-source').addEventListener('click', async () => {
+      const url = (document.getElementById('f-url')).value.trim();
+      if (!url) { toast('Paste a URL first', true); return; }
+      const id = (crypto.randomUUID ? crypto.randomUUID() : 'src-' + Math.random().toString(36).slice(2));
+      const pin = splitPin((document.getElementById('f-pin')).value);
+      const source = {
+        id, url,
+        title: (document.getElementById('f-title')).value.trim() || null,
+        tag: (document.getElementById('f-tag')).value,
+        note: (document.getElementById('f-note')).value.trim() || null,
+        ...pin,
+      };
+      const j = await post({ action: 'add', source });
+      if (j.ok) location.reload();
+    });
+  </script>
+
+  <style>
+    .back { display: inline-block; margin-top: .5rem; font-size: .9rem; }
+    .add-card { margin-bottom: 1.5rem; }
+    .composer { display: grid; gap: .7rem; }
+    .composer input, .composer select { width: 100%; background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .7rem .85rem; font: inherit; }
+    .composer-row { display: flex; gap: .6rem; }
+    .composer-row select { flex: 1; }
+    .composer-foot { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .rows { display: grid; gap: .7rem; }
+    .empty { padding: 1.5rem; text-align: center; }
+    .row { padding: .9rem; background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 12px; display: grid; gap: .55rem; }
+    .row-head { display: flex; align-items: center; gap: .6rem; }
+    .status { font-size: 1.1rem; }
+    .title { flex: 1; font-weight: 700; color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .title:hover { color: var(--green); text-decoration: underline; }
+    .del { background: transparent; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; padding: .35rem .5rem; font-size: .85rem; flex: 0 0 auto; }
+    .del:hover { border-color: var(--red); }
+    .meta-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+    .row select, .row input { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: .45rem .6rem; font: inherit; }
+    .meta-row .tag, .meta-row .pin { font-size: .85rem; }
+    .pin-chip { font-size: .75rem; color: var(--sky); }
+    .note { width: 100%; font-size: .9rem; }
+    .beta { background: rgba(52,211,153,.06); border: 1px solid rgba(52,211,153,.25); border-radius: 9px; padding: .6rem .8rem; }
+    .beta summary { cursor: pointer; font-weight: 700; color: var(--green); }
+    .beta-body { margin-top: .5rem; font-size: .9rem; white-space: pre-wrap; line-height: 1.5; }
+    .toast { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--green); color: #06210f; padding: .6rem 1.1rem; border-radius: 999px; font-weight: 700; opacity: 0; pointer-events: none; transition: all .3s var(--ease); z-index: 300; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.err { background: var(--red); color: #2a0a0f; }
+  </style>
+</Base>

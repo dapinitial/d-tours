@@ -89,6 +89,26 @@ export interface GearItem {
   objectives?: string[];     // which objectives this kit is for
 }
 
+export type SourceStatus = 'new' | 'enriched' | 'error';
+
+/** A link the owner feeds in for "our Claude" to read and distill. The CMS
+ *  defines what to enrich; the home-iMac agent fetches the page and writes the
+ *  distilled `beta` back. Optionally pinned to a stop or objective. */
+export interface Source {
+  id: string;
+  tenant_id?: string;
+  url: string;
+  title?: string;
+  note?: string;                 // owner instruction: "pull current conditions"
+  tag?: string;                  // wikipedia | mountain-project | wta | forecast | general …
+  stop_id?: string | null;
+  objective_id?: string | null;
+  status: SourceStatus;
+  beta?: string | null;          // distilled markdown the agent writes back
+  beta_updated_at?: string | null;
+  created_at?: string;
+}
+
 /** A Shotgun suggestion produced by the D-Tours look-ahead engine. */
 export interface Detour {
   id: string;
