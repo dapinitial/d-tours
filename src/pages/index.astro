@@ -39,18 +39,6 @@ const shareImg = posts.flatMap((p) => p.media ?? [])
     </div>
   </section>
 
-  <!-- TRY IT (conversion hook) -->
-  <section class="alt">
-    <div class="container narrow">
-      <div class="section-head">
-        <p class="eyebrow">✨ Try it now</p>
-        <h2>See Shotgun work — near you</h2>
-        <p>No signup. Tap a spot (or use your location) and watch the live engine scout real detours.</p>
-      </div>
-      <TryItWidget />
-    </div>
-  </section>
-
   <!-- TIMELINE -->
   <section>
     <div class="container">
@@ -75,15 +63,20 @@ const shareImg = posts.flatMap((p) => p.media ?? [])
     </div>
   </section>
 
-  <!-- SHOTGUN -->
-  <section>
+  <!-- MEET SHOTGUN — the companion + live demo (combined) -->
+  <section id="shotgun">
     <div class="container narrow">
       <div class="section-head">
         <p class="eyebrow">📡 Your Companion</p>
         <h2>Meet Shotgun</h2>
-        <p>A sample transmission. In the wild, Shotgun composes these on the home iMac (Claude Max) and routes them to whatever can reach you: iMessage → email → SMS → inReach.</p>
+        <p>The AI riding shotgun: it watches the Aug 1 deadline, scouts weird-and-wonderful detours that fit the slack you have, and pings you on whatever can reach you — iMessage → email → SMS → inReach. Here's what a transmission sounds like:</p>
       </div>
       <ShotgunCard detours={detours} />
+      <div class="try-lead" style="margin-top: 2rem;">
+        <p class="eyebrow">✨ Now try it — no signup</p>
+        <p class="muted">Tap a spot (or use your location) and watch the live engine scout real detours near <em>you</em>.</p>
+      </div>
+      <TryItWidget />
     </div>
   </section>
 
