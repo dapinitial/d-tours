@@ -30,6 +30,26 @@ export interface Stop {
   time_cost_min?: number;
 }
 
+/** The structured dossier Shotgun compiles for an objective from its pinned
+ *  sources. All fields optional — filled progressively as beta comes in. */
+export interface ObjectiveBeta {
+  summary?: string;
+  routes?: { name: string; grade?: string; note?: string; url?: string }[]; // incl. the main + nearby
+  rack?: string;          // "Doubles to #3, single #4"
+  ropes?: string;         // "60m doubles" / "70m single"
+  footwear?: string;      // "approach shoes; mountain boots above snowline"
+  skills?: string[];      // "kiwi coil", "simul-climb", "crevasse rescue", "glacier travel"
+  glacier?: string;       // glacier-travel / crevasse-rescue kit notes
+  camp?: string[];        // where to camp
+  water?: string[];       // where to get water
+  permits?: string;       // permits / fees / reservations
+  toilet?: string;        // WAG bags / where to poop
+  hazards?: string[];     // rockfall, lightning, grizzlies, etc.
+  wildlife?: string;      // bears (spray/canister), birding, edible plants, bugs/spiders
+  conditions?: { weather_url?: string; avalanche_url?: string; bugs?: string }; // live links
+  nearby?: string[];      // other climbs / points of interest nearby
+}
+
 export interface Objective {
   id: string;
   name: string;
@@ -39,6 +59,8 @@ export interface Objective {
   hazard: string;
   severity: 'low' | 'med' | 'high';
   discipline?: string;   // trad / sport / scramble / alpine
+  beta?: ObjectiveBeta;  // Shotgun-compiled dossier (jsonb)
+  gpx_url?: string;      // downloadable GPX track
 }
 
 export type CareLayer = 'climb' | 'life' | 'move' | 'weird';
