@@ -51,12 +51,13 @@ export async function getStops(tenantId?: string): Promise<Stop[]> {
   return error ? [] : (data as Stop[]);
 }
 
-export async function getObjectives(tenantId?: string): Promise<Objective[]> {
+export async function getObjectives(tenantId?: string, opts: { includeProposed?: boolean } = {}): Promise<Objective[]> {
   const sb = getSupabase();
   if (!sb) return mock.objectives;
   const tid = await resolveTid(tenantId);
   let q = sb.from('objectives').select('*');
   if (tid) q = q.eq('tenant_id', tid);
+  if (!opts.includeProposed) q = q.neq('status', 'proposed'); // hide scouted alternatives from public
   const { data, error } = await q;
   return error ? [] : (data as Objective[]);
 }

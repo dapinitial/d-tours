@@ -2,11 +2,12 @@
 import Base from '../../layouts/Base.astro';
 import { getObjectives, getSources } from '../../lib/data';
 const tid = Astro.locals.tenantId;
-const [objectives, sources] = await Promise.all([getObjectives(tid), getSources(tid)]);
+const [objectives, sources] = await Promise.all([getObjectives(tid, { includeProposed: true }), getSources(tid)]);
 const seedsFor = (oid: string) => sources.filter((s: any) => s.objective_id === oid);
 const sevs = ['low', 'med', 'high'];
 const TAGS = ['mountain-project', 'wta', 'summitpost', 'alltrails', 'gpx', 'forecast', 'avalanche', 'general'];
 const needsResearch = objectives.filter((o) => !o.beta).length;
+const proposed = objectives.filter((o) => o.status === 'proposed');
 ---
 <Base title="D-Tours · Edit Objectives">
   <section>
@@ -18,6 +19,28 @@ const needsResearch = objectives.filter((o) => !o.beta).length;
         <a href="/cms" class="muted back">← back to CMS</a>
         {needsResearch > 0 && <p class="research-note">🔍 <strong>{needsResearch}</strong> objective{needsResearch === 1 ? '' : 's'} awaiting a Shotgun dossier pass.</p>}
       </div>
+
+      {proposed.length > 0 && (
+        <div class="card proposed-card">
+          <h3>🧭 Shotgun's proposed alternatives <span class="tag suggested">{proposed.length}</span></h3>
+          <p class="muted tiny">Scouted climbs (a pivot if one's too hard/easy). Review the dossier, then add it to your trip.</p>
+          <div class="prop-list">
+            {proposed.map((o) => (
+              <div class="prop" data-prop={o.id}>
+                <span class="p-emoji">🧗</span>
+                <div class="p-meta">
+                  <div class="p-name"><a href={`/objectives/${o.id}`} target="_blank">{o.name}</a> <span class="muted tiny">{o.grade} · {o.region}</span></div>
+                  {o.note && <div class="muted p-sub">{o.note}</div>}
+                </div>
+                <div class="p-actions">
+                  <button class="btn sm prop-add" data-id={o.id}>✓ Add to trip</button>
+                  <button class="btn ghost sm prop-del" data-id={o.id}>✕</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <!-- add objective -->
       <div class="card add-card">
@@ -124,12 +147,31 @@ const needsResearch = objectives.filter((o) => !o.beta).length;
       }});
       if (j.ok) location.reload();
     });
+
+    // proposed alternatives → promote (add to trip) / dismiss
+    document.querySelectorAll('.prop-add').forEach((b) => b.addEventListener('click', async () => {
+      const j = await post('/api/objectives', { action: 'promote', id: b.dataset.id });
+      if (j.ok) { toast('Added to your trip ✓'); location.reload(); }
+    }));
+    document.querySelectorAll('.prop-del').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm('Dismiss this proposed climb?')) return;
+      const j = await post('/api/objectives', { action: 'remove', id: b.dataset.id });
+      if (j.ok) { b.closest('.prop')?.remove(); toast('Dismissed'); }
+    }));
   </script>
 
   <style>
     .back { display: inline-block; margin-top: .5rem; font-size: .9rem; }
     .research-note { margin-top: .7rem; color: var(--amber); font-size: .9rem; }
     .add-card { margin-bottom: 1.5rem; }
+    .proposed-card { margin-bottom: 1.5rem; border-color: rgba(56,189,248,.35); background: linear-gradient(180deg, rgba(56,189,248,.07), var(--panel)); }
+    .tag { font-size: .7rem; padding: .1rem .5rem; border-radius: 999px; }
+    .tag.suggested { background: rgba(56,189,248,.2); color: var(--sky); }
+    .prop-list { display: grid; gap: .6rem; margin-top: .8rem; }
+    .prop { display: flex; align-items: center; gap: .7rem; padding: .6rem .7rem; background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; }
+    .p-emoji { font-size: 1.2rem; } .p-meta { flex: 1; } .p-name a { color: var(--text); } .p-name a:hover { color: var(--green); }
+    .p-sub { font-size: .82rem; margin-top: .15rem; }
+    .p-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
     .composer { display: grid; gap: .6rem; }
     .composer input, .composer select { width: 100%; background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .65rem .8rem; font: inherit; }
     .composer-row { display: flex; gap: .6rem; }

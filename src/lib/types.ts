@@ -91,6 +91,8 @@ export interface Objective {
   discipline?: string;   // trad / sport / scramble / alpine
   beta?: ObjectiveBeta;  // Shotgun-compiled dossier (jsonb)
   gpx_url?: string;      // downloadable GPX track
+  status?: 'confirmed' | 'proposed';  // scouted alternatives = 'proposed' until promoted
+  note?: string;         // why it's proposed / what it swaps for
 }
 
 /** The RIG — build-page spotlight + maintenance log (one per tenant). */

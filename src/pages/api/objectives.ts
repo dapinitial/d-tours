@@ -17,7 +17,7 @@ async function requireOwner(cookies: any, headers: Headers): Promise<{ tenantId:
   return { tenantId: crew.tenant_id };
 }
 
-const FIELDS = ['name', 'region', 'commitment', 'grade', 'hazard', 'severity', 'discipline', 'gpx_url'] as const;
+const FIELDS = ['name', 'region', 'commitment', 'grade', 'hazard', 'severity', 'discipline', 'gpx_url', 'status', 'note'] as const;
 function pick(o: any) {
   const out: Record<string, any> = {};
   for (const k of FIELDS) if (o?.[k] !== undefined) out[k] = o[k] === '' ? null : o[k];
@@ -54,6 +54,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       }
       case 'remove': {
         const { error } = await scoped(sb.from('objectives').delete().eq('id', id));
+        if (error) throw error;
+        return json({ ok: true, action, id });
+      }
+      case 'promote': { // a scouted alternative → confirmed (shows on the public site)
+        const { error } = await scoped(sb.from('objectives').update({ status: 'confirmed' }).eq('id', id));
         if (error) throw error;
         return json({ ok: true, action, id });
       }
