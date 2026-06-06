@@ -26,9 +26,10 @@ const isActive = (href: string) => href === '/' ? path === '/' : path.startsWith
   </div>
 </header>
 
-<!-- Mobile: app-style bottom tab bar (thumb-reachable) -->
+<!-- Mobile: app-style bottom tab bar (thumb-reachable). Drop Home — the brand
+     logo already goes home, and this keeps the tabs from wrapping. -->
 <nav class="tabbar">
-  {links.map((l) => (
+  {links.filter((l) => l.href !== '/').map((l) => (
     <a href={l.href} class:list={['tab', { active: isActive(l.href) }]}>
       <span class="tab-icon">{l.icon}</span>
       <span class="tab-label">{l.label}</span>
