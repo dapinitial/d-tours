@@ -46,6 +46,27 @@ If the voice/decisions feel right, we go live.
 5. **Always-on for the trip:** run this on the DigitalOcean droplet under `systemd`
    (RunAtLoad + Restart=always) inside `tmux`. No Mac to babysit.
 
+## 🧗 Dossier sweep (fill objective beta)
+
+When David adds an objective in the CMS (`/cms/objectives`) and seeds it links, its
+`beta` is empty and the public dossier shows "🔍 compiling…". Shotgun fills it.
+The research needs the model, so it's a Claude run (not a plain script):
+
+- **From a running Shotgun session:** just say *"Sweep the objectives that need a
+  dossier and fill them."* The brain (`CLAUDE.md` → Objective dossiers) knows the
+  protocol: read each objective's pinned `sources`, research, write `objectives.beta`.
+- **Headless one-shot:**
+  ```sh
+  cd ~/Sites/d-tours/shotgun
+  claude -p "Sweep objectives where beta is null and compile each dossier per CLAUDE.md, writing objectives.beta via the Supabase MCP."
+  ```
+- **Scheduled (the watcher):** cron the headless command on the iMac so new
+  objectives auto-fill within a day, and conditions refresh as the trip nears:
+  ```sh
+  # crontab -e  → every morning at 7am
+  0 7 * * * cd ~/Sites/d-tours/shotgun && claude -p "Sweep objectives needing a dossier; refresh stale conditions." >> ~/shotgun-sweep.log 2>&1
+  ```
+
 ### Known TODOs for the headless droplet
 - The Supabase MCP is the hosted/OAuth one — confirm it re-auths headlessly on the droplet,
   or swap Shotgun to hit the app's own owner-authed API / a direct service-role path there.
