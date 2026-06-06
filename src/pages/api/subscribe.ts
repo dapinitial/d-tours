@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getSupabaseAdmin } from '../../lib/supabase';
 import { getDefaultTenant } from '../../lib/data';
+import { sendRaw } from '../../lib/notifier/email';
 
 export const prerender = false;
 
@@ -19,6 +20,16 @@ export const POST: APIRoute = async ({ request }) => {
   const { error } = await sb.from('subscribers')
     .upsert({ email, cadence, tenant_id: tid }, { onConflict: 'tenant_id,email' });
   if (error) { console.error('[subscribe]', error.message); return json({ ok: false, error: 'Couldn’t save that — try again in a moment.' }, 500); }
+
+  // Welcome / confirmation email (best-effort — never fail the subscribe on it).
+  try {
+    await sendRaw(
+      email,
+      "You're on the list 🚐 — D-Tours dispatch",
+      `You're in! Shotgun will send you the ${cadence} highlights from the Austin → Squamish climbing road trip — where we are, what we climbed, the weird detours, and the mixtape.\n\nFollow along: https://shotgundetour.com\n\nSee you on the road. 🧗\n— Shotgun`,
+    );
+  } catch {}
+
   return json({ ok: true, cadence });
 };
 
