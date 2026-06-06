@@ -1,19 +1,30 @@
 ---
-import type { Stop } from '../lib/types';
-interface Props { stops: Stop[]; }
-const { stops } = Astro.props;
+import type { Stop, Objective } from '../lib/types';
+interface Props { stops: Stop[]; objectives?: Objective[]; }
+const { stops, objectives = [] } = Astro.props;
 const ordered = [...stops].sort((a, b) => a.order - b.order);
 const flexLabel: Record<string, string> = { hard: 'fixed', soft: 'flex', open: 'open' };
 const statusOf = (s: Stop) => s.status ?? 'confirmed';
+// Link a route stop to its objective dossier when its name/sub clearly names the area.
+const dossierFor = (s: Stop): string | null => {
+  const hay = `${s.name} ${s.sub ?? ''}`.toLowerCase();
+  const m = objectives.find((o) => {
+    const key = o.name.toLowerCase().split(/[\s(/]/)[0]; // "shelf", "cirque", "city"…
+    return key.length > 3 && hay.includes(key);
+  });
+  return m?.id ?? null;
+};
 ---
 <div class="timeline" data-reveal>
   <div class="track">
-    {ordered.map((s, i) => (
-      <div class:list={['node', statusOf(s), { hard: s.flex === 'hard', rdv: !!s.rendezvous }]}>
+    {ordered.map((s, i) => {
+      const did = dossierFor(s);
+      return (
+      <div class:list={['node', statusOf(s), { hard: s.flex === 'hard', rdv: !!s.rendezvous, clickable: !!did }]} data-href={did ? `/objectives/${did}` : undefined} title={did ? 'Open dossier' : undefined}>
         <div class="dot">{s.emoji}</div>
         {i < ordered.length - 1 && <div class="line" />}
         <div class="meta">
-          <div class="name">{s.name}</div>
+          <div class="name">{s.name} {did && <span class="dnote">📋</span>}</div>
           {s.date && <div class="date">{s.date}</div>}
           {s.sub && <div class="sub muted">{s.sub}</div>}
           <div class="tags">
@@ -24,9 +35,15 @@ const statusOf = (s: Stop) => s.status ?? 'confirmed';
           </div>
         </div>
       </div>
-    ))}
+    ); })}
   </div>
 </div>
+
+<script>
+  document.querySelectorAll('.node.clickable[data-href]').forEach((n) => {
+    n.addEventListener('click', () => { location.href = (n as HTMLElement).dataset.href!; });
+  });
+</script>
 
 <style>
   .timeline { overflow-x: auto; padding: 1rem 0 1.5rem; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
@@ -56,4 +73,8 @@ const statusOf = (s: Stop) => s.status ?? 'confirmed';
   .prop-chip.proposed { color: var(--sky); border-color: rgba(56,189,248,.5); }
   .prop-chip.suggested { color: var(--amber); border-color: rgba(251,191,36,.5); }
   .off { font-size: .62rem; color: var(--faint); }
+  .node.clickable { cursor: pointer; }
+  .node.clickable:hover .dot { border-color: var(--green); box-shadow: 0 0 0 4px rgba(52,211,153,.12); }
+  .node.clickable:hover .name { color: var(--green); }
+  .dnote { font-size: .75rem; }
 </style>
