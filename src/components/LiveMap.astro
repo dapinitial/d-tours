@@ -90,10 +90,10 @@
 </script>
 
 <style>
-  /* position+z-index = own stacking context so Leaflet panes can't paint over the sticky header */
+  /* isolate = own stacking context, so Leaflet's panes/controls (and their high
+     z-indexes) stay contained and can't paint over the sticky header. This alone
+     fixes the overlap WITHOUT touching Leaflet's internal pane layering. */
   .map-wrap { position: relative; z-index: 0; isolation: isolate; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-  /* keep Leaflet's own layers contained, just in case */
-  .map :global(.leaflet-pane), .map :global(.leaflet-top), .map :global(.leaflet-bottom) { z-index: 1 !important; }
   .map { height: 440px; width: 100%; background: #0b1018; }
   .map-fallback { height: 100%; display: grid; place-content: center; text-align: center; gap: .3rem; padding: 2rem; }
   .map-fallback .big { font-size: 3rem; }

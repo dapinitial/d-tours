@@ -47,7 +47,9 @@ export interface ObjectiveBeta {
   glacier?: string;       // glacier-travel / crevasse-rescue kit notes
   last_services?: string; // last gas / store / food before the trailhead + where service drops
   signal?: string;        // cell coverage on the drive in & at the objective — AT&T and Verizon
+  land?: string;          // managing agency (BLM / NPS / National Forest / state) + pass needed (NW Forest Pass / America the Beautiful / day-use fee)
   camp?: string[];        // where to camp
+  free_camp?: string[];   // FREE / dispersed camping nearby
   water?: string[];       // where to get water
   permits?: string;       // permits / fees / reservations
   toilet?: string;        // WAG bags / where to poop

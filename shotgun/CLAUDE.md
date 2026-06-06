@@ -98,8 +98,10 @@ deeper, and compile a dossier into `objectives.beta` (jsonb) + `objectives.gpx_u
   estimate (~kcal/day × days).
 - **Skills** — kiwi/mountaineer's coil, simul-climbing, glacier travel,
   crevasse-rescue, rappel management.
-- **Camp · water · permits · toilet** — where to camp, filter water, permits/
-  fees/reservations, WAG-bag/poop rules.
+- **Land · camp · water · permits · toilet** — `land`: who manages it (BLM / NPS
+  / National Forest / state) and what pass/fee (NW Forest Pass, America the
+  Beautiful, day-use fee). `free_camp`: free/dispersed camping nearby and where.
+  Plus paid camp, filter water, permits/fees/reservations, WAG-bag/poop rules.
 - **Hazards · wildlife · fire · emergency** — rockfall/lightning/grizzlies;
   `fire` = current wildfire/smoke/air-quality + closures; `emergency` = local
   **sheriff, search & rescue, ranger station, nearest hospital** numbers.

@@ -61,6 +61,26 @@ export async function getObjectives(tenantId?: string): Promise<Objective[]> {
   return error ? [] : (data as Objective[]);
 }
 
+/** Approved comments on an objective dossier (public — RLS allows reading approved). */
+export async function getObjectiveComments(objectiveId: string) {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const { data, error } = await sb.from('comments').select('author, body, created_at')
+    .eq('objective_id', objectiveId).eq('approved', true).order('created_at', { ascending: true });
+  return error ? [] : (data ?? []);
+}
+
+/** Pending (unapproved) comments awaiting moderation (owner-only → service role). */
+export async function getPendingComments(tenantId?: string) {
+  const sb = getSupabaseAdmin();
+  if (!sb) return [];
+  const tid = await resolveTid(tenantId);
+  let q = sb.from('comments').select('*').eq('approved', false).order('created_at', { ascending: false });
+  if (tid) q = q.eq('tenant_id', tid);
+  const { data, error } = await q;
+  return error ? [] : (data ?? []);
+}
+
 /** A single objective by id (for the /objectives/[id] dossier page). */
 export async function getObjective(id: string): Promise<Objective | null> {
   const sb = getSupabase();

@@ -1,6 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { getObjective, getSources } from '../../lib/data';
+import { getObjective, getSources, getObjectiveComments } from '../../lib/data';
 import type { ObjectiveBeta } from '../../lib/types';
 
 export const prerender = false;
@@ -12,6 +12,8 @@ const b: ObjectiveBeta = (obj.beta as any) ?? {};
 const hasBeta = obj.beta && Object.keys(obj.beta as any).length > 0;
 // Seed links Shotgun is working from (pinned to this objective).
 const seeds = (await getSources((obj as any).tenant_id)).filter((s: any) => s.objective_id === obj.id);
+const comments = await getObjectiveComments(obj.id);
+const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
 const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chip red' };
 ---
 <Base title={`${obj.name} · Beta · D-Tours`} description={b.summary ?? `${obj.grade} · ${obj.region}`}>
@@ -104,9 +106,12 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
         )}
       </div>
 
-      {(b.camp || b.water || b.permits || b.toilet) && (
+      {(b.land || b.camp || b.free_camp || b.water || b.permits || b.toilet) && (
         <section class="block">
-          <h2>🏕️ Camp · water · permits</h2>
+          <h2>🏕️ Land · camp · water · permits</h2>
+          {b.land && <p><strong>🪧 Land & passes:</strong> {b.land}</p>}
+          {b.free_camp && b.free_camp.length > 0 && <p><strong>🆓 Free camping nearby:</strong></p>}
+          {b.free_camp && <ul>{b.free_camp.map((c) => <li>{c}</li>)}</ul>}
           {b.camp && b.camp.length > 0 && <p><strong>Camp:</strong></p>}
           {b.camp && <ul>{b.camp.map((c) => <li>{c}</li>)}</ul>}
           {b.water && <p><strong>💧 Water:</strong> {b.water.join(' · ')}</p>}
@@ -180,8 +185,52 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
           <ul class="seeds">{seeds.map((s: any) => <li><a href={s.url} target="_blank" rel="noopener">{s.title || s.url}</a> {s.tag && <span class="mono muted">· {s.tag}</span>}</li>)}</ul>
         </section>
       )}
+
+      <section class="block comments">
+        <h2>💬 Comments {comments.length > 0 && <span class="muted">({comments.length})</span>}</h2>
+        {comments.map((c: any) => (
+          <div class="cmt"><span class="c-author">{c.author}</span> <span class="c-when muted">{fmtDate(c.created_at)}</span><p>{c.body}</p></div>
+        ))}
+        <form class="cmt-form" id="cmt-form" data-id={obj.id}>
+          <input id="c-name" placeholder="Your name" />
+          <textarea id="c-body" rows="2" placeholder="Beta, a tip, a question, a hello…" required></textarea>
+          <div class="cmt-foot">
+            <button class="btn" type="submit">Post comment</button>
+            <p class="msg" id="c-msg"></p>
+          </div>
+        </form>
+        <p class="muted tiny">Comments are reviewed before they show up.</p>
+      </section>
     </div>
   </section>
+
+  <script>
+    document.getElementById('cmt-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target as HTMLElement;
+      const msg = document.getElementById('c-msg');
+      const body = (document.getElementById('c-body') as HTMLTextAreaElement).value.trim();
+      if (!body) return;
+      msg.textContent = 'Posting…'; msg.className = 'msg';
+      try {
+        const r = await fetch('/api/comment', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target: 'objective', id: (f as HTMLElement).dataset.id, author: (document.getElementById('c-name') as HTMLInputElement).value, body }) });
+        const j = await r.json();
+        if (j.ok) { msg.textContent = '🙏 Posted — it shows once reviewed!'; msg.className = 'msg ok'; (document.getElementById('c-body') as HTMLTextAreaElement).value = ''; }
+        else { msg.textContent = j.error || 'Try again.'; msg.className = 'msg err'; }
+      } catch { msg.textContent = 'Network hiccup — try again.'; msg.className = 'msg err'; }
+    });
+  </script>
+
+  <style>
+    .comments .cmt { padding: .7rem .9rem; background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 10px; margin-bottom: .6rem; }
+    .comments .c-author { font-weight: 700; } .comments .c-when { font-size: .75rem; margin-left: .4rem; }
+    .comments .cmt p { margin: .3rem 0 0; color: var(--muted); }
+    .cmt-form { display: grid; gap: .6rem; margin-top: .8rem; max-width: 34rem; }
+    .cmt-form input, .cmt-form textarea { background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .65rem .8rem; font: inherit; }
+    .cmt-foot { display: flex; align-items: center; gap: 1rem; }
+    .cmt-form .msg { font-size: .85rem; margin: 0; } .cmt-form .msg.ok { color: var(--green); } .cmt-form .msg.err { color: var(--red); }
+  </style>
 
   <style>
     .container.narrow { width: min(100% - 2.5rem, 800px); }

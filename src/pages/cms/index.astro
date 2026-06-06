@@ -1,10 +1,10 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { getPosts, getStops, getSuggestions, getRendezvous, isMock } from '../../lib/data';
+import { getPosts, getStops, getSuggestions, getRendezvous, getPendingComments, isMock } from '../../lib/data';
 const user = Astro.locals.user;
 const tid = Astro.locals.tenantId;
-const [posts, stops, fanSuggestions, rdvProposed] = await Promise.all([
-  getPosts({ tenantId: tid }), getStops(tid), getSuggestions(tid, 'pending'), getRendezvous(tid, 'proposed'),
+const [posts, stops, fanSuggestions, rdvProposed, pendingComments] = await Promise.all([
+  getPosts({ tenantId: tid }), getStops(tid), getSuggestions(tid, 'pending'), getRendezvous(tid, 'proposed'), getPendingComments(tid),
 ]);
 const queued = posts.filter((p) => !p.published_at).length;
 const proposals = stops
@@ -133,6 +133,27 @@ const proposals = stops
         </div>
       </div>
 
+      <div class="card proposals">
+        <h3>💬 Comments to review {pendingComments.length > 0 && <span class="tag suggested">{pendingComments.length}</span>}</h3>
+        <p class="muted tiny">Comments from the audience on dossiers & posts. Approve to show publicly (you also get texted when one lands).</p>
+        {pendingComments.length === 0 && <p class="muted">No comments to review.</p>}
+        <div class="prop-list">
+          {pendingComments.map((c: any) => (
+            <div class="prop" data-cmt={c.id}>
+              <span class="p-emoji">💬</span>
+              <div class="p-meta">
+                <div class="p-name">{c.author} <span class="muted tiny">on {c.objective_id ? `objective ${c.objective_id}` : `post`}</span></div>
+                <div class="muted p-sub">{c.body}</div>
+              </div>
+              <div class="p-actions">
+                <button class="btn sm cmt-approve" data-id={c.id}>✓ Approve</button>
+                <button class="btn ghost sm cmt-decline" data-id={c.id}>✕</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   </section>
 </Base>
@@ -189,6 +210,20 @@ const proposals = stops
   };
   document.querySelectorAll('.rdv-confirm').forEach((b) => b.addEventListener('click', () => rdvAct(b.dataset.id, 'confirm')));
   document.querySelectorAll('.rdv-decline').forEach((b) => b.addEventListener('click', () => rdvAct(b.dataset.id, 'decline')));
+
+  // comments → approve (shows publicly) / decline (delete)
+  const cmtAct = async (id, action) => {
+    const row = document.querySelector(`.prop[data-cmt="${id}"]`);
+    if (row) row.style.opacity = '0.4';
+    try {
+      const r = await fetch('/api/comment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, id }) });
+      const j = await r.json();
+      if (j.ok && row) { row.style.transition = 'all .4s'; row.style.height = '0'; setTimeout(() => row.remove(), 400); }
+      if (out) out.textContent = `${action === 'approve' ? 'Comment approved' : 'Declined'}: ${id}\n${JSON.stringify(j)}`;
+    } catch (e) { if (out) out.textContent = `error: ${e}`; if (row) row.style.opacity = '1'; }
+  };
+  document.querySelectorAll('.cmt-approve').forEach((b) => b.addEventListener('click', () => cmtAct(b.dataset.id, 'approve')));
+  document.querySelectorAll('.cmt-decline').forEach((b) => b.addEventListener('click', () => cmtAct(b.dataset.id, 'decline')));
 
   // ── post composer: upload photos → collect URLs → create post ──
   const uploaded = [];            // public URLs of uploaded photos
