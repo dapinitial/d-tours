@@ -1,5 +1,6 @@
 ---
 import { isMock } from '../lib/data';
+import ReachUs from './ReachUs.astro';
 ---
 <footer class="site-footer">
   <div class="container">
@@ -13,6 +14,7 @@ import { isMock } from '../lib/data';
         <span class="chip">v0.1 skeleton</span>
       </div>
     </div>
+    <div class="reach-row"><ReachUs /></div>
     <hr class="rule" />
     <p class="muted small">Built with Astro + Supabase · Shotgun runs on the home iMac (Claude Max) · © {new Date().getFullYear()}</p>
   </div>
@@ -24,4 +26,5 @@ import { isMock } from '../lib/data';
   .f-brand { font-weight: 800; margin-bottom: .4rem; }
   .status { display: flex; gap: .5rem; flex-wrap: wrap; }
   .small { font-size: .82rem; margin-top: 1rem; }
+  .reach-row { margin: .5rem 0 1.2rem; }
 </style>
