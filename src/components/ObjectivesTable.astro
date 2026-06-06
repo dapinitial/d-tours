@@ -18,7 +18,7 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
     <tbody>
       {objectives.map((o) => (
         <tr>
-          <td><strong>{o.name}</strong>{o.discipline && <div class="muted disc">{o.discipline}</div>}</td>
+          <td><strong><a href={`/objectives/${o.id}`} class="obj-link">{o.name}</a></strong> {(o.beta || o.gpx_url) && <span class="dossier-dot" title="Dossier ready">📋</span>}{o.discipline && <div class="muted disc">{o.discipline}</div>}</td>
           <td class="muted">{o.region}</td>
           <td>{o.commitment}</td>
           <td class="mono">{o.grade}</td>
@@ -31,6 +31,9 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
 <p class="muted hint">Tap any column header to sort.</p>
 
 <style>
+  .obj-link { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--border-2); }
+  .obj-link:hover { color: var(--green); border-color: var(--green); }
+  .dossier-dot { font-size: .8rem; }
   .disc { font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; margin-top: .2rem; }
   .hint { font-size: .8rem; margin-top: .6rem; }
 </style>

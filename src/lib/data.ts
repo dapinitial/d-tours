@@ -61,6 +61,14 @@ export async function getObjectives(tenantId?: string): Promise<Objective[]> {
   return error ? [] : (data as Objective[]);
 }
 
+/** A single objective by id (for the /objectives/[id] dossier page). */
+export async function getObjective(id: string): Promise<Objective | null> {
+  const sb = getSupabase();
+  if (!sb) return mock.objectives.find((o) => o.id === id) ?? null;
+  const { data } = await sb.from('objectives').select('*').eq('id', id).maybeSingle();
+  return (data as Objective) ?? null;
+}
+
 export async function getResources(tenantId?: string): Promise<Resource[]> {
   const sb = getSupabase();
   if (!sb) return mock.resources;

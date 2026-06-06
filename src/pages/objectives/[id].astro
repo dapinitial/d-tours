@@ -1,0 +1,149 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getObjective, getSources } from '../../lib/data';
+import type { ObjectiveBeta } from '../../lib/types';
+
+export const prerender = false;
+
+const { id } = Astro.params;
+const obj = id ? await getObjective(id) : null;
+if (!obj) return Astro.redirect('/plan');
+const b: ObjectiveBeta = (obj.beta as any) ?? {};
+const hasBeta = obj.beta && Object.keys(obj.beta as any).length > 0;
+// Seed links Shotgun is working from (pinned to this objective).
+const seeds = (await getSources((obj as any).tenant_id)).filter((s: any) => s.objective_id === obj.id);
+const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chip red' };
+---
+<Base title={`${obj.name} · Beta · D-Tours`} description={b.summary ?? `${obj.grade} · ${obj.region}`}>
+  <section>
+    <div class="container narrow">
+      <a href="/#objectives" class="muted back">← all objectives</a>
+
+      <header class="obj-head">
+        <h1>{obj.name}</h1>
+        <div class="meta">
+          <span class="mono">{obj.region}</span>
+          <span class="mono">{obj.grade}</span>
+          <span class="mono">{obj.commitment}</span>
+          {obj.discipline && <span class="chip sky">{obj.discipline}</span>}
+          <span class={sev[obj.severity]}>{obj.hazard}</span>
+        </div>
+        {obj.gpx_url && <a class="btn gpx" href={obj.gpx_url} target="_blank" rel="noopener">⬇ GPX / track</a>}
+      </header>
+
+      {!hasBeta && (
+        <div class="pending card">
+          <span class="big">🔍</span>
+          <p><strong>Shotgun's compiling this dossier.</strong></p>
+          <p class="muted">{seeds.length > 0 ? `${seeds.length} link(s) seeded — research underway.` : 'Seed a few links in the CMS and Shotgun will fill in the beta, gear, routes, camp, permits and conditions.'}</p>
+        </div>
+      )}
+
+      {b.summary && <p class="summary">{b.summary}</p>}
+
+      {b.routes && b.routes.length > 0 && (
+        <section class="block">
+          <h2>🧗 Routes</h2>
+          <div class="routes">
+            {b.routes.map((r) => (
+              <div class="route">
+                <div class="r-top"><span class="r-name">{r.url ? <a href={r.url} target="_blank" rel="noopener">{r.name}</a> : r.name}</span>{r.grade && <span class="r-grade mono">{r.grade}</span>}</div>
+                {r.note && <div class="muted r-note">{r.note}</div>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div class="cols">
+        {(b.rack || b.ropes || b.footwear) && (
+          <section class="block">
+            <h2>🎒 Gear</h2>
+            {b.rack && <p><strong>Rack:</strong> {b.rack}</p>}
+            {b.ropes && <p><strong>Ropes:</strong> {b.ropes}</p>}
+            {b.footwear && <p><strong>Footwear:</strong> {b.footwear}</p>}
+            {b.glacier && <p><strong>Glacier:</strong> {b.glacier}</p>}
+          </section>
+        )}
+        {b.skills && b.skills.length > 0 && (
+          <section class="block">
+            <h2>🪢 Skills needed</h2>
+            <ul>{b.skills.map((s) => <li>{s}</li>)}</ul>
+          </section>
+        )}
+      </div>
+
+      {(b.camp || b.water || b.permits || b.toilet) && (
+        <section class="block">
+          <h2>🏕️ Camp · water · permits</h2>
+          {b.camp && b.camp.length > 0 && <p><strong>Camp:</strong></p>}
+          {b.camp && <ul>{b.camp.map((c) => <li>{c}</li>)}</ul>}
+          {b.water && <p><strong>💧 Water:</strong> {b.water.join(' · ')}</p>}
+          {b.permits && <p><strong>📋 Permits:</strong> {b.permits}</p>}
+          {b.toilet && <p><strong>🚽 Toilet:</strong> {b.toilet}</p>}
+        </section>
+      )}
+
+      {(b.hazards || b.wildlife) && (
+        <section class="block warn">
+          <h2>⚠️ Hazards & wildlife</h2>
+          {b.hazards && <ul>{b.hazards.map((h) => <li>{h}</li>)}</ul>}
+          {b.wildlife && <p class="muted">{b.wildlife}</p>}
+        </section>
+      )}
+
+      {b.conditions && (b.conditions.weather_url || b.conditions.avalanche_url || b.conditions.bugs) && (
+        <section class="block">
+          <h2>🌤️ Live conditions</h2>
+          <div class="cond-links">
+            {b.conditions.weather_url && <a class="btn ghost sm" href={b.conditions.weather_url} target="_blank" rel="noopener">🌦️ Weather</a>}
+            {b.conditions.avalanche_url && <a class="btn ghost sm" href={b.conditions.avalanche_url} target="_blank" rel="noopener">🏔️ Avalanche</a>}
+          </div>
+          {b.conditions.bugs && <p class="muted">🦟 {b.conditions.bugs}</p>}
+        </section>
+      )}
+
+      {b.nearby && b.nearby.length > 0 && (
+        <section class="block">
+          <h2>📍 Nearby & other interest</h2>
+          <ul>{b.nearby.map((n) => <li>{n}</li>)}</ul>
+        </section>
+      )}
+
+      {seeds.length > 0 && (
+        <section class="block">
+          <h2>🔗 Beta sources</h2>
+          <p class="muted tiny">Links Shotgun reads to keep this dossier current.</p>
+          <ul class="seeds">{seeds.map((s: any) => <li><a href={s.url} target="_blank" rel="noopener">{s.title || s.url}</a> {s.tag && <span class="mono muted">· {s.tag}</span>}</li>)}</ul>
+        </section>
+      )}
+    </div>
+  </section>
+
+  <style>
+    .container.narrow { width: min(100% - 2.5rem, 800px); }
+    .back { display: inline-block; margin-bottom: 1rem; font-size: .9rem; }
+    .obj-head h1 { margin: 0 0 .6rem; }
+    .obj-head .meta { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
+    .obj-head .mono { font-family: var(--font-mono); font-size: .8rem; color: var(--muted); }
+    .btn.gpx { display: inline-block; }
+    .pending { text-align: center; display: grid; gap: .3rem; padding: 2rem; }
+    .pending .big { font-size: 2.5rem; }
+    .summary { font-size: 1.05rem; line-height: 1.6; margin: 1.2rem 0; }
+    .block { margin-top: 1.8rem; padding-top: 1.2rem; border-top: 1px solid var(--border); }
+    .block h2 { font-size: 1.15rem; margin: 0 0 .7rem; }
+    .block p { margin: .4rem 0; }
+    .block ul { margin: .4rem 0; padding-left: 1.2rem; display: grid; gap: .3rem; }
+    .block.warn h2 { color: var(--amber); }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 600px) { .cols { grid-template-columns: 1fr; } }
+    .routes { display: grid; gap: .6rem; }
+    .route { padding: .7rem .9rem; background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 10px; }
+    .r-top { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+    .r-name { font-weight: 700; } .r-name a { color: var(--text); } .r-name a:hover { color: var(--green); }
+    .r-grade { color: var(--green); font-size: .8rem; }
+    .r-note { font-size: .9rem; margin-top: .2rem; }
+    .cond-links { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .seeds a { color: var(--sky); }
+  </style>
+</Base>
