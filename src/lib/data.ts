@@ -87,6 +87,14 @@ export async function getPosts(opts: { publishedOnly?: boolean; tenantId?: strin
   return posts;
 }
 
+/** A single published post by id (for /journal/[id] permalinks). */
+export async function getPost(id: string): Promise<Post | null> {
+  const sb = getSupabase();
+  if (!sb) return mock.posts.find((p) => p.id === id) ?? null;
+  const { data } = await sb.from('posts').select('*').eq('id', id).maybeSingle();
+  return (data as Post) ?? null;
+}
+
 export async function getGear(tenantId?: string): Promise<GearItem[]> {
   const sb = getSupabase();
   if (!sb) return mock.gear;

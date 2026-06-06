@@ -33,7 +33,7 @@ const shareImg = posts.flatMap((p) => p.media ?? []).find((m) => media(m).type =
         {posts.map((p) => (
           <article id={p.id} class="post" data-reveal>
             <div class="p-head">
-              <h3>{p.title}</h3>
+              <h3><a href={`/journal/${p.id}`}>{p.title}</a></h3>
               {p.published_at
                 ? <span class="chip">{new Date(p.published_at).toLocaleDateString()}</span>
                 : <span class="chip amber">queued</span>}
@@ -85,6 +85,8 @@ const shareImg = posts.flatMap((p) => p.media ?? []).find((m) => media(m).type =
   .post { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.4rem; }
   .p-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .6rem; }
   .p-head h3 { margin: 0; }
+  .p-head h3 a { color: inherit; text-decoration: none; }
+  .p-head h3 a:hover { color: var(--green); }
   .p-body { color: var(--muted); margin: 0; }
   .gallery { display: grid; gap: .4rem; margin-top: .9rem; border-radius: 12px; overflow: hidden; }
   .gallery.n2, .gallery.n4 { grid-template-columns: 1fr 1fr; }
