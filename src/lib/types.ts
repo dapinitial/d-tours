@@ -118,13 +118,15 @@ export type GearStatus = 'packed' | 'repair' | 'replace' | 'loaned' | 'missing';
 export interface GearItem {
   id: string;
   name: string;
-  category: string;          // Climbing / Ropes / Water / Bikes / Comms & Power / Camp / Vehicle
+  category: string;          // Climbing / Ropes / Power & Electronics / Vehicle & Recovery / Shelter & Sleep …
+  subcategory?: string;      // finer grouping within a category (Cams / Nuts / Ropes …)
   emoji?: string;
   status: GearStatus;
   qty?: number;
   note?: string;
   loaned_to?: string;
   objectives?: string[];     // which objectives this kit is for
+  specs?: Record<string, string>; // freeform detail: { Year: "2019", "Last re-sling": "2024-03", Material: "alloy", Length: "30m", Diameter: "9.2mm", Finish: "dry" }
 }
 
 export type SourceStatus = 'new' | 'enriched' | 'error';

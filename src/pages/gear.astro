@@ -59,6 +59,9 @@ const line = (g: GearItem) => g.loaned_to ? `Loaned to ${g.loaned_to}` : g.note;
                   <span class="g-name">{g.name}{g.qty && g.qty > 1 && <span class="qty muted"> ×{g.qty}</span>}</span>
                   <span class={statusClass[g.status]}>{statusLabel[g.status]}</span>
                   {line(g) && <span class="muted g-note">{line(g)}</span>}
+                  {g.specs && Object.keys(g.specs).length > 0 && (
+                    <span class="specs">{Object.entries(g.specs).map(([k, v]) => <span class="spec"><b>{k}:</b> {v}</span>)}</span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -86,6 +89,8 @@ const line = (g: GearItem) => g.loaned_to ? `Loaned to ${g.loaned_to}` : g.note;
   .g-name { font-weight: 600; }
   .qty { font-weight: 400; }
   .g-note { font-size: .8rem; width: 100%; padding-left: 1.7rem; }
+  .specs { width: 100%; padding-left: 1.7rem; display: flex; flex-wrap: wrap; gap: .3rem .8rem; margin-top: .15rem; }
+  .spec { font-size: .76rem; color: var(--muted); } .spec b { color: var(--text); font-weight: 600; }
   .cat .chip { margin-left: auto; }
   @media (max-width: 720px) { .cat .chip { margin-left: 0; } }
 </style>

@@ -1,0 +1,128 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getGear } from '../../lib/data';
+const tid = Astro.locals.tenantId;
+const gear = await getGear(tid);
+const CATS = ['Climbing', 'Ropes & Anchors', 'Mountaineering', 'Power & Electronics', 'Comms', 'Vehicle & Recovery', 'Shelter & Sleep', 'Clothing', 'Kitchen & Camp', 'Hygiene', 'Games & Comfort', 'Misc'];
+const STATUS = ['packed', 'repair', 'replace', 'loaned', 'missing'];
+const cats = [...new Set([...gear.map((g) => g.category), ...CATS])];
+const byCat = (c: string) => gear.filter((g) => g.category === c);
+const specsToText = (s?: Record<string, string>) => s ? Object.entries(s).map(([k, v]) => `${k}: ${v}`).join('\n') : '';
+---
+<Base title="D-Tours · Edit Gear">
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">🎒 Gear</p>
+        <h2>The rig inventory</h2>
+        <p>Track every piece — status, qty, and freeform <strong>specs</strong> (tag year, last re-sling, length/diameter/finish, watts…). One <code>Label: value</code> per line.</p>
+        <a href="/cms" class="muted back">← back to CMS</a>
+      </div>
+
+      <div class="card add-card">
+        <h3>＋ Add gear</h3>
+        <div class="composer">
+          <input id="g-name" placeholder="Name — e.g. BD Camalot C4 #0.5, EcoFlow Delta Pro 3" />
+          <div class="composer-row">
+            <select id="g-cat">{CATS.map((c) => <option value={c}>{c}</option>)}</select>
+            <input id="g-sub" placeholder="Subcategory (Cams / Ropes / Recovery)" />
+          </div>
+          <div class="composer-row">
+            <input id="g-emoji" class="emoji-in" placeholder="🎒" maxlength="3" />
+            <input id="g-qty" type="number" min="1" placeholder="Qty" />
+            <select id="g-status">{STATUS.map((s) => <option value={s} selected={s === 'packed'}>{s}</option>)}</select>
+          </div>
+          <input id="g-note" placeholder="Note (loaned to / where it lives / reminder)" />
+          <textarea id="g-specs" rows="2" placeholder={"Specs — one per line:\nYear: 2019\nLast re-sling: 2024-03\nLength: 30m"}></textarea>
+          <div class="composer-foot">
+            <span class="muted tiny">{gear.length} items tracked</span>
+            <button id="add-gear" class="btn">Add item</button>
+          </div>
+        </div>
+      </div>
+
+      {cats.map((c) => byCat(c).length > 0 && (
+        <div class="card cat">
+          <h3>{c} <span class="muted">({byCat(c).length})</span></h3>
+          <div class="rows">
+            {byCat(c).map((g) => (
+              <div class="gi" data-id={g.id}>
+                <div class="gi-top">
+                  <input class="g-emoji" data-field="emoji" value={g.emoji ?? ''} placeholder="🎒" maxlength="3" />
+                  <input class="g-nm" data-field="name" value={g.name} placeholder="Name" />
+                  <input class="g-q" data-field="qty" type="number" min="1" value={g.qty ?? ''} placeholder="#" />
+                  <select class="g-st" data-field="status">{STATUS.map((s) => <option value={s} selected={g.status === s}>{s}</option>)}</select>
+                  <button class="del" title="Delete">🗑️</button>
+                </div>
+                <div class="gi-row">
+                  <select class="g-cat2" data-field="category">{cats.map((cc) => <option value={cc} selected={g.category === cc}>{cc}</option>)}</select>
+                  <input class="g-sub2" data-field="subcategory" value={g.subcategory ?? ''} placeholder="Subcategory" />
+                </div>
+                <input class="g-note2" data-field="note" value={g.note ?? ''} placeholder="Note / loaned to / location" />
+                <textarea class="g-specs2" data-field="specs" rows="2" placeholder="Specs — Label: value per line">{specsToText(g.specs)}</textarea>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      <div id="toast" class="toast"></div>
+    </div>
+  </section>
+
+  <script>
+    const toastEl = document.getElementById('toast');
+    const toast = (m, err = false) => { toastEl.textContent = m; toastEl.className = 'toast show' + (err ? ' err' : ''); setTimeout(() => toastEl.className = 'toast', 1500); };
+    const post = async (body) => { const r = await fetch('/api/gear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const j = await r.json(); if (!j.ok) toast(j.error || 'Failed', true); return j; };
+    const rid = () => (crypto.randomUUID ? crypto.randomUUID() : 'g-' + Math.random().toString(36).slice(2));
+    // parse "Label: value" lines → { Label: value }
+    const parseSpecs = (txt) => { const o = {}; (txt || '').split('\n').forEach((l) => { const i = l.indexOf(':'); if (i > 0) { const k = l.slice(0, i).trim(); const v = l.slice(i + 1).trim(); if (k && v) o[k] = v; } }); return Object.keys(o).length ? o : null; };
+
+    const fieldVal = (inp) => inp.dataset.field === 'specs' ? parseSpecs(inp.value) : inp.value;
+    document.querySelectorAll('.gi [data-field]').forEach((inp) => inp.addEventListener('change', async () => {
+      const card = inp.closest('.gi');
+      const j = await post({ action: 'update', id: card.dataset.id, item: { [inp.dataset.field]: fieldVal(inp) } });
+      if (j.ok) toast('Saved ✓');
+    }));
+    document.querySelectorAll('.gi .del').forEach((b) => b.addEventListener('click', async () => {
+      const card = b.closest('.gi');
+      if (!confirm('Delete this item?')) return;
+      const j = await post({ action: 'remove', id: card.dataset.id });
+      if (j.ok) { card.remove(); toast('Deleted'); }
+    }));
+    document.getElementById('add-gear').addEventListener('click', async () => {
+      const v = (id) => (document.getElementById(id)).value.trim();
+      const name = v('g-name'); if (!name) { toast('Name it first', true); return; }
+      const j = await post({ action: 'add', item: {
+        id: rid(), name, category: (document.getElementById('g-cat')).value, subcategory: v('g-sub'),
+        emoji: v('g-emoji') || '🎒', qty: v('g-qty') || null, status: (document.getElementById('g-status')).value,
+        note: v('g-note'), specs: parseSpecs(v('g-specs')),
+      }});
+      if (j.ok) location.reload();
+    });
+  </script>
+
+  <style>
+    .back { display: inline-block; margin-top: .5rem; font-size: .9rem; }
+    .add-card { margin-bottom: 1.5rem; }
+    .composer { display: grid; gap: .6rem; }
+    .composer input, .composer select, .composer textarea { width: 100%; background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .6rem .8rem; font: inherit; }
+    .composer-row { display: flex; gap: .6rem; } .composer-row > * { flex: 1; }
+    .emoji-in { max-width: 4rem; text-align: center; }
+    .composer-foot { display: flex; justify-content: space-between; align-items: center; }
+    .cat { margin-bottom: 1.1rem; }
+    .rows { display: grid; gap: .8rem; margin-top: .6rem; }
+    .gi { display: grid; gap: .4rem; padding: .7rem; background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; }
+    .gi input, .gi select, .gi textarea { background: var(--panel); border: 1px solid var(--border); border-radius: 7px; color: var(--text); padding: .45rem .6rem; font: inherit; font-size: .88rem; }
+    .gi-top { display: flex; gap: .4rem; align-items: center; }
+    .gi-top .g-emoji { width: 3rem; text-align: center; flex: 0 0 auto; }
+    .gi-top .g-nm { flex: 1; font-weight: 600; }
+    .gi-top .g-q { width: 3.5rem; flex: 0 0 auto; }
+    .gi-top .g-st { width: 6.5rem; flex: 0 0 auto; }
+    .del { background: transparent; border: 1px solid var(--border); border-radius: 7px; cursor: pointer; padding: .35rem .5rem; flex: 0 0 auto; }
+    .del:hover { border-color: var(--red); }
+    .gi-row { display: flex; gap: .4rem; } .gi-row > * { flex: 1; }
+    .toast { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--green); color: #06210f; padding: .6rem 1.1rem; border-radius: 999px; font-weight: 700; opacity: 0; pointer-events: none; transition: all .3s var(--ease); z-index: 300; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.err { background: var(--red); color: #2a0a0f; }
+  </style>
+</Base>
