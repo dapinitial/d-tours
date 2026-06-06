@@ -15,7 +15,7 @@ export const stops: Stop[] = [
   { id: 's9', order: 9, name: 'Spokane', sub: "Ricardo's Wedding — HARD deadline", emoji: '💍', flex: 'hard', region: 'WA', date: 'Aug 1' },
   { id: 's10', order: 10, name: 'Mazama', sub: 'North Cascades', emoji: '🌲', flex: 'soft', region: 'WA' },
   { id: 's11', order: 11, name: 'Squamish', sub: 'Send before the next chapter', emoji: '🧗', flex: 'open', region: 'BC' },
-  { id: 's12', order: 12, name: 'Kaf Adventures', sub: 'Alpine Mentorship — post-wedding', emoji: '🎓', flex: 'open', region: 'WA / Cascades' },
+  { id: 's12', order: 12, name: 'Kaf Adventures', sub: 'Alpine Mentorship — post-wedding', emoji: '🦎', flex: 'open', region: 'WA / Cascades' },
   // ── D-Tours proposals, staged by Shotgun, awaiting your 👍 (on-the-fly) ──
   { id: 'ps1', order: 5.5, name: 'Saratoga Hot Spring', sub: 'Pit-stop · free, 24/7', emoji: '♨️', flex: 'open', region: 'WY', status: 'suggested', kind: 'pitstop', source: 'shotgun', off_route_mi: 0.5, time_cost_min: 45, note: 'Hobo Pool off US-287.' },
   { id: 'sq1', order: 7.5, name: 'Garden of 1000 Buddhas', sub: 'Side-quest · Arlee, MT', emoji: '🌀', flex: 'open', region: 'MT', status: 'proposed', kind: 'sidequest', source: 'shotgun', off_route_mi: 8, time_cost_min: 60, note: 'On the way to Flathead — fits your slack.' },

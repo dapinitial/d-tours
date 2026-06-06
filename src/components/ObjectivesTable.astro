@@ -17,7 +17,7 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
     </thead>
     <tbody>
       {objectives.map((o) => (
-        <tr>
+        <tr class="clickable" data-href={`/objectives/${o.id}`} title="Open dossier">
           <td><strong><a href={`/objectives/${o.id}`} class="obj-link">{o.name}</a></strong> {(o.beta || o.gpx_url) && <span class="dossier-dot" title="Dossier ready">📋</span>}{o.discipline && <div class="muted disc">{o.discipline}</div>}</td>
           <td class="muted">{o.region}</td>
           <td>{o.commitment}</td>
@@ -28,11 +28,23 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
     </tbody>
   </table>
 </div>
-<p class="muted hint">Tap any column header to sort.</p>
+<p class="muted hint">Tap any row for the full dossier · tap a column header to sort.</p>
+
+<script>
+  document.querySelectorAll('tr.clickable[data-href]').forEach((tr) => {
+    tr.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('a, button')) return; // let real links/sort work
+      location.href = (tr as HTMLElement).dataset.href!;
+    });
+  });
+</script>
 
 <style>
   .obj-link { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--border-2); }
   .obj-link:hover { color: var(--green); border-color: var(--green); }
+  tr.clickable { cursor: pointer; transition: background .15s; }
+  tr.clickable:hover { background: rgba(52,211,153,.06); }
+  tr.clickable:hover .obj-link { color: var(--green); }
   .dossier-dot { font-size: .8rem; }
   .disc { font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; margin-top: .2rem; }
   .hint { font-size: .8rem; margin-top: .6rem; }

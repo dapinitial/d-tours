@@ -70,8 +70,8 @@ const packing = [
         <thead><tr><th>Objective</th><th>Region</th><th>Commitment</th><th>Grade</th><th>Hazard</th></tr></thead>
         <tbody>
           {objectives.map((o) => (
-            <tr>
-              <td><strong>{o.name}</strong></td>
+            <tr class="clickable" data-href={`/objectives/${o.id}`} title="Open dossier">
+              <td><strong><a href={`/objectives/${o.id}`} class="obj-link">{o.name}</a></strong> {(o.beta || o.gpx_url) && '📋'}</td>
               <td>{o.region}</td>
               <td>{o.commitment}</td>
               <td class="mono">{o.grade}</td>
@@ -105,6 +105,14 @@ const packing = [
   </article>
 
   <script>
+    // whole objective rows → dossier
+    document.querySelectorAll('tr.clickable[data-href]').forEach((tr) => {
+      tr.addEventListener('click', (e) => {
+        if ((e.target as HTMLElement).closest('a, button')) return;
+        location.href = (tr as HTMLElement).dataset.href!;
+      });
+    });
+
     document.getElementById('rdv-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const msg = document.getElementById('rdv-msg');
@@ -138,6 +146,8 @@ const packing = [
   ul.check { list-style: none; padding: 0; margin: .5rem 0 0; display: grid; gap: .5rem; }
   ul.check li { display: flex; align-items: center; gap: .55rem; font-size: .9rem; }
   .box { width: 15px; height: 15px; border: 1.5px solid var(--border-2); border-radius: 4px; flex: 0 0 auto; }
+  .obj-link { color: var(--text); border-bottom: 1px dotted var(--border-2); }
+  .obj-link:hover { color: var(--green); border-color: var(--green); }
   .rdv-section { margin-top: 3rem; padding-top: 1.2rem; border-top: 1px solid var(--border); }
   .rdv-list { display: grid; gap: .5rem; margin: .8rem 0 1.2rem; }
   .rdv { padding: .7rem .9rem; background: rgba(52,211,153,.07); border: 1px solid rgba(52,211,153,.25); border-radius: 10px; }

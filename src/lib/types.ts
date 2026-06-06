@@ -34,19 +34,31 @@ export interface Stop {
  *  sources. All fields optional — filled progressively as beta comes in. */
 export interface ObjectiveBeta {
   summary?: string;
+  at_a_glance?: { hike_type?: string; trail?: string; road?: string; bugs?: string; snow?: string }; // WTA-style quick status, bubbled to top
+  fishing?: string;       // can we fish? species, license, where
+  trailhead?: { name?: string; gmaps_url?: string; drive?: string; lat?: number; lng?: number }; // directions to the TH
   routes?: { name: string; grade?: string; note?: string; url?: string }[]; // incl. the main + nearby
   rack?: string;          // "Doubles to #3, single #4"
   ropes?: string;         // "60m doubles" / "70m single"
   footwear?: string;      // "approach shoes; mountain boots above snowline"
+  mountaineering?: string;// ice axe, crampons, boots w/ heel+toe welt, helmet, headlamp — snow/alpine kit
+  food?: string;          // calorie/food guidance for the objective ("~3,500 kcal/day x 3 days…")
   skills?: string[];      // "kiwi coil", "simul-climb", "crevasse rescue", "glacier travel"
   glacier?: string;       // glacier-travel / crevasse-rescue kit notes
+  last_services?: string; // last gas / store / food before the trailhead + where service drops
+  signal?: string;        // cell coverage on the drive in & at the objective — AT&T and Verizon
   camp?: string[];        // where to camp
   water?: string[];       // where to get water
   permits?: string;       // permits / fees / reservations
   toilet?: string;        // WAG bags / where to poop
   hazards?: string[];     // rockfall, lightning, grizzlies, etc.
   wildlife?: string;      // bears (spray/canister), birding, edible plants, bugs/spiders
-  conditions?: { weather_url?: string; avalanche_url?: string; bugs?: string }; // live links
+  fire?: string;          // wildfire / smoke / air-quality situation + closures
+  emergency?: { label: string; phone?: string; note?: string }[]; // sheriff, SAR, ranger station, nearest hospital
+  watch_for?: string[];   // cool plants, wildlife, gemstones, edible berries to spot
+  poi?: { name: string; note?: string; url?: string }[]; // fire lookouts, downed aircraft, historic sites, old mines/relics
+  photos?: { url: string; caption?: string }[];          // the place, the trail, plants/wildlife to recognize
+  conditions?: { weather_url?: string; mountain_forecast_url?: string; avalanche_url?: string; fire_url?: string; bugs?: string }; // live links
   nearby?: string[];      // other climbs / points of interest nearby
 }
 

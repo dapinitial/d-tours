@@ -80,25 +80,39 @@ field guide. When David seeds links in the CMS they land in `sources` pinned to
 that objective (`sources.objective_id`). Your job: read those links, research
 deeper, and compile a dossier into `objectives.beta` (jsonb) + `objectives.gpx_url`.
 
-**For each objective, gather and keep current:**
-- **Routes** — not just the headline line. The main route + nearby classics and
-  variations (e.g. Cirque of the Towers isn't only Wolf's Head East Ridge —
-  Pingora, Warbonnet, the full Traverse). Name · grade · a note · a Mountain
-  Project / WTA / SummitPost link each. Find MP pages via search.
-- **GPX track** — approach + route. Source from CalTopo / Gaia / peakbagger / a
-  trip report; store the link in `gpx_url`.
-- **Rack & ropes** — which cams/nuts, doubles vs single, rope length (e.g.
-  "doubles to #3, single #4; 60m double ropes").
-- **Footwear** — approach shoes vs trail runners vs mountain boots; gaiters,
-  microspikes vs real crampons, by season/snowline.
-- **Skills** — what it demands: kiwi coil / mountaineer's coil, simul-climbing,
-  glacier travel, crevasse-rescue kit, rappel management.
-- **Camp · water · permits · toilet** — where to camp, where to filter water,
-  permits/fees/reservations, WAG-bag/poop rules.
-- **Hazards & wildlife** — rockfall, lightning timing, grizzlies (spray +
-  canister rules), mosquitoes/biting bugs, edible plants, anything notable.
-- **Conditions (live links, not stale values)** — NWS/mountain-forecast weather
-  URL, the right avalanche center (NWAC/CAIC/etc.) URL, current bug report.
+**For each objective, gather and keep current** (full `ObjectiveBeta` shape):
+- **At-a-glance** (`at_a_glance`) — WTA-trip-report-style quick status, bubbled to
+  the top: hike_type, trail condition, road suitability, bugs, snow.
+- **Routes** — not just the headline line. Main route + nearby classics and
+  variations (Cirque isn't only Wolf's Head — Pingora, Warbonnet, the Traverse).
+  Name · grade · note · a Mountain Project / WTA / SummitPost link each.
+- **Trailhead** (`trailhead`) — name + a **Google Maps directions URL** + a short
+  drive note (turn-by-turn gist).
+- **Last services + cell signal** — `last_services`: last gas/store/food before
+  the TH and where pavement/cell ends. `signal`: coverage on the drive in and at
+  the objective for **AT&T and Verizon** specifically; last reliable-signal point.
+- **GPX track** (`gpx_url`) — approach + route, from CalTopo / Gaia / peakbagger.
+- **Rack · ropes · footwear · mountaineering · food** — cams/nuts, rope length;
+  approach shoes vs boots w/ heel+toe welt; **mountaineering kit** (ice axe,
+  crampons, helmet, headlamp) when there's snow/alpine; **food** as a calorie
+  estimate (~kcal/day × days).
+- **Skills** — kiwi/mountaineer's coil, simul-climbing, glacier travel,
+  crevasse-rescue, rappel management.
+- **Camp · water · permits · toilet** — where to camp, filter water, permits/
+  fees/reservations, WAG-bag/poop rules.
+- **Hazards · wildlife · fire · emergency** — rockfall/lightning/grizzlies;
+  `fire` = current wildfire/smoke/air-quality + closures; `emergency` = local
+  **sheriff, search & rescue, ranger station, nearest hospital** numbers.
+- **Watch for + fishing** (`watch_for`, `fishing`) — cool/edible plants, wildlife,
+  gemstones, AND poisonous plants/animals to avoid; whether you can fish (species,
+  license, where).
+- **Points of interest** (`poi`) — fire lookouts, downed aircraft, old mines,
+  historic relics nearby, each with a link if available.
+- **Photos** (`photos`) — the place, the trail/approach, and images of plants/
+  wildlife to recognize (esp. poisonous vs edible). Use public image URLs.
+- **Conditions (live links, not stale values)** — `weather_url` (NWS),
+  `mountain_forecast_url` (**mountain-forecast.com** for the window + 3-5 days
+  prior), `avalanche_url` (NWAC/CAIC/etc.), `fire_url` (InciWeb/AirNow), bugs.
 
 Write it to `objectives.beta` matching the `ObjectiveBeta` shape in
 `src/lib/types.ts`. Prefer current, sourced info over guesses; cite the source

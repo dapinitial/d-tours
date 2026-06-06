@@ -31,6 +31,16 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
         {obj.gpx_url && <a class="btn gpx" href={obj.gpx_url} target="_blank" rel="noopener">⬇ GPX / track</a>}
       </header>
 
+      {b.at_a_glance && (
+        <div class="glance">
+          {b.at_a_glance.hike_type && <span class="g-chip">🥾 {b.at_a_glance.hike_type}</span>}
+          {b.at_a_glance.trail && <span class="g-chip">🧭 {b.at_a_glance.trail}</span>}
+          {b.at_a_glance.road && <span class="g-chip">🚙 {b.at_a_glance.road}</span>}
+          {b.at_a_glance.bugs && <span class="g-chip">🦟 {b.at_a_glance.bugs}</span>}
+          {b.at_a_glance.snow && <span class="g-chip">❄️ {b.at_a_glance.snow}</span>}
+        </div>
+      )}
+
       {!hasBeta && (
         <div class="pending card">
           <span class="big">🔍</span>
@@ -40,6 +50,25 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
       )}
 
       {b.summary && <p class="summary">{b.summary}</p>}
+
+      {(b.trailhead?.name || b.trailhead?.gmaps_url || b.trailhead?.drive || b.last_services || b.signal) && (
+        <section class="block">
+          <h2>🚗 Getting there & comms</h2>
+          {b.trailhead?.name && <p><strong>Trailhead:</strong> {b.trailhead.name}</p>}
+          {b.trailhead?.drive && <p class="muted">{b.trailhead.drive}</p>}
+          {b.trailhead?.gmaps_url && <a class="btn ghost sm" href={b.trailhead.gmaps_url} target="_blank" rel="noopener">🗺️ Google Maps directions</a>}
+          {b.last_services && <p><strong>⛽ Last services:</strong> {b.last_services}</p>}
+          {b.signal && <p><strong>📶 Cell signal:</strong> {b.signal}</p>}
+        </section>
+      )}
+
+      {b.photos && b.photos.length > 0 && (
+        <div class="photos">
+          {b.photos.map((p) => (
+            <figure><img src={p.url} loading="lazy" alt={p.caption ?? obj.name} />{p.caption && <figcaption>{p.caption}</figcaption>}</figure>
+          ))}
+        </div>
+      )}
 
       {b.routes && b.routes.length > 0 && (
         <section class="block">
@@ -56,13 +85,15 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
       )}
 
       <div class="cols">
-        {(b.rack || b.ropes || b.footwear) && (
+        {(b.rack || b.ropes || b.footwear || b.mountaineering || b.food) && (
           <section class="block">
-            <h2>🎒 Gear</h2>
+            <h2>🎒 Gear & food</h2>
             {b.rack && <p><strong>Rack:</strong> {b.rack}</p>}
             {b.ropes && <p><strong>Ropes:</strong> {b.ropes}</p>}
             {b.footwear && <p><strong>Footwear:</strong> {b.footwear}</p>}
+            {b.mountaineering && <p><strong>🪓 Mountaineering:</strong> {b.mountaineering}</p>}
             {b.glacier && <p><strong>Glacier:</strong> {b.glacier}</p>}
+            {b.food && <p><strong>🍫 Food:</strong> {b.food}</p>}
           </section>
         )}
         {b.skills && b.skills.length > 0 && (
@@ -84,22 +115,54 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
         </section>
       )}
 
-      {(b.hazards || b.wildlife) && (
+      {(b.hazards || b.wildlife || b.fire || (b.emergency && b.emergency.length > 0)) && (
         <section class="block warn">
-          <h2>⚠️ Hazards & wildlife</h2>
+          <h2>⚠️ Hazards · fire · emergency</h2>
           {b.hazards && <ul>{b.hazards.map((h) => <li>{h}</li>)}</ul>}
           {b.wildlife && <p class="muted">{b.wildlife}</p>}
+          {b.fire && <p><strong>🔥 Fire & smoke:</strong> {b.fire}</p>}
+          {b.emergency && b.emergency.length > 0 && (
+            <div class="emergency">
+              <p><strong>🆘 Emergency contacts</strong></p>
+              <ul>{b.emergency.map((e) => <li>{e.label}{e.phone && <a class="tel" href={`tel:${e.phone.replace(/[^+\d]/g, '')}`}> {e.phone}</a>}{e.note && <span class="muted"> — {e.note}</span>}</li>)}</ul>
+            </div>
+          )}
         </section>
       )}
 
-      {b.conditions && (b.conditions.weather_url || b.conditions.avalanche_url || b.conditions.bugs) && (
+      {b.conditions && (b.conditions.weather_url || b.conditions.mountain_forecast_url || b.conditions.avalanche_url || b.conditions.fire_url || b.conditions.bugs) && (
         <section class="block">
           <h2>🌤️ Live conditions</h2>
           <div class="cond-links">
             {b.conditions.weather_url && <a class="btn ghost sm" href={b.conditions.weather_url} target="_blank" rel="noopener">🌦️ Weather</a>}
+            {b.conditions.mountain_forecast_url && <a class="btn ghost sm" href={b.conditions.mountain_forecast_url} target="_blank" rel="noopener">⛰️ Mountain Forecast</a>}
             {b.conditions.avalanche_url && <a class="btn ghost sm" href={b.conditions.avalanche_url} target="_blank" rel="noopener">🏔️ Avalanche</a>}
+            {b.conditions.fire_url && <a class="btn ghost sm" href={b.conditions.fire_url} target="_blank" rel="noopener">🔥 Fire / smoke</a>}
           </div>
           {b.conditions.bugs && <p class="muted">🦟 {b.conditions.bugs}</p>}
+        </section>
+      )}
+
+      {b.watch_for && b.watch_for.length > 0 && (
+        <section class="block">
+          <h2>👀 Keep an eye out for</h2>
+          <p class="muted tiny">Cool plants, wildlife, edibles & gems — and what to steer clear of.</p>
+          <ul>{b.watch_for.map((w) => <li>{w}</li>)}</ul>
+        </section>
+      )}
+
+      {b.fishing && (
+        <section class="block">
+          <h2>🎣 Fishing</h2>
+          <p>{b.fishing}</p>
+        </section>
+      )}
+
+      {b.poi && b.poi.length > 0 && (
+        <section class="block">
+          <h2>🔭 Points of interest</h2>
+          <p class="muted tiny">Fire lookouts, old mines, wreckage, historic relics nearby.</p>
+          <ul>{b.poi.map((p) => <li>{p.url ? <a href={p.url} target="_blank" rel="noopener">{p.name}</a> : <strong>{p.name}</strong>}{p.note && <span class="muted"> — {p.note}</span>}</li>)}</ul>
         </section>
       )}
 
@@ -130,6 +193,12 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
     .pending { text-align: center; display: grid; gap: .3rem; padding: 2rem; }
     .pending .big { font-size: 2.5rem; }
     .summary { font-size: 1.05rem; line-height: 1.6; margin: 1.2rem 0; }
+    .glance { display: flex; gap: .5rem; flex-wrap: wrap; margin: 1rem 0 .4rem; }
+    .g-chip { font-size: .8rem; padding: .35rem .7rem; border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid var(--border); }
+    .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: .6rem; margin: 1.2rem 0; }
+    .photos figure { margin: 0; } .photos img { width: 100%; border-radius: 10px; display: block; }
+    .photos figcaption { font-size: .78rem; color: var(--muted); margin-top: .3rem; }
+    .emergency { margin-top: .6rem; } .tel { color: var(--green); font-weight: 700; }
     .block { margin-top: 1.8rem; padding-top: 1.2rem; border-top: 1px solid var(--border); }
     .block h2 { font-size: 1.15rem; margin: 0 0 .7rem; }
     .block p { margin: .4rem 0; }
