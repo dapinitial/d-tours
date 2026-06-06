@@ -1,16 +1,19 @@
 ---
-// "Reach the crew" — lets a visitor message David directly. imessage:// opens
-// Messages on Apple devices (blue bubble); sms:/wa.me/mailto cover everyone else.
-// The number + email are assembled client-side so the raw HTML carries no
-// plaintext contact for scrapers to harvest.
+// "Reach the crew" — lets a visitor message David directly.
+//   • Apple devices (iPhone/iPad/Mac) → 💬 iMessage (imessage:// opens Messages)
+//   • Everyone else                   → 📱 Text (sms:) — Android opens its SMS app
+//   • Always                          → 🟢 WhatsApp + 📧 Email
+// We render the universal set by default (works with no JS); JS upgrades Apple
+// devices to the iMessage button. Number + email are assembled client-side so the
+// raw HTML carries no plaintext contact for scrapers.
 interface Props { compact?: boolean }
 const { compact = false } = Astro.props;
 ---
 <div class:list={['reach', { compact }]}>
   <span class="reach-label">📲 Reach the crew</span>
   <div class="reach-btns">
-    <a class="rb" data-kind="imessage" href="#" aria-label="iMessage David">💬 iMessage</a>
-    <a class="rb" data-kind="sms" href="#" aria-label="Text David">📱 Text</a>
+    <a class="rb apple-only" data-kind="imessage" href="#" aria-label="iMessage David">💬 iMessage</a>
+    <a class="rb sms-only" data-kind="sms" href="#" aria-label="Text David">📱 Text</a>
     <a class="rb" data-kind="whatsapp" href="#" target="_blank" rel="noopener" aria-label="WhatsApp David">🟢 WhatsApp</a>
     <a class="rb" data-kind="email" href="#" aria-label="Email David">📧 Email</a>
   </div>
@@ -29,6 +32,12 @@ const { compact = false } = Astro.props;
   document.querySelectorAll<HTMLAnchorElement>('.reach .rb').forEach((a) => {
     const k = a.dataset.kind; if (k && hrefs[k]) a.href = hrefs[k];
   });
+  // Apple (iMessage-capable)? Show iMessage, drop the SMS button. iPadOS 13+ poses
+  // as desktop Safari, so also check MacIntel + touch.
+  const ua = navigator.userAgent;
+  const isApple = /iPhone|iPad|iPod|Macintosh/i.test(ua)
+    || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints ?? 0) > 1);
+  if (isApple) document.querySelectorAll('.reach').forEach((el) => el.classList.add('is-apple'));
 </script>
 
 <style>
@@ -36,7 +45,11 @@ const { compact = false } = Astro.props;
   .reach-label { font-weight: 700; font-size: .9rem; }
   .reach.compact .reach-label { font-size: .82rem; color: var(--muted); }
   .reach-btns { display: flex; gap: .5rem; flex-wrap: wrap; }
-  .rb { font-size: .85rem; font-weight: 600; padding: .4rem .8rem; border-radius: 999px;
-        border: 1px solid var(--border-2); color: var(--text); text-decoration: none; transition: all .15s; }
+  .rb { display: inline-flex; align-items: center; font-size: .85rem; font-weight: 600; padding: .4rem .8rem;
+        border-radius: 999px; border: 1px solid var(--border-2); color: var(--text); text-decoration: none; transition: all .15s; }
   .rb:hover { border-color: var(--green); color: var(--green); }
+  /* Default (no JS / non-Apple): show Text, hide iMessage. JS reverses it on Apple. */
+  .apple-only { display: none; }
+  .reach.is-apple .apple-only { display: inline-flex; }
+  .reach.is-apple .sms-only { display: none; }
 </style>
