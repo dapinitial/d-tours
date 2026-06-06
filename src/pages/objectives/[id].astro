@@ -350,7 +350,7 @@ const checklist = [
           `<div class="fg-kind kind-${esc(f.kind)}">${EMOJI[f.kind]||'•'} ${LABEL[f.kind]||''}</div>` +
           `<h3>${esc(f.name)}</h3>` +
           (f.note ? `<p>${esc(f.note)}</p>` : '') +
-          (f.treat ? `<p class="fg-treat"><strong>🩹 First aid:</strong> ${esc(f.treat)}</p>` : '') +
+          (f.treat ? `<p class="fg-treat"><strong>🆘 What to do:</strong> ${esc(f.treat)}</p>` : '') +
           (f.url ? `<a class="btn ghost sm" href="${esc(f.url)}" target="_blank" rel="noopener">More ↗</a>` : '');
         modal.hidden = false;
       };
