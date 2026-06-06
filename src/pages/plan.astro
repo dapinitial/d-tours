@@ -1,8 +1,10 @@
 ---
 import Base from '../layouts/Base.astro';
 import ShareButton from '../components/ShareButton.astro';
-import { getStops, getObjectives, getResources } from '../lib/data';
-const [stops, objectives, resources] = await Promise.all([getStops(), getObjectives(), getResources()]);
+import { getStops, getObjectives, getResources, getRendezvous } from '../lib/data';
+const [stops, objectives, resources, confirmedRdv] = await Promise.all([
+  getStops(), getObjectives(), getResources(), getRendezvous(undefined, 'confirmed'),
+]);
 const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chip red' };
 const logistics = resources.filter((r) => r.layer === 'logistics' || r.layer === 'life');
 
@@ -39,6 +41,27 @@ const packing = [
         </li>
       ))}
     </ol>
+
+    <!-- RENDEZVOUS -->
+    <section class="rdv-section print-only-hide">
+      <h2>🤝 Catch us along the way</h2>
+      {confirmedRdv.length > 0 && (
+        <div class="rdv-list">
+          {confirmedRdv.map((r: any) => (
+            <div class="rdv">🤝 <strong>{r.name}</strong>{r.place && ` · ${r.place}`}{r.when_text && ` · ${r.when_text}`}{r.note && <span class="muted"> — {r.note}</span>}</div>
+          ))}
+        </div>
+      )}
+      <p class="muted">On our route and want to meet up? Drop it here — we'll confirm and it'll show up above.</p>
+      <form class="rdv-form" id="rdv-form">
+        <input id="rdv-name" placeholder="Your name" required />
+        <input id="rdv-place" placeholder="Where? (town / near what)" />
+        <input id="rdv-when" placeholder="When? (e.g. Aug 5)" />
+        <input id="rdv-note" placeholder="Note (optional)" />
+        <button class="btn" type="submit">🤝 Propose a meet-up</button>
+        <p class="msg" id="rdv-msg"></p>
+      </form>
+    </section>
 
     <!-- OBJECTIVES -->
     <h2>🧗 Climbing objectives</h2>
@@ -80,6 +103,24 @@ const packing = [
       ))}
     </div>
   </article>
+
+  <script>
+    document.getElementById('rdv-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('rdv-msg');
+      const g = (id) => (document.getElementById(id) as HTMLInputElement).value.trim();
+      const name = g('rdv-name');
+      if (!name) { msg.textContent = 'Add your name first.'; msg.className = 'msg err'; return; }
+      msg.textContent = 'Sending…'; msg.className = 'msg';
+      try {
+        const r = await fetch('/api/rendezvous', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, place: g('rdv-place'), when_text: g('rdv-when'), note: g('rdv-note') }) });
+        const j = await r.json();
+        if (j.ok) { msg.textContent = '🤝 Sent — they\'ll confirm if it works!'; msg.className = 'msg ok'; (e.target as HTMLFormElement).reset(); }
+        else { msg.textContent = j.error || 'Try again.'; msg.className = 'msg err'; }
+      } catch { msg.textContent = 'Network hiccup — try again.'; msg.className = 'msg err'; }
+    });
+  </script>
 </Base>
 
 <style>
@@ -97,6 +138,13 @@ const packing = [
   ul.check { list-style: none; padding: 0; margin: .5rem 0 0; display: grid; gap: .5rem; }
   ul.check li { display: flex; align-items: center; gap: .55rem; font-size: .9rem; }
   .box { width: 15px; height: 15px; border: 1.5px solid var(--border-2); border-radius: 4px; flex: 0 0 auto; }
+  .rdv-section { margin-top: 3rem; padding-top: 1.2rem; border-top: 1px solid var(--border); }
+  .rdv-list { display: grid; gap: .5rem; margin: .8rem 0 1.2rem; }
+  .rdv { padding: .7rem .9rem; background: rgba(52,211,153,.07); border: 1px solid rgba(52,211,153,.25); border-radius: 10px; }
+  .rdv-form { display: grid; gap: .6rem; max-width: 30rem; }
+  .rdv-form input { background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .7rem .85rem; font: inherit; }
+  .rdv-form .msg { font-size: .85rem; margin: 0; min-height: 1.1em; }
+  .rdv-form .msg.ok { color: var(--green); } .rdv-form .msg.err { color: var(--red); }
 
   /* ════════ PRINT / PDF — Letter, light bg, crisp black, no awkward breaks ════════ */
   @media print {

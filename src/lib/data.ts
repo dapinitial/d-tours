@@ -125,6 +125,19 @@ export async function getSources(tenantId?: string): Promise<Source[]> {
   return error ? [] : (data as Source[]);
 }
 
+/** Rendezvous meet-ups. status='confirmed' for public display, 'proposed' for
+ *  CMS moderation. Service-role read (proposed rows aren't publicly readable). */
+export async function getRendezvous(tenantId?: string, status?: string) {
+  const sb = getSupabaseAdmin();
+  if (!sb) return [];
+  const tid = await resolveTid(tenantId);
+  let q = sb.from('rendezvous').select('*').order('created_at', { ascending: false });
+  if (tid) q = q.eq('tenant_id', tid);
+  if (status) q = q.eq('status', status);
+  const { data, error } = await q;
+  return error ? [] : (data ?? []);
+}
+
 /** The dispatch subscriber list (owner-only → service role; table has no public
  *  RLS policy). Optionally filter by cadence. Server-side use only. */
 export async function getSubscribers(tenantId?: string, cadence?: string): Promise<{ email: string; cadence: string }[]> {

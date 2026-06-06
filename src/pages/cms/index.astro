@@ -1,10 +1,10 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { getPosts, getStops, getSuggestions, isMock } from '../../lib/data';
+import { getPosts, getStops, getSuggestions, getRendezvous, isMock } from '../../lib/data';
 const user = Astro.locals.user;
 const tid = Astro.locals.tenantId;
-const [posts, stops, fanSuggestions] = await Promise.all([
-  getPosts({ tenantId: tid }), getStops(tid), getSuggestions(tid, 'pending'),
+const [posts, stops, fanSuggestions, rdvProposed] = await Promise.all([
+  getPosts({ tenantId: tid }), getStops(tid), getSuggestions(tid, 'pending'), getRendezvous(tid, 'proposed'),
 ]);
 const queued = posts.filter((p) => !p.published_at).length;
 const proposals = stops
@@ -111,6 +111,27 @@ const proposals = stops
         </div>
       </div>
 
+      <div class="card proposals">
+        <h3>🤝 Rendezvous requests {rdvProposed.length > 0 && <span class="tag suggested">{rdvProposed.length}</span>}</h3>
+        <p class="muted tiny">People who got your plan and want to meet up. Confirm to lock it in — confirmed meet-ups show on your public plan.</p>
+        {rdvProposed.length === 0 && <p class="muted">No meet-up requests right now.</p>}
+        <div class="prop-list">
+          {rdvProposed.map((r: any) => (
+            <div class="prop" data-rdv={r.id}>
+              <span class="p-emoji">🤝</span>
+              <div class="p-meta">
+                <div class="p-name">{r.name}{r.place && ` · ${r.place}`}{r.when_text && ` · ${r.when_text}`}</div>
+                <div class="muted p-sub">{r.note ? `${r.note} — ` : ''}from {r.proposed_by}</div>
+              </div>
+              <div class="p-actions">
+                <button class="btn sm rdv-confirm" data-id={r.id}>✓ Confirm</button>
+                <button class="btn ghost sm rdv-decline" data-id={r.id}>✕</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   </section>
 </Base>
@@ -153,6 +174,20 @@ const proposals = stops
   };
   document.querySelectorAll('.fan-approve').forEach((b) => b.addEventListener('click', () => fanAct(b.dataset.id, 'approve')));
   document.querySelectorAll('.fan-decline').forEach((b) => b.addEventListener('click', () => fanAct(b.dataset.id, 'decline')));
+
+  // rendezvous requests → confirm (shows publicly) / decline
+  const rdvAct = async (id, action) => {
+    const row = document.querySelector(`.prop[data-rdv="${id}"]`);
+    if (row) row.style.opacity = '0.4';
+    try {
+      const r = await fetch('/api/rendezvous', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, id }) });
+      const j = await r.json();
+      if (j.ok && row) { row.style.transition = 'all .4s'; row.style.height = '0'; setTimeout(() => row.remove(), 400); }
+      if (out) out.textContent = `${action === 'confirm' ? 'Rendezvous confirmed' : 'Declined'}: ${id}\n${JSON.stringify(j)}`;
+    } catch (e) { if (out) out.textContent = `error: ${e}`; if (row) row.style.opacity = '1'; }
+  };
+  document.querySelectorAll('.rdv-confirm').forEach((b) => b.addEventListener('click', () => rdvAct(b.dataset.id, 'confirm')));
+  document.querySelectorAll('.rdv-decline').forEach((b) => b.addEventListener('click', () => rdvAct(b.dataset.id, 'decline')));
 
   // ── post composer: upload photos → collect URLs → create post ──
   const uploaded = [];            // public URLs of uploaded photos
