@@ -3,20 +3,16 @@
 // Tip jar (env-configurable link) + subscribe + suggest-a-detour + playlist board.
 interface Props { playlists?: any[]; }
 const { playlists = [] } = Astro.props;
-const tipUrl = import.meta.env.PUBLIC_TIPJAR_URL ?? '';   // Buy Me a Coffee
-const venmoUrl = import.meta.env.PUBLIC_VENMO_URL ?? '';  // Venmo
+const venmoUrl = import.meta.env.PUBLIC_VENMO_URL ?? '';  // Venmo tip link
 const kindEmoji: Record<string, string> = { music: '🎵', audiobook: '📖', podcast: '🎙️' };
 ---
 <div class="cheer">
   <!-- Fuel the trip (tip jar) — only shown once a real tip link is configured -->
-  {(tipUrl || venmoUrl) && (
+  {venmoUrl && (
     <div class="card fuel" data-reveal>
       <h3><span class="emoji">🍦</span> Fuel the trip</h3>
       <p class="muted">Chip in for gas, a coffee, or an ice cream down the road. Every little bit keeps the rig rolling.</p>
-      <div class="fuel-btns">
-        {tipUrl && <a class="btn" href={tipUrl} target="_blank" rel="noopener">☕ Buy Me a Coffee</a>}
-        {venmoUrl && <a class="btn ghost" href={venmoUrl} target="_blank" rel="noopener">💸 Venmo</a>}
-      </div>
+      <a class="btn" href={venmoUrl} target="_blank" rel="noopener">💸 Venmo David a tank / a cone</a>
     </div>
   )}
 
@@ -106,7 +102,6 @@ const kindEmoji: Record<string, string> = { music: '🎵', audiobook: '📖', po
   .cheer { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.1rem; }
   @media (max-width: 760px) { .cheer { grid-template-columns: 1fr; } }
   .card.fuel { background: linear-gradient(180deg, rgba(251,191,36,.12), var(--panel)); border-color: rgba(251,191,36,.3); }
-  .fuel-btns { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .3rem; }
   .card h3 { display: flex; align-items: center; gap: .5rem; }
   .cs-form { display: grid; gap: .6rem; margin-top: .9rem; }
   .cs-form input { width: 100%; background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .7rem .85rem; font: inherit; min-height: 44px; }
