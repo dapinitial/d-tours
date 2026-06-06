@@ -1,0 +1,75 @@
+---
+import Base from '../layouts/Base.astro';
+import { getObjectives } from '../lib/data';
+import type { Objective, ObjectiveBeta } from '../lib/types';
+
+const objectives = (await getObjectives()) as Objective[];
+// Only objectives with researched conditions, in route order (by id).
+const withBeta = objectives
+  .filter((o) => o.beta && (o.beta as ObjectiveBeta).conditions)
+  .sort((a, b) => a.id.localeCompare(b.id));
+const c = (o: Objective) => (o.beta as ObjectiveBeta).conditions ?? {};
+const g = (o: Objective) => (o.beta as ObjectiveBeta).at_a_glance ?? {};
+---
+<Base title="Conditions · D-Tours" description="Weather, fire/smoke & avalanche across the whole route.">
+  <section>
+    <div class="container narrow">
+      <div class="section-head">
+        <p class="eyebrow">🌡️ Conditions</p>
+        <h2>The whole route at a glance</h2>
+        <p>Weather, fire &amp; smoke, and avalanche for every objective — so you know what's burning, storming, or snowed-in before you commit.</p>
+      </div>
+
+      <!-- trip-wide quick links -->
+      <div class="quick">
+        <a class="btn ghost sm" href="https://inciweb.wildfire.gov/" target="_blank" rel="noopener">🔥 InciWeb (US wildfires)</a>
+        <a class="btn ghost sm" href="https://fire.airnow.gov/" target="_blank" rel="noopener">💨 AirNow smoke map</a>
+        <a class="btn ghost sm" href="https://avalanche.org/" target="_blank" rel="noopener">🏔️ Avalanche.org</a>
+        <a class="btn ghost sm" href="https://www.weather.gov/" target="_blank" rel="noopener">🌦️ NWS</a>
+      </div>
+
+      {withBeta.length === 0 && <p class="muted">No conditions data yet — run a Shotgun dossier sweep.</p>}
+
+      <div class="cond-grid">
+        {withBeta.map((o) => (
+          <div class="cc">
+            <div class="cc-head">
+              <a href={`/objectives/${o.id}`} class="cc-name">{o.name}</a>
+              <span class="muted cc-region">{o.region}</span>
+            </div>
+            {g(o) && (
+              <div class="cc-glance">
+                {g(o).snow && <span class="gc">❄️ {g(o).snow}</span>}
+                {(g(o).bugs || c(o).bugs) && <span class="gc">🦟 {g(o).bugs || c(o).bugs}</span>}
+              </div>
+            )}
+            {(o.beta as ObjectiveBeta).fire && <p class="cc-fire">🔥 {(o.beta as ObjectiveBeta).fire}</p>}
+            <div class="cc-links">
+              {c(o).weather_url && <a class="lk" href={c(o).weather_url} target="_blank" rel="noopener">🌦️ Weather</a>}
+              {c(o).mountain_forecast_url && <a class="lk" href={c(o).mountain_forecast_url} target="_blank" rel="noopener">⛰️ Mtn forecast</a>}
+              {c(o).avalanche_url && <a class="lk" href={c(o).avalanche_url} target="_blank" rel="noopener">🏔️ Avalanche</a>}
+              {c(o).fire_url && <a class="lk" href={c(o).fire_url} target="_blank" rel="noopener">🔥 Fire/smoke</a>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <style>
+    .container.narrow { width: min(100% - 2.5rem, 860px); }
+    .quick { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.4rem; }
+    .cond-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: .9rem; }
+    .cc { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; }
+    .cc-head { display: flex; flex-direction: column; margin-bottom: .5rem; }
+    .cc-name { font-weight: 700; color: var(--text); text-decoration: none; }
+    .cc-name:hover { color: var(--green); }
+    .cc-region { font-size: .78rem; }
+    .cc-glance { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .5rem; }
+    .gc { font-size: .74rem; padding: .2rem .5rem; border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid var(--border); }
+    .cc-fire { font-size: .82rem; color: var(--amber); margin: .3rem 0; }
+    .cc-links { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+    .lk { font-size: .78rem; padding: .3rem .6rem; border-radius: 8px; border: 1px solid var(--border-2); color: var(--sky); text-decoration: none; }
+    .lk:hover { border-color: var(--sky); }
+  </style>
+</Base>

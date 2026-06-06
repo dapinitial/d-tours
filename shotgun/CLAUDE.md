@@ -98,6 +98,11 @@ deeper, and compile a dossier into `objectives.beta` (jsonb) + `objectives.gpx_u
   estimate (~kcal/day × days).
 - **Skills** — kiwi/mountaineer's coil, simul-climbing, glacier travel,
   crevasse-rescue, rappel management.
+- **Timing · altitude · bail · med kit** — `alpine_start` (sunrise/sunset for the
+  trip dates + a recommended start time + when to be off for afternoon lightning);
+  `altitude` (summit/TH elevation + AMS/acclimatization notes + high-UV sun);
+  `bail` (retreat/escape options if it goes sideways); `med_kit` (first-aid +
+  repair items tuned to this objective).
 - **Land · camp · water · permits · toilet** — `land`: who manages it (BLM / NPS
   / National Forest / state) and what pass/fee (NW Forest Pass, America the
   Beautiful, day-use fee). `free_camp`: free/dispersed camping nearby and where.

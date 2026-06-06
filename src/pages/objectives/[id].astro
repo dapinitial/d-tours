@@ -17,6 +17,20 @@ const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString([], { month: 
 const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chip red' };
 const fgEmoji: Record<string, string> = { edible: '🍃', poisonous: '☠️', medicinal: '⚕️', wildlife: '🦌', snake: '🐍', insect: '🦟', landmark: '🪨' };
 const fg = b.field_guide ?? [];
+// "Before you leave" checklist — auto-built from whatever this dossier knows.
+const checklist = [
+  b.rack && `Rack — ${b.rack}`,
+  b.ropes && `Ropes — ${b.ropes}`,
+  (b.footwear || b.mountaineering) && `Footwear / snow kit`,
+  (b.permits || b.access?.pass) && `Permit / pass sorted`,
+  (b.water && b.water.length > 0) && `Water — filter + plan refills`,
+  b.food && `Food + calories packed`,
+  (b.med_kit && b.med_kit.length > 0) && `First-aid + repair kit`,
+  `📋 Left your plan + ETA with someone`,
+  `🛰️ inReach check-in plan set`,
+  `🌤️ Weather + 🔥 fire/smoke checked`,
+  `🔦 Headlamp + extra layer + water`,
+].filter(Boolean) as string[];
 ---
 <Base title={`${obj.name} · Beta · D-Tours`} description={b.summary ?? `${obj.grade} · ${obj.region}`}>
   <section>
@@ -98,6 +112,7 @@ const fg = b.field_guide ?? [];
             {b.mountaineering && <p><strong>🪓 Mountaineering:</strong> {b.mountaineering}</p>}
             {b.glacier && <p><strong>Glacier:</strong> {b.glacier}</p>}
             {b.food && <p><strong>🍫 Food:</strong> {b.food}</p>}
+            {b.med_kit && b.med_kit.length > 0 && <p><strong>🩹 Med/repair kit:</strong> {b.med_kit.join(' · ')}</p>}
           </section>
         )}
         {b.skills && b.skills.length > 0 && (
@@ -107,6 +122,26 @@ const fg = b.field_guide ?? [];
           </section>
         )}
       </div>
+
+      {(b.alpine_start || b.altitude) && (
+        <section class="block">
+          <h2>⏰ Start & altitude</h2>
+          {b.alpine_start && <p><strong>🌄 Timing:</strong> {b.alpine_start}</p>}
+          {b.altitude && <p><strong>🫁 Altitude & sun:</strong> {b.altitude}</p>}
+        </section>
+      )}
+
+      {hasBeta && checklist.length > 0 && (
+        <section class="block checklist">
+          <h2>✅ Before you leave the trailhead</h2>
+          <p class="muted tiny">Auto-built from this dossier — ticks save on this device.</p>
+          <ul class="check" id="pre-check" data-obj={obj.id}>
+            {checklist.map((c, i) => (
+              <li><label><input type="checkbox" data-ci={i} /> <span>{c}</span></label></li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {(b.land || b.camp || b.free_camp || b.water || b.permits || b.toilet || b.fire_rules) && (
         <section class="block">
@@ -123,12 +158,13 @@ const fg = b.field_guide ?? [];
         </section>
       )}
 
-      {(b.hazards || b.wildlife || b.fire || (b.emergency && b.emergency.length > 0)) && (
+      {(b.hazards || b.wildlife || b.fire || b.bail || (b.emergency && b.emergency.length > 0)) && (
         <section class="block warn">
           <h2>⚠️ Hazards · fire · emergency</h2>
           {b.hazards && <ul>{b.hazards.map((h) => <li>{h}</li>)}</ul>}
           {b.wildlife && <p class="muted">{b.wildlife}</p>}
           {b.fire && <p><strong>🔥 Fire & smoke:</strong> {b.fire}</p>}
+          {b.bail && <p><strong>🪂 Bail / retreat:</strong> {b.bail}</p>}
           {b.emergency && b.emergency.length > 0 && (
             <div class="emergency">
               <p><strong>🆘 Emergency contacts</strong></p>
@@ -342,5 +378,32 @@ const fg = b.field_guide ?? [];
     .fg-kind { display: inline-block; font-size: .74rem; font-weight: 700; padding: .2rem .55rem; border-radius: 999px; background: rgba(255,255,255,.06); }
     .kind-poisonous, .kind-snake { color: var(--red); } .kind-edible { color: var(--green); } .kind-medicinal { color: var(--sky); }
     .fg-treat { color: var(--amber); }
+  </style>
+  <script>
+    (() => {
+      const list = document.getElementById('pre-check');
+      if (!list) return;
+      const key = 'dtours-check-' + (list.dataset.obj || '');
+      let state = {};
+      try { state = JSON.parse(localStorage.getItem(key) || '{}'); } catch {}
+      list.querySelectorAll('input[type=checkbox]').forEach((cb) => {
+        const i = cb.dataset.ci;
+        cb.checked = !!state[i];
+        cb.closest('li')?.classList.toggle('done', cb.checked);
+        cb.addEventListener('change', () => {
+          state[i] = cb.checked;
+          cb.closest('li')?.classList.toggle('done', cb.checked);
+          try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
+        });
+      });
+    })();
+  </script>
+
+  <style>
+    .checklist .check { list-style: none; padding: 0; margin: .6rem 0 0; display: grid; gap: .4rem; }
+    .checklist .check li { background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 9px; }
+    .checklist .check label { display: flex; align-items: flex-start; gap: .6rem; padding: .55rem .7rem; cursor: pointer; font-size: .9rem; }
+    .checklist .check input { margin-top: .15rem; width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--green); }
+    .checklist .check li.done span { text-decoration: line-through; color: var(--muted); }
   </style>
 </Base>

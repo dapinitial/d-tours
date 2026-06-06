@@ -43,6 +43,10 @@ export interface ObjectiveBeta {
   footwear?: string;      // "approach shoes; mountain boots above snowline"
   mountaineering?: string;// ice axe, crampons, boots w/ heel+toe welt, helmet, headlamp — snow/alpine kit
   food?: string;          // calorie/food guidance for the objective ("~3,500 kcal/day x 3 days…")
+  alpine_start?: string;  // sunrise/sunset, recommended start time, daylight + lightning-timing
+  altitude?: string;      // elevation + AMS/acclimatization notes + high-UV/sun exposure
+  bail?: string;          // retreat / escape options if it goes wrong
+  med_kit?: string[];     // recommended first-aid + repair kit for this objective
   skills?: string[];      // "kiwi coil", "simul-climb", "crevasse rescue", "glacier travel"
   glacier?: string;       // glacier-travel / crevasse-rescue kit notes
   last_services?: string; // last gas / store / food before the trailhead + where service drops
