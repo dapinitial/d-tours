@@ -8,10 +8,10 @@ const host = process.env.SMTP_HOST;
 const port = Number(process.env.SMTP_PORT ?? 587);
 const user = process.env.SMTP_USER;
 const pass = process.env.SMTP_PASS;
-// From must be a Resend-verified domain (e.g. shotgun@shotgundetour.com). Until
-// the domain is verified, Resend's onboarding@resend.dev only delivers to the
-// account owner's own address — fine for first tests.
-const from = process.env.NOTIFY_FROM ?? 'D-Tours <onboarding@resend.dev>';
+// From: NOTIFY_FROM if set, else the Gmail/SMTP user (Gmail rewrites From to the
+// authenticated account anyway), else Resend's test sender. So with Gmail SMTP
+// configured, From is your own address automatically — no extra config needed.
+const from = process.env.NOTIFY_FROM ?? user ?? 'D-Tours <onboarding@resend.dev>';
 
 let transporter: nodemailer.Transporter | null = null;
 function getTransport() {
