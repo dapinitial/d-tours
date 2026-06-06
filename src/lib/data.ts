@@ -82,6 +82,17 @@ export async function getPendingComments(tenantId?: string) {
   return error ? [] : (data ?? []);
 }
 
+/** Scouted alternatives David is weighing — shown publicly so friends can react/comment. */
+export async function getProposedObjectives(tenantId?: string): Promise<Objective[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const tid = await resolveTid(tenantId);
+  let q = sb.from('objectives').select('*').eq('status', 'proposed');
+  if (tid) q = q.eq('tenant_id', tid);
+  const { data, error } = await q;
+  return error ? [] : (data as Objective[]);
+}
+
 /** A single objective by id (for the /objectives/[id] dossier page). */
 export async function getObjective(id: string): Promise<Objective | null> {
   const sb = getSupabase();

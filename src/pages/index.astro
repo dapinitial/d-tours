@@ -8,11 +8,12 @@ import CareLayers from '../components/CareLayers.astro';
 import ShowcaseGallery from '../components/ShowcaseGallery.astro';
 import CheerSquad from '../components/CheerSquad.astro';
 import TryItWidget from '../components/TryItWidget.astro';
+import ShotgunChat from '../components/ShotgunChat.astro';
 import ShareButton from '../components/ShareButton.astro';
-import { getStops, getObjectives, getResources, getPosts, getDetours, getPlaylists } from '../lib/data';
+import { getStops, getObjectives, getProposedObjectives, getResources, getPosts, getDetours, getPlaylists } from '../lib/data';
 
-const [stops, objectives, resources, posts, detours, playlists] = await Promise.all([
-  getStops(), getObjectives(), getResources(), getPosts({ publishedOnly: true }), getDetours(), getPlaylists(),
+const [stops, objectives, proposedObjectives, resources, posts, detours, playlists] = await Promise.all([
+  getStops(), getObjectives(), getProposedObjectives(), getResources(), getPosts({ publishedOnly: true }), getDetours(), getPlaylists(),
 ]);
 // Share card uses the latest real trip photo when one exists (storage URLs are absolute).
 const shareImg = posts.flatMap((p) => p.media ?? [])
@@ -75,6 +76,11 @@ const shareImg = posts.flatMap((p) => p.media ?? [])
       </div>
       <ShotgunCard detours={detours} />
       <div class="try-lead" style="margin-top: 2rem;">
+        <p class="eyebrow">💬 …or just talk to it</p>
+        <p class="muted">Ask Shotgun anything — a climb, the route, swapping an objective, or whether we'll make the wedding.</p>
+      </div>
+      <ShotgunChat />
+      <div class="try-lead" style="margin-top: 2rem;">
         <p class="eyebrow">✨ Now try it — no signup</p>
         <p class="muted">Tap a spot (or use your location) and watch the live engine scout real detours near <em>you</em>.</p>
       </div>
@@ -92,6 +98,22 @@ const shareImg = posts.flatMap((p) => p.media ?? [])
       </div>
       <ObjectivesTable objectives={objectives} />
       <p class="cond-link"><a href="/conditions">🌡️ See route conditions — weather, fire/smoke & avalanche across every objective →</a></p>
+
+      {proposedObjectives.length > 0 && (
+        <div class="considering" data-reveal>
+          <h3>🧭 Help us decide — climbs we're weighing</h3>
+          <p class="muted">Might swap one of these in depending on how we're feeling. <strong>Tap one, read the beta, and tell us what to send</strong> (drop a comment)!</p>
+          <div class="cons-list">
+            {proposedObjectives.map((o) => (
+              <a class="cons" href={`/objectives/${o.id}`}>
+                <span class="cons-name">🧗 {o.name}</span>
+                <span class="cons-meta mono">{o.grade} · {o.region}</span>
+                {o.note && <span class="cons-note muted">{o.note}</span>}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   </section>
 
@@ -140,4 +162,12 @@ const shareImg = posts.flatMap((p) => p.media ?? [])
   .cta { display: flex; gap: .8rem; margin-top: 2rem; flex-wrap: wrap; }
   section.alt { background: linear-gradient(180deg, transparent, rgba(255,255,255,.012), transparent); }
   .container.narrow { width: min(100% - 2.5rem, 760px); }
+  .considering { margin-top: 1.6rem; padding: 1.2rem; border: 1px solid rgba(56,189,248,.3); border-radius: var(--radius); background: linear-gradient(180deg, rgba(56,189,248,.07), transparent); }
+  .considering h3 { margin: 0 0 .3rem; }
+  .cons-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .7rem; margin-top: .9rem; }
+  .cons { display: grid; gap: .25rem; padding: .8rem .9rem; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; text-decoration: none; transition: border-color .15s; }
+  .cons:hover { border-color: var(--sky); }
+  .cons-name { font-weight: 700; color: var(--text); }
+  .cons-meta { font-size: .76rem; color: var(--green); }
+  .cons-note { font-size: .82rem; line-height: 1.4; }
 </style>

@@ -1,0 +1,83 @@
+---
+// Conversational Shotgun — talk to the co-pilot. Trip-aware Q&A + pivot help via
+// /api/chat (Anthropic). Suggestions only; David acts in the CMS.
+const starters = [
+  'Is the Cirque traverse too much for us?',
+  'A more moderate alpine line near RMNP?',
+  'Are we on track for the Aug 1 wedding?',
+];
+---
+<div class="chat" id="shotgun-chat">
+  <div class="chat-head">
+    <span class="avatar">📡</span>
+    <div><div class="who">Shotgun</div><div class="muted tiny">ask me anything about the trip</div></div>
+    <span class="chip live">● online</span>
+  </div>
+  <div class="thread" id="chat-thread">
+    <div class="msg bot">Riding shotgun. 🤘 Ask me about the route, a climb, swapping an objective, or whether we'll make the wedding.</div>
+  </div>
+  <div class="starters" id="chat-starters">
+    {starters.map((s) => <button class="starter" type="button">{s}</button>)}
+  </div>
+  <form class="chat-form" id="chat-form">
+    <input id="chat-input" placeholder="Talk to Shotgun…" autocomplete="off" maxlength="1500" />
+    <button class="btn sm" type="submit">Send</button>
+  </form>
+</div>
+
+<script>
+  const thread = document.getElementById('chat-thread');
+  const form = document.getElementById('chat-form');
+  const input = document.getElementById('chat-input') as HTMLInputElement;
+  const starters = document.getElementById('chat-starters');
+  const history: { role: 'user' | 'assistant'; content: string }[] = [];
+
+  const bubble = (text: string, who: 'me' | 'bot', typing = false) => {
+    const el = document.createElement('div');
+    el.className = 'msg ' + who + (typing ? ' typing' : '');
+    el.textContent = text;
+    thread!.appendChild(el);
+    thread!.scrollTop = thread!.scrollHeight;
+    return el;
+  };
+
+  const send = async (text: string) => {
+    if (!text.trim()) return;
+    starters?.remove();
+    bubble(text, 'me');
+    history.push({ role: 'user', content: text });
+    const t = bubble('…', 'bot', true);
+    try {
+      const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: history }) });
+      const j = await r.json();
+      t.classList.remove('typing');
+      t.textContent = j.reply || 'Try that again?';
+      if (j.ok) history.push({ role: 'assistant', content: j.reply });
+    } catch {
+      t.classList.remove('typing');
+      t.textContent = 'Lost signal — try again.';
+    }
+    thread!.scrollTop = thread!.scrollHeight;
+  };
+
+  form?.addEventListener('submit', (e) => { e.preventDefault(); const v = input.value; input.value = ''; send(v); });
+  starters?.querySelectorAll('.starter').forEach((b) => b.addEventListener('click', () => send((b as HTMLElement).textContent || '')));
+</script>
+
+<style>
+  .chat { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; }
+  .chat-head { display: flex; align-items: center; gap: .6rem; padding: .8rem 1rem; border-bottom: 1px solid var(--border); }
+  .chat-head .avatar { font-size: 1.4rem; }
+  .chat-head .who { font-weight: 700; }
+  .chip.live { margin-left: auto; font-size: .72rem; color: var(--green); }
+  .thread { padding: 1rem; display: flex; flex-direction: column; gap: .6rem; max-height: 360px; overflow-y: auto; min-height: 120px; }
+  .msg { max-width: 85%; padding: .6rem .85rem; border-radius: 14px; font-size: .92rem; line-height: 1.45; white-space: pre-wrap; }
+  .msg.bot { background: var(--bg-2); border: 1px solid var(--border); align-self: flex-start; border-bottom-left-radius: 4px; }
+  .msg.me { background: linear-gradient(180deg, rgba(52,211,153,.18), rgba(52,211,153,.08)); border: 1px solid rgba(52,211,153,.3); align-self: flex-end; border-bottom-right-radius: 4px; }
+  .msg.typing { color: var(--muted); }
+  .starters { display: flex; flex-wrap: wrap; gap: .4rem; padding: 0 1rem .6rem; }
+  .starter { font-size: .78rem; padding: .35rem .7rem; border-radius: 999px; border: 1px solid var(--border-2); background: transparent; color: var(--muted); cursor: pointer; }
+  .starter:hover { border-color: var(--green); color: var(--green); }
+  .chat-form { display: flex; gap: .5rem; padding: .8rem 1rem; border-top: 1px solid var(--border); }
+  .chat-form input { flex: 1; background: var(--bg-2); border: 1px solid var(--border); border-radius: 999px; color: var(--text); padding: .6rem .9rem; font: inherit; }
+</style>
