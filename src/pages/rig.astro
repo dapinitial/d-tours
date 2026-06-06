@@ -11,6 +11,14 @@ const ytId = (u?: string) => {
 };
 const vid = ytId(rig?.video_url);
 const entries = (o?: Record<string, string>) => o ? Object.entries(o) : [];
+// Hide unfinished placeholders so visitors never see "(fill — …)" / "(add …)".
+const isFill = (v?: string) => !v || /\(fill|\(add/i.test(v);
+const clean = (o?: Record<string, string>) => entries(o).filter(([, v]) => !isFill(v));
+const cleanBuild = clean(rig?.build);
+const cleanMaint = clean(rig?.maintenance);
+const cleanBulbs = (rig?.bulbs ?? []).filter((b) => !isFill(b.part));
+const cleanTools = (rig?.tools ?? []).filter((t) => !isFill(t));
+const cleanLog = (rig?.service_log ?? []).filter((s) => !isFill(s.date) && !isFill(s.what));
 ---
 <Base title={`${rig?.name ?? 'The Rig'} · D-Tours`} description={rig?.tagline ?? 'The build that carries the whole trip.'}>
   <section>
@@ -49,38 +57,38 @@ const entries = (o?: Record<string, string>) => o ? Object.entries(o) : [];
         </section>
       )}
 
-      {entries(rig?.build).length > 0 && (
+      {cleanBuild.length > 0 && (
         <section class="block">
           <h3>🔩 The build-out</h3>
-          <dl class="spec-grid">{entries(rig?.build).map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+          <dl class="spec-grid">{cleanBuild.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
         </section>
       )}
 
-      {entries(rig?.maintenance).length > 0 && (
+      {cleanMaint.length > 0 && (
         <section class="block">
           <h3>🛠️ Maintenance & fluids</h3>
-          <dl class="spec-grid">{entries(rig?.maintenance).map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+          <dl class="spec-grid">{cleanMaint.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
         </section>
       )}
 
-      {rig?.bulbs && rig.bulbs.length > 0 && (
+      {cleanBulbs.length > 0 && (
         <section class="block">
           <h3>💡 Bulb part numbers</h3>
-          <ul class="bulbs">{rig.bulbs.map((b) => <li><span>{b.location}</span> <span class="mono">{b.part}</span></li>)}</ul>
+          <ul class="bulbs">{cleanBulbs.map((b) => <li><span>{b.location}</span> <span class="mono">{b.part}</span></li>)}</ul>
         </section>
       )}
 
-      {rig?.tools && rig.tools.length > 0 && (
+      {cleanTools.length > 0 && (
         <section class="block">
           <h3>🧰 Tools on hand</h3>
-          <div class="tools">{rig.tools.map((t) => <span class="tool">{t}</span>)}</div>
+          <div class="tools">{cleanTools.map((t) => <span class="tool">{t}</span>)}</div>
         </section>
       )}
 
-      {rig?.service_log && rig.service_log.length > 0 && (
+      {cleanLog.length > 0 && (
         <section class="block">
           <h3>📋 Service log</h3>
-          <ul class="log">{rig.service_log.map((s) => <li><span class="mono date">{s.date}</span> {s.what}</li>)}</ul>
+          <ul class="log">{cleanLog.map((s) => <li><span class="mono date">{s.date}</span> {s.what}</li>)}</ul>
         </section>
       )}
 
