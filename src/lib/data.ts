@@ -89,6 +89,17 @@ export async function getObjective(id: string): Promise<Objective | null> {
   return (data as Objective) ?? null;
 }
 
+/** The rig build-page + maintenance log (one row per tenant, public read). */
+export async function getRig(tenantId?: string) {
+  const sb = getSupabase();
+  if (!sb) return null;
+  const tid = await resolveTid(tenantId);
+  let q = sb.from('rig').select('*');
+  if (tid) q = q.eq('tenant_id', tid);
+  const { data, error } = await q.maybeSingle();
+  return error ? null : data;
+}
+
 export async function getResources(tenantId?: string): Promise<Resource[]> {
   const sb = getSupabase();
   if (!sb) return mock.resources;

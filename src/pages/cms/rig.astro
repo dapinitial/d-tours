@@ -1,0 +1,77 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getRig } from '../../lib/data';
+import type { Rig } from '../../lib/types';
+const tid = Astro.locals.tenantId;
+const rig = (await getRig(tid)) as Rig | null;
+const kvText = (o?: Record<string, string>) => o ? Object.entries(o).map(([k, v]) => `${k}: ${v}`).join('\n') : '';
+const listText = (a?: string[]) => a ? a.join('\n') : '';
+const bulbsText = (a?: { location: string; part?: string }[]) => a ? a.map((b) => `${b.location}: ${b.part ?? ''}`).join('\n') : '';
+const logText = (a?: { date: string; what: string }[]) => a ? a.map((s) => `${s.date}: ${s.what}`).join('\n') : '';
+const photosText = (a?: { url: string; caption?: string }[]) => a ? a.map((p) => `${p.url}${p.caption ? ' | ' + p.caption : ''}`).join('\n') : '';
+---
+<Base title="D-Tours · Edit Rig">
+  <section>
+    <div class="container narrow">
+      <div class="section-head">
+        <p class="eyebrow">🚙 Rig</p>
+        <h2>Edit the rig page</h2>
+        <p>The build spotlight + maintenance log. Lists = one per line. Specs/maintenance/bulbs = <code>Label: value</code> per line.</p>
+        <a href="/cms" class="muted back">← back to CMS</a>
+      </div>
+
+      <div class="card form">
+        <label>Name<input id="r-name" value={rig?.name ?? ''} placeholder="2006 VW Touareg V8 — the rig" /></label>
+        <label>Tagline<input id="r-tagline" value={rig?.tagline ?? ''} placeholder="Ultimate off-road sleeper" /></label>
+        <label>Capability video (YouTube URL)<input id="r-video" value={rig?.video_url ?? ''} placeholder="https://www.youtube.com/watch?v=…" /></label>
+        <label>How we live & travel<textarea id="r-living" rows="3" placeholder="Sleeping system, staying cool, off-grid power, daily rhythm…">{rig?.living ?? ''}</textarea></label>
+        <label>Capabilities (one per line)<textarea id="r-caps" rows="4" placeholder={"Full off-road / overland\nSleeps 2 + gear\nOff-grid power & climate"}>{listText(rig?.capabilities)}</textarea></label>
+        <label>Photos (url | caption — one per line)<textarea id="r-photos" rows="3" placeholder="https://… | The rig at Big Sandy">{photosText(rig?.photos)}</textarea></label>
+        <label>Build-out (Label: value)<textarea id="r-build" rows="6" placeholder={"Engine: 4.2L V8\nWinch: Badlands APEX 12K synthetic (Harbor Freight), stealth behind bumper\nPower: EcoFlow Delta Pro 3 x2 + 800W alternator charger\nClimate: EcoFlow Wave 3\nConnectivity: Starlink Mini\nLighting: HID 6500K + 5000K neon fog"}>{kvText(rig?.build)}</textarea></label>
+        <label>Maintenance & fluids (Label: value)<textarea id="r-maint" rows="7" placeholder={"Oil type: 5W-40 full synthetic\nOil interval: 5,000 mi\nTune-up interval: …\nGas type: 91 premium\nTires: …\nAir filter: …\nCabin filter: …\nBattery / alternator: charging system date …"}>{kvText(rig?.maintenance)}</textarea></label>
+        <label>Bulb part numbers (location: part#)<textarea id="r-bulbs" rows="4" placeholder={"Low beam: H7\nFog: H11\nTail: …"}>{bulbsText(rig?.bulbs)}</textarea></label>
+        <label>Tools on hand (one per line)<textarea id="r-tools" rows="4" placeholder={"Socket set\nTorque wrench\nTire plug kit\nRecovery boards"}>{listText(rig?.tools)}</textarea></label>
+        <label>Service log (date: what — one per line)<textarea id="r-log" rows="4" placeholder={"2026-06: Oil + filters, fresh winch line\n2026-05: New tires"}>{logText(rig?.service_log)}</textarea></label>
+        <div class="foot">
+          <button id="save" class="btn">Save rig page</button>
+          <p class="msg" id="msg"></p>
+          <a href="/rig" target="_blank" class="muted tiny">view /rig ↗</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const msg = document.getElementById('msg');
+    const lines = (id) => (document.getElementById(id)).value.split('\n').map((l) => l.trim()).filter(Boolean);
+    const kv = (id) => { const o = {}; lines(id).forEach((l) => { const i = l.indexOf(':'); if (i > 0) { const k = l.slice(0, i).trim(); const v = l.slice(i + 1).trim(); if (k && v) o[k] = v; } }); return Object.keys(o).length ? o : null; };
+    const val = (id) => (document.getElementById(id)).value.trim() || null;
+
+    document.getElementById('save').addEventListener('click', async () => {
+      const rig = {
+        name: val('r-name'), tagline: val('r-tagline'), video_url: val('r-video'), living: val('r-living'),
+        capabilities: lines('r-caps'),
+        photos: lines('r-photos').map((l) => { const [url, ...c] = l.split('|'); return { url: url.trim(), caption: c.join('|').trim() || undefined }; }),
+        build: kv('r-build'), maintenance: kv('r-maint'),
+        bulbs: lines('r-bulbs').map((l) => { const i = l.indexOf(':'); return i > 0 ? { location: l.slice(0, i).trim(), part: l.slice(i + 1).trim() } : { location: l }; }),
+        tools: lines('r-tools'),
+        service_log: lines('r-log').map((l) => { const i = l.indexOf(':'); return i > 0 ? { date: l.slice(0, i).trim(), what: l.slice(i + 1).trim() } : { date: '', what: l }; }),
+      };
+      msg.textContent = 'Saving…'; msg.className = 'msg';
+      const r = await fetch('/api/rig', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rig }) });
+      const j = await r.json();
+      msg.textContent = j.ok ? 'Saved ✓' : (j.error || 'Failed'); msg.className = 'msg ' + (j.ok ? 'ok' : 'err');
+    });
+  </script>
+
+  <style>
+    .container.narrow { width: min(100% - 2.5rem, 760px); }
+    .back { display: inline-block; margin-top: .5rem; font-size: .9rem; }
+    .form { display: grid; gap: .9rem; }
+    .form label { display: grid; gap: .3rem; font-size: .85rem; font-weight: 600; color: var(--muted); }
+    .form input, .form textarea { background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .6rem .8rem; font: inherit; font-weight: 400; }
+    .foot { display: flex; align-items: center; gap: 1rem; margin-top: .4rem; }
+    .msg { margin: 0; font-size: .85rem; } .msg.ok { color: var(--green); } .msg.err { color: var(--red); }
+    .foot a { margin-left: auto; }
+  </style>
+</Base>

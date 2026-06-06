@@ -1,0 +1,116 @@
+---
+import Base from '../layouts/Base.astro';
+import { getRig } from '../lib/data';
+import type { Rig } from '../lib/types';
+
+const rig = (await getRig()) as Rig | null;
+const ytId = (u?: string) => {
+  if (!u) return null;
+  const m = u.match(/(?:youtu\.be\/|[?&]v=|embed\/)([\w-]{11})/);
+  return m ? m[1] : null;
+};
+const vid = ytId(rig?.video_url);
+const entries = (o?: Record<string, string>) => o ? Object.entries(o) : [];
+---
+<Base title={`${rig?.name ?? 'The Rig'} · D-Tours`} description={rig?.tagline ?? 'The build that carries the whole trip.'}>
+  <section>
+    <div class="container narrow">
+      <div class="section-head">
+        <p class="eyebrow">🚙 The Rig</p>
+        <h2>{rig?.name ?? 'The Rig'}</h2>
+        {rig?.tagline && <p>{rig.tagline}</p>}
+      </div>
+
+      {!rig && <div class="card empty"><p class="muted">The rig page is being built — check back soon. 🔧</p></div>}
+
+      {vid && (
+        <div class="video">
+          <iframe src={`https://www.youtube.com/embed/${vid}`} title="The rig" loading="lazy"
+            frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+      )}
+
+      {rig?.capabilities && rig.capabilities.length > 0 && (
+        <div class="caps">
+          {rig.capabilities.map((c) => <span class="cap">{c}</span>)}
+        </div>
+      )}
+
+      {rig?.photos && rig.photos.length > 0 && (
+        <div class="photos">
+          {rig.photos.map((p) => <figure><img src={p.url} loading="lazy" alt={p.caption ?? rig.name} />{p.caption && <figcaption>{p.caption}</figcaption>}</figure>)}
+        </div>
+      )}
+
+      {rig?.living && (
+        <section class="block">
+          <h3>🏕️ How we live & travel</h3>
+          <p>{rig.living}</p>
+        </section>
+      )}
+
+      {entries(rig?.build).length > 0 && (
+        <section class="block">
+          <h3>🔩 The build-out</h3>
+          <dl class="spec-grid">{entries(rig?.build).map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+        </section>
+      )}
+
+      {entries(rig?.maintenance).length > 0 && (
+        <section class="block">
+          <h3>🛠️ Maintenance & fluids</h3>
+          <dl class="spec-grid">{entries(rig?.maintenance).map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+        </section>
+      )}
+
+      {rig?.bulbs && rig.bulbs.length > 0 && (
+        <section class="block">
+          <h3>💡 Bulb part numbers</h3>
+          <ul class="bulbs">{rig.bulbs.map((b) => <li><span>{b.location}</span> <span class="mono">{b.part}</span></li>)}</ul>
+        </section>
+      )}
+
+      {rig?.tools && rig.tools.length > 0 && (
+        <section class="block">
+          <h3>🧰 Tools on hand</h3>
+          <div class="tools">{rig.tools.map((t) => <span class="tool">{t}</span>)}</div>
+        </section>
+      )}
+
+      {rig?.service_log && rig.service_log.length > 0 && (
+        <section class="block">
+          <h3>📋 Service log</h3>
+          <ul class="log">{rig.service_log.map((s) => <li><span class="mono date">{s.date}</span> {s.what}</li>)}</ul>
+        </section>
+      )}
+
+      {(entries(rig?.build).length > 0 || rig?.capabilities?.length) && (
+        <p class="powered muted">⚡ Off-grid power by EcoFlow · 🛰️ Connected by Starlink · 🪝 Recovery by Badlands APEX. <em>(Sponsors, we see you. 😏)</em></p>
+      )}
+    </div>
+  </section>
+
+  <style>
+    .container.narrow { width: min(100% - 2.5rem, 820px); }
+    .empty { text-align: center; padding: 2rem; }
+    .video { position: relative; padding-bottom: 56.25%; height: 0; border-radius: var(--radius); overflow: hidden; margin: 1rem 0 1.4rem; border: 1px solid var(--border); }
+    .video iframe { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .caps { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.4rem; }
+    .cap { background: linear-gradient(180deg, rgba(52,211,153,.12), rgba(52,211,153,.04)); border: 1px solid rgba(52,211,153,.3); color: var(--green); border-radius: 999px; padding: .4rem .8rem; font-size: .85rem; font-weight: 600; }
+    .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .6rem; margin-bottom: 1.4rem; }
+    .photos figure { margin: 0; } .photos img { width: 100%; border-radius: 10px; display: block; }
+    .photos figcaption { font-size: .78rem; color: var(--muted); margin-top: .3rem; }
+    .block { margin-top: 1.6rem; padding-top: 1.2rem; border-top: 1px solid var(--border); }
+    .block h3 { font-size: 1.1rem; margin: 0 0 .7rem; }
+    .spec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .5rem 1.2rem; margin: 0; }
+    .spec-grid div { display: flex; justify-content: space-between; gap: 1rem; padding: .4rem 0; border-bottom: 1px dashed var(--border); }
+    .spec-grid dt { color: var(--muted); margin: 0; } .spec-grid dd { margin: 0; font-weight: 600; text-align: right; }
+    .bulbs { list-style: none; padding: 0; margin: 0; display: grid; gap: .35rem; }
+    .bulbs li { display: flex; justify-content: space-between; gap: 1rem; }
+    .tools { display: flex; flex-wrap: wrap; gap: .4rem; }
+    .tool { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: .3rem .6rem; font-size: .82rem; }
+    .log { list-style: none; padding: 0; margin: 0; display: grid; gap: .4rem; }
+    .log .date { color: var(--green); }
+    .powered { margin-top: 2rem; text-align: center; font-size: .85rem; }
+  </style>
+</Base>

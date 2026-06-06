@@ -77,6 +77,22 @@ export interface Objective {
   gpx_url?: string;      // downloadable GPX track
 }
 
+/** The RIG — build-page spotlight + maintenance log (one per tenant). */
+export interface Rig {
+  tenant_id?: string;
+  name?: string;
+  tagline?: string;
+  video_url?: string;           // YouTube capability/build video
+  living?: string;              // how we live & travel
+  photos?: { url: string; caption?: string }[];
+  capabilities?: string[];      // what it can do (off-road, sleeps 2, off-grid power…)
+  build?: Record<string, string>;       // Engine / Suspension / Winch / Lighting…
+  maintenance?: Record<string, string>; // Oil type / Oil interval / Air filter / Tires…
+  bulbs?: { location: string; part?: string }[]; // bulb part numbers
+  tools?: string[];             // tools carried
+  service_log?: { date: string; what: string }[]; // service history
+}
+
 export type CareLayer = 'climb' | 'life' | 'move' | 'weird';
 
 export interface Resource {
