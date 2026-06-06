@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { getSupabaseAdmin } from '../../lib/supabase';
 import { supabaseServer, authConfigured } from '../../lib/supabaseServer';
 import { getDefaultTenant } from '../../lib/data';
-import { notify } from '../../lib/notifier';
+import { notifyAll } from '../../lib/notifier';
 
 export const prerender = false;
 
@@ -44,9 +44,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const { error } = await sb.from('comments').insert(row);
   if (error) { console.error('[comment]', error.message); return json({ ok: false, error: 'Couldn’t post that — try again.' }, 500); }
 
-  // 📲 Ping David (best-effort — never block the comment on it).
+  // 📲 Ping David on ALL his channels (email + SMS gateway) — not failover, so a
+  // new comment lands as both a text AND an email. Best-effort; never blocks.
   try {
-    await notify({
+    await notifyAll({
       subject: `💬 New comment from ${author}`,
       body: `${author} commented on ${target} ${p.id}:\n\n"${body}"\n\nApprove it in the CMS.`,
       short: `💬 ${author}: ${body}`.slice(0, 140),
