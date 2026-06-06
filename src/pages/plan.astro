@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import ShareButton from '../components/ShareButton.astro';
 import { getStops, getObjectives, getResources } from '../lib/data';
 const [stops, objectives, resources] = await Promise.all([getStops(), getObjectives(), getResources()]);
 const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chip red' };
@@ -19,7 +20,11 @@ const packing = [
         <p class="eyebrow">🚐 D-Tours · Offline Beta</p>
         <h1>Austin → Squamish<br/>The Road Trip Mega-Loop</h1>
       </div>
-      <button class="btn print-only-hide" onclick="window.print()">🖨️ Print / Save PDF</button>
+      <div class="plan-actions print-only-hide">
+        <ShareButton path="/plan" label="📲 Share my plan"
+          text="Follow our Austin → Squamish climbing trip — I might be passing near you! Here's the route + dates:" />
+        <button class="btn ghost" onclick="window.print()">🖨️ Print / PDF</button>
+      </div>
     </header>
 
     <!-- ROUTE -->

@@ -1,0 +1,54 @@
+---
+// Share the trip to people along the way. On phones this opens the native share
+// sheet (iMessage / WhatsApp / …) — the link arrives as a rich OG card. On
+// desktop (no Web Share API) it reveals copy + text / WhatsApp / email links.
+interface Props { path?: string; text?: string; label?: string; }
+const {
+  path = Astro.url.pathname,
+  text = 'Follow our Austin → Squamish road trip — I might be passing near you!',
+  label = '📲 Share',
+} = Astro.props;
+const url = new URL(path, Astro.site).href;
+---
+<div class="share" data-url={url} data-text={text}>
+  <button class="btn share-btn" type="button">{label}</button>
+  <div class="share-menu" hidden>
+    <button class="sm copy" type="button">🔗 Copy link</button>
+    <a class="sm" data-sms>💬 Text</a>
+    <a class="sm" data-wa target="_blank" rel="noopener">🟢 WhatsApp</a>
+    <a class="sm" data-email>✉️ Email</a>
+    <span class="sm-msg muted"></span>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.share').forEach((root) => {
+    const url = root.dataset.url, text = root.dataset.text;
+    const full = `${text} ${url}`;
+    const menu = root.querySelector('.share-menu');
+    const msg = root.querySelector('.sm-msg');
+    root.querySelector('[data-sms]').href = `sms:?&body=${encodeURIComponent(full)}`;
+    root.querySelector('[data-wa]').href = `https://wa.me/?text=${encodeURIComponent(full)}`;
+    root.querySelector('[data-email]').href = `mailto:?subject=${encodeURIComponent('Our road trip 🚐')}&body=${encodeURIComponent(full)}`;
+
+    root.querySelector('.share-btn').addEventListener('click', async () => {
+      if (navigator.share) {
+        try { await navigator.share({ title: 'D-Tours', text, url }); return; }
+        catch (e) { if (e?.name === 'AbortError') return; } // user cancelled — don't pop the menu
+      }
+      menu.hidden = !menu.hidden;
+    });
+    root.querySelector('.copy').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(url); if (msg) msg.textContent = '✓ copied'; }
+      catch { if (msg) msg.textContent = url; }
+    });
+  });
+</script>
+
+<style>
+  .share { display: inline-flex; flex-direction: column; gap: .5rem; align-items: flex-start; }
+  .share-menu { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+  .sm { font-size: .82rem; padding: .4rem .7rem; border-radius: 999px; border: 1px solid var(--border-2); background: rgba(255,255,255,.04); color: var(--text); cursor: pointer; text-decoration: none; }
+  .sm:hover { border-color: var(--green); color: var(--green); }
+  .sm-msg { font-size: .8rem; }
+</style>
