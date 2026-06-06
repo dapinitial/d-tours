@@ -1,7 +1,7 @@
 ---
 // Share the trip to people along the way. On phones this opens the native share
-// sheet (iMessage / WhatsApp / …) — the link arrives as a rich OG card. On
-// desktop (no Web Share API) it reveals copy + text / WhatsApp / email links.
+// sheet (iMessage / WhatsApp / everything) — the link arrives as a rich OG card.
+// On desktop (no Web Share API) it falls back to copy + email.
 interface Props { path?: string; text?: string; label?: string; }
 const {
   path = Astro.url.pathname,
@@ -14,8 +14,6 @@ const url = new URL(path, Astro.site).href;
   <button class="btn share-btn" type="button">{label}</button>
   <div class="share-menu" hidden>
     <button class="sm copy" type="button">🔗 Copy link</button>
-    <a class="sm" data-sms>💬 Text</a>
-    <a class="sm" data-wa target="_blank" rel="noopener">🟢 WhatsApp</a>
     <a class="sm" data-email>✉️ Email</a>
     <span class="sm-msg muted"></span>
   </div>
@@ -27,8 +25,6 @@ const url = new URL(path, Astro.site).href;
     const full = `${text} ${url}`;
     const menu = root.querySelector('.share-menu');
     const msg = root.querySelector('.sm-msg');
-    root.querySelector('[data-sms]').href = `sms:?&body=${encodeURIComponent(full)}`;
-    root.querySelector('[data-wa]').href = `https://wa.me/?text=${encodeURIComponent(full)}`;
     root.querySelector('[data-email]').href = `mailto:?subject=${encodeURIComponent('Our road trip 🚐')}&body=${encodeURIComponent(full)}`;
 
     root.querySelector('.share-btn').addEventListener('click', async () => {
