@@ -15,6 +15,8 @@ const seeds = (await getSources((obj as any).tenant_id)).filter((s: any) => s.ob
 const comments = await getObjectiveComments(obj.id);
 const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
 const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chip red' };
+const fgEmoji: Record<string, string> = { edible: '🍃', poisonous: '☠️', medicinal: '⚕️', wildlife: '🦌', snake: '🐍', insect: '🦟', landmark: '🪨' };
+const fg = b.field_guide ?? [];
 ---
 <Base title={`${obj.name} · Beta · D-Tours`} description={b.summary ?? `${obj.grade} · ${obj.region}`}>
   <section>
@@ -106,10 +108,11 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
         )}
       </div>
 
-      {(b.land || b.camp || b.free_camp || b.water || b.permits || b.toilet) && (
+      {(b.land || b.camp || b.free_camp || b.water || b.permits || b.toilet || b.fire_rules) && (
         <section class="block">
           <h2>🏕️ Land · camp · water · permits</h2>
           {b.land && <p><strong>🪧 Land & passes:</strong> {b.land}</p>}
+          {b.fire_rules && <p><strong>🔥 Campfires:</strong> {b.fire_rules}</p>}
           {b.free_camp && b.free_camp.length > 0 && <p><strong>🆓 Free camping nearby:</strong></p>}
           {b.free_camp && <ul>{b.free_camp.map((c) => <li>{c}</li>)}</ul>}
           {b.camp && b.camp.length > 0 && <p><strong>Camp:</strong></p>}
@@ -148,11 +151,29 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
         </section>
       )}
 
-      {b.watch_for && b.watch_for.length > 0 && (
+      {fg.length > 0 ? (
+        <section class="block">
+          <h2>👀 In the field</h2>
+          <p class="muted tiny">Tap any for ID, edibility &amp; first-aid.</p>
+          <div class="fg-chips">
+            {fg.map((f, i) => <button class="fg-chip" data-fg={i} data-kind={f.kind} type="button">{fgEmoji[f.kind] ?? '•'} {f.name}</button>)}
+          </div>
+        </section>
+      ) : (b.watch_for && b.watch_for.length > 0 && (
         <section class="block">
           <h2>👀 Keep an eye out for</h2>
-          <p class="muted tiny">Cool plants, wildlife, edibles & gems — and what to steer clear of.</p>
+          <p class="muted tiny">Cool plants, wildlife, edibles &amp; gems — and what to steer clear of.</p>
           <ul>{b.watch_for.map((w) => <li>{w}</li>)}</ul>
+        </section>
+      ))}
+
+      {b.access && (b.access.visitor_center || b.access.ranger_station || b.access.pass || b.access.url) && (
+        <section class="block">
+          <h2>🏛️ Access · ranger · pass</h2>
+          {b.access.visitor_center && <p><strong>Visitor center:</strong> {b.access.visitor_center}</p>}
+          {b.access.ranger_station && <p><strong>Ranger station:</strong> {b.access.ranger_station}</p>}
+          {b.access.pass && <p><strong>Pass:</strong> {b.access.pass}</p>}
+          {b.access.url && <a class="btn ghost sm" href={b.access.url} target="_blank" rel="noopener">Official page ↗</a>}
         </section>
       )}
 
@@ -201,6 +222,18 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
         </form>
         <p class="muted tiny">Comments are reviewed before they show up.</p>
       </section>
+
+      {fg.length > 0 && (
+        <Fragment>
+          <script type="application/json" id="fg-data" set:html={JSON.stringify(fg)}></script>
+          <div id="fg-modal" class="fg-modal" hidden>
+            <div class="fg-card">
+              <button class="fg-close" type="button" aria-label="Close">✕</button>
+              <div class="fg-body"></div>
+            </div>
+          </div>
+        </Fragment>
+      )}
     </div>
   </section>
 
@@ -263,5 +296,51 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
     .r-note { font-size: .9rem; margin-top: .2rem; }
     .cond-links { display: flex; gap: .5rem; flex-wrap: wrap; }
     .seeds a { color: var(--sky); }
+  </style>
+  <script>
+    (() => {
+      const el = document.getElementById('fg-data');
+      const modal = document.getElementById('fg-modal');
+      if (!el || !modal) return;
+      const data = JSON.parse(el.textContent || '[]');
+      const body = modal.querySelector('.fg-body');
+      const EMOJI = { edible:'🍃', poisonous:'☠️', medicinal:'⚕️', wildlife:'🦌', snake:'🐍', insect:'🦟', landmark:'🪨' };
+      const LABEL = { edible:'Edible', poisonous:'Poisonous — do not touch/eat', medicinal:'Medicinal', wildlife:'Wildlife', snake:'Venomous', insect:'Biting/stinging', landmark:'Landmark' };
+      const esc = (s) => (s || '').replace(/[<>&"]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+      const open = (i) => {
+        const f = data[i]; if (!f || !body) return;
+        body.innerHTML =
+          (f.photo ? `<img class="fg-photo" src="${esc(f.photo)}" alt="${esc(f.name)}" loading="lazy">` : '') +
+          `<div class="fg-kind kind-${esc(f.kind)}">${EMOJI[f.kind]||'•'} ${LABEL[f.kind]||''}</div>` +
+          `<h3>${esc(f.name)}</h3>` +
+          (f.note ? `<p>${esc(f.note)}</p>` : '') +
+          (f.treat ? `<p class="fg-treat"><strong>🩹 First aid:</strong> ${esc(f.treat)}</p>` : '') +
+          (f.url ? `<a class="btn ghost sm" href="${esc(f.url)}" target="_blank" rel="noopener">More ↗</a>` : '');
+        modal.hidden = false;
+      };
+      document.querySelectorAll('.fg-chip').forEach((c) => c.addEventListener('click', () => open(Number(c.dataset.fg))));
+      const close = () => { modal.hidden = true; };
+      modal.querySelector('.fg-close')?.addEventListener('click', close);
+      modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    })();
+  </script>
+
+  <style>
+    .fg-chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .fg-chip { cursor: pointer; font-size: .85rem; font-weight: 600; padding: .4rem .75rem; border-radius: 999px; border: 1px solid var(--border-2); background: rgba(255,255,255,.04); color: var(--text); transition: all .15s; }
+    .fg-chip:hover { border-color: var(--green); transform: translateY(-1px); }
+    .fg-chip[data-kind="poisonous"], .fg-chip[data-kind="snake"] { border-color: rgba(251,113,133,.5); }
+    .fg-chip[data-kind="edible"] { border-color: rgba(52,211,153,.45); }
+    .fg-chip[data-kind="medicinal"] { border-color: rgba(56,189,248,.45); }
+    .fg-modal { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,.62); display: grid; place-items: center; padding: 1rem; }
+    .fg-modal[hidden] { display: none; }
+    .fg-card { position: relative; background: var(--panel); border: 1px solid var(--border-2); border-radius: 14px; max-width: 420px; width: 100%; padding: 1.4rem; }
+    .fg-close { position: absolute; top: .6rem; right: .7rem; background: transparent; border: none; color: var(--muted); font-size: 1.2rem; cursor: pointer; }
+    .fg-body h3 { margin: .3rem 0 .5rem; }
+    .fg-photo { width: 100%; max-height: 220px; object-fit: cover; border-radius: 10px; margin-bottom: .8rem; }
+    .fg-kind { display: inline-block; font-size: .74rem; font-weight: 700; padding: .2rem .55rem; border-radius: 999px; background: rgba(255,255,255,.06); }
+    .kind-poisonous, .kind-snake { color: var(--red); } .kind-edible { color: var(--green); } .kind-medicinal { color: var(--sky); }
+    .fg-treat { color: var(--amber); }
   </style>
 </Base>

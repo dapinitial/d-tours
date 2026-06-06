@@ -57,7 +57,19 @@ export interface ObjectiveBeta {
   wildlife?: string;      // bears (spray/canister), birding, edible plants, bugs/spiders
   fire?: string;          // wildfire / smoke / air-quality situation + closures
   emergency?: { label: string; phone?: string; note?: string }[]; // sheriff, SAR, ranger station, nearest hospital
-  watch_for?: string[];   // cool plants, wildlife, gemstones, edible berries to spot
+  watch_for?: string[];   // (legacy flat list — superseded by field_guide below)
+  /** Interactive field guide — each entry renders as a tap/hover card with ID,
+   *  edibility/danger, first-aid, photo + link. */
+  field_guide?: {
+    name: string;
+    kind: 'edible' | 'poisonous' | 'medicinal' | 'wildlife' | 'snake' | 'insect' | 'landmark';
+    note?: string;   // what it is / how to recognize
+    treat?: string;  // first-aid if bitten/stung/ingested
+    photo?: string;  // image URL (Wikimedia)
+    url?: string;    // Wikipedia / field-guide link
+  }[];
+  fire_rules?: string;    // campfires allowed? current bans/restrictions; alpine = usually no fires, stove-only
+  access?: { visitor_center?: string; ranger_station?: string; pass?: string; url?: string }; // visitor center / ranger / pass + official link
   poi?: { name: string; note?: string; url?: string }[]; // fire lookouts, downed aircraft, historic sites, old mines/relics
   photos?: { url: string; caption?: string }[];          // the place, the trail, plants/wildlife to recognize
   conditions?: { weather_url?: string; mountain_forecast_url?: string; avalanche_url?: string; fire_url?: string; bugs?: string }; // live links

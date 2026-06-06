@@ -105,9 +105,20 @@ deeper, and compile a dossier into `objectives.beta` (jsonb) + `objectives.gpx_u
 - **Hazards · wildlife · fire · emergency** — rockfall/lightning/grizzlies;
   `fire` = current wildfire/smoke/air-quality + closures; `emergency` = local
   **sheriff, search & rescue, ranger station, nearest hospital** numbers.
-- **Watch for + fishing** (`watch_for`, `fishing`) — cool/edible plants, wildlife,
-  gemstones, AND poisonous plants/animals to avoid; whether you can fish (species,
-  license, where).
+- **Field guide** (`field_guide[]`) — the regional **edible / poisonous /
+  MEDICINAL** plants, **venomous snakes, biting insects**, notable wildlife &
+  landmarks. Each entry: `{name, kind (edible|poisonous|medicinal|wildlife|snake|
+  insect|landmark), note (how to recognize), treat (first-aid if bitten/stung/
+  ingested), photo (verified Wikimedia URL), url (Wikipedia/iNaturalist)}`. Renders
+  as tappable cards on the dossier. Plus `fishing` (species/license/where).
+- **Fire rules** (`fire_rules`) — are campfires allowed at all? current fire
+  bans / Stage 1–2 restrictions; **ALPINE = usually NO fires, stove-only** (David
+  doesn't make fire in the alpine — say so when true).
+- **Access** (`access` = {visitor_center, ranger_station, pass, url}) — visitor
+  center + ranger station (name + phone), how to buy/what pass is accepted, and the
+  official park/area URL.
+- **Water sources** (in `water[]`) — be specific: which lakes/creeks/springs are
+  reliable, where the last cache is, and always note "filter/treat."
 - **Points of interest** (`poi`) — fire lookouts, downed aircraft, old mines,
   historic relics nearby, each with a link if available.
 - **Photos** (`photos`) — the place, the trail/approach, and images of plants/
