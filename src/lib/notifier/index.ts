@@ -11,9 +11,8 @@ import { sendEmail } from './email';
 import { sendEmailToSms } from './emailToSms';
 import { sendIMessage } from './imessage';
 import { sendTwilio } from './twilio';
-import { sendTelegram } from './telegram';
 
-export type Channel = 'telegram' | 'imessage' | 'email' | 'sms' | 'inreach' | 'twilio';
+export type Channel = 'imessage' | 'email' | 'sms' | 'inreach' | 'twilio';
 
 export interface Message {
   /** Rich body for email; adapters compress for SMS/inReach. */
@@ -25,7 +24,7 @@ export interface Message {
 
 export interface DeliverResult { channel: Channel; ok: boolean; detail?: string }
 
-const DEFAULT_PRIORITY: Channel[] = ['telegram', 'imessage', 'email', 'sms', 'inreach'];
+const DEFAULT_PRIORITY: Channel[] = ['imessage', 'email', 'sms', 'inreach'];
 
 /** Try channels in priority order until one reports success. */
 export async function notify(
@@ -50,7 +49,6 @@ async function deliver(channel: Channel, msg: Message): Promise<DeliverResult> {
   const short = msg.short ?? msg.subject;
   try {
     switch (channel) {
-      case 'telegram': return { channel, ...(await sendTelegram(short)) };
       case 'imessage': return { channel, ...(await sendIMessage(short)) };
       case 'email':    return { channel, ...(await sendEmail(msg.subject, msg.body)) };
       case 'sms':      return { channel, ...(await sendEmailToSms(short)) };
