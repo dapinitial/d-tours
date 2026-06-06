@@ -44,14 +44,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const { error } = await sb.from('comments').insert(row);
   if (error) { console.error('[comment]', error.message); return json({ ok: false, error: 'Couldn’t post that — try again.' }, 500); }
 
-  // 📲 Ping David on ALL his channels (email + SMS gateway) — not failover, so a
-  // new comment lands as both a text AND an email. Best-effort; never blocks.
+  // 📲 Ping David on Telegram + email (Telegram = instant phone push; email =
+  // record). Explicit list skips the dead carrier SMS gateway entirely. Best-effort.
   try {
     await notifyAll({
       subject: `💬 New comment from ${author}`,
       body: `${author} commented on ${target} ${p.id}:\n\n"${body}"\n\nApprove it in the CMS.`,
-      short: `💬 ${author}: ${body}`.slice(0, 140),
-    });
+      short: `💬 ${author}: ${body}`.slice(0, 160),
+    }, ['telegram', 'email']);
   } catch {}
 
   return json({ ok: true });
