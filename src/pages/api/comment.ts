@@ -44,8 +44,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const { error } = await sb.from('comments').insert(row);
   if (error) { console.error('[comment]', error.message); return json({ ok: false, error: 'Couldn’t post that — try again.' }, 500); }
 
-  // 📲 Ping David (best-effort — never blocks the comment). Failover lands on
-  // email (Gmail). Add 'twilio' to wire real SMS later — see lib/notifier/twilio.ts.
+  // 📲 Ping David (best-effort — never blocks the comment). iMessage if a host is
+  // running it, else email (Gmail) — which pushes to his phone.
   try {
     await notify({
       subject: `💬 New comment from ${author}`,

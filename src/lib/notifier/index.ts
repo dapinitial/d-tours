@@ -1,32 +1,26 @@
-// Shotgun's outbound comms. One message, routed to whatever can reach David
-// right now. Channel priority is tier-aware:
-//   at the rig (Starlink)  → email (rich)
-//   cell, no dish          → iMessage / email-to-SMS (short)
-//   truly off-grid         → inReach (one-line)
-//
-// Each adapter is best-effort and returns whether it (probably) delivered.
-// Twilio is intentionally a dark stub for v1 — NO Twilio until we need reliable
-// SMS to third parties. See SPEC §18.
+// Shotgun's outbound comms — iMessage or email, nothing else.
+// iMessage fires only when a Mac/Shotgun host is actually running it; otherwise
+// it falls through to email (which pushes to David's phone). Carrier SMS, inReach
+// messaging, and Twilio were removed: AT&T killed free email-to-SMS, and iMessage
+// can't be sent from the cloud server anyway. Each adapter is best-effort.
 import { sendEmail } from './email';
-import { sendEmailToSms } from './emailToSms';
 import { sendIMessage } from './imessage';
-import { sendTwilio } from './twilio';
 
-export type Channel = 'imessage' | 'email' | 'sms' | 'inreach' | 'twilio';
+export type Channel = 'imessage' | 'email';
 
 export interface Message {
-  /** Rich body for email; adapters compress for SMS/inReach. */
+  /** Rich body for email; `short` is used for iMessage. */
   subject: string;
   body: string;
-  /** One-liner for bandwidth-starved channels (sat text). Falls back to subject. */
+  /** One-liner for iMessage. Falls back to subject. */
   short?: string;
 }
 
 export interface DeliverResult { channel: Channel; ok: boolean; detail?: string }
 
-const DEFAULT_PRIORITY: Channel[] = ['imessage', 'email', 'sms', 'inreach'];
+const DEFAULT_PRIORITY: Channel[] = ['imessage', 'email'];
 
-/** Try channels in priority order until one reports success. */
+/** Try channels in priority order until one reports success (iMessage → email). */
 export async function notify(
   msg: Message,
   priority: Channel[] = DEFAULT_PRIORITY,
@@ -40,7 +34,7 @@ export async function notify(
   return results;
 }
 
-/** Broadcast to ALL configured channels (use for SOS / critical hazards). */
+/** Broadcast to BOTH channels (use when you want iMessage AND an email record). */
 export async function notifyAll(msg: Message, priority: Channel[] = DEFAULT_PRIORITY) {
   return Promise.all(priority.map((c) => deliver(c, msg)));
 }
@@ -51,9 +45,6 @@ async function deliver(channel: Channel, msg: Message): Promise<DeliverResult> {
     switch (channel) {
       case 'imessage': return { channel, ...(await sendIMessage(short)) };
       case 'email':    return { channel, ...(await sendEmail(msg.subject, msg.body)) };
-      case 'sms':      return { channel, ...(await sendEmailToSms(short)) };
-      case 'inreach':  return { channel, ...(await sendEmailToSms(short, true)) };
-      case 'twilio':   return { channel, ...(await sendTwilio(short)) };
       default:         return { channel, ok: false, detail: 'unknown channel' };
     }
   } catch (err: any) {

@@ -1,11 +1,10 @@
 ---
-// "Reach the crew" — lets a visitor message David directly.
+// "Reach the crew" — iMessage or email, nothing else.
 //   • Apple devices (iPhone/iPad/Mac) → 💬 iMessage (imessage:// opens Messages)
-//   • Everyone else                   → 📱 Text (sms:) — Android opens its SMS app
-//   • Always                          → 🟢 WhatsApp + 📧 Email
-// We render the universal set by default (works with no JS); JS upgrades Apple
-// devices to the iMessage button. Number + email are assembled client-side so the
-// raw HTML carries no plaintext contact for scrapers.
+//   • Everyone else                   → 📧 Email
+// Email always shows (works for everyone); JS reveals iMessage only on Apple, so
+// non-Apple visitors never see a dead button. Number/email assembled client-side
+// so the raw HTML carries no plaintext contact for scrapers.
 interface Props { compact?: boolean }
 const { compact = false } = Astro.props;
 ---
@@ -13,8 +12,6 @@ const { compact = false } = Astro.props;
   <span class="reach-label">📲 Reach the crew</span>
   <div class="reach-btns">
     <a class="rb apple-only" data-kind="imessage" href="#" aria-label="iMessage David">💬 iMessage</a>
-    <a class="rb sms-only" data-kind="sms" href="#" aria-label="Text David">📱 Text</a>
-    <a class="rb" data-kind="whatsapp" href="#" target="_blank" rel="noopener" aria-label="WhatsApp David">🟢 WhatsApp</a>
     <a class="rb" data-kind="email" href="#" aria-label="Email David">📧 Email</a>
   </div>
 </div>
@@ -25,15 +22,13 @@ const { compact = false } = Astro.props;
   const mail = ['me', 'davidpuerto.com'].join('@');
   const hrefs: Record<string, string> = {
     imessage: `imessage://+${num}`,
-    sms: `sms:+${num}`,
-    whatsapp: `https://wa.me/${num}`,
     email: `mailto:${mail}`,
   };
   document.querySelectorAll<HTMLAnchorElement>('.reach .rb').forEach((a) => {
     const k = a.dataset.kind; if (k && hrefs[k]) a.href = hrefs[k];
   });
-  // Apple (iMessage-capable)? Show iMessage, drop the SMS button. iPadOS 13+ poses
-  // as desktop Safari, so also check MacIntel + touch.
+  // Apple (iMessage-capable)? Reveal the iMessage button. iPadOS 13+ poses as
+  // desktop Safari, so also check MacIntel + touch.
   const ua = navigator.userAgent;
   const isApple = /iPhone|iPad|iPod|Macintosh/i.test(ua)
     || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints ?? 0) > 1);
@@ -48,8 +43,7 @@ const { compact = false } = Astro.props;
   .rb { display: inline-flex; align-items: center; font-size: .85rem; font-weight: 600; padding: .4rem .8rem;
         border-radius: 999px; border: 1px solid var(--border-2); color: var(--text); text-decoration: none; transition: all .15s; }
   .rb:hover { border-color: var(--green); color: var(--green); }
-  /* Default (no JS / non-Apple): show Text, hide iMessage. JS reverses it on Apple. */
+  /* iMessage hidden by default (non-Apple / no-JS); revealed on Apple devices. */
   .apple-only { display: none; }
   .reach.is-apple .apple-only { display: inline-flex; }
-  .reach.is-apple .sms-only { display: none; }
 </style>
