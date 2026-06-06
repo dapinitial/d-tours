@@ -125,6 +125,19 @@ export async function getSources(tenantId?: string): Promise<Source[]> {
   return error ? [] : (data as Source[]);
 }
 
+/** The dispatch subscriber list (owner-only → service role; table has no public
+ *  RLS policy). Optionally filter by cadence. Server-side use only. */
+export async function getSubscribers(tenantId?: string, cadence?: string): Promise<{ email: string; cadence: string }[]> {
+  const sb = getSupabaseAdmin();
+  if (!sb) return [];
+  const tid = await resolveTid(tenantId);
+  let q = sb.from('subscribers').select('email, cadence');
+  if (tid) q = q.eq('tenant_id', tid);
+  if (cadence) q = q.eq('cadence', cadence);
+  const { data, error } = await q;
+  return error ? [] : ((data as any) ?? []);
+}
+
 /** Follower detour suggestions awaiting the owner's approval (CMS moderation).
  *  Owner-only data → read via service role (the table has no public RLS policy
  *  by design, so the anon client would return nothing). Server-side use only. */
