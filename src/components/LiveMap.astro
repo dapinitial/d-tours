@@ -6,9 +6,10 @@
 import type { Post } from '../lib/types';
 interface Props { posts?: Post[] }
 const { posts = [] } = Astro.props;
+const thumb320 = (u: string | undefined) => (u && u.startsWith('/img/')) ? `${u}?w=320` : (u ?? null);
 const geoPosts = posts
   .filter((p) => typeof p.lat === 'number' && typeof p.lng === 'number' && p.published_at)
-  .map((p) => ({ id: p.id, title: p.title, lat: p.lat, lng: p.lng, thumb: (p.media || []).find((m) => /\.(jpe?g|png|webp|gif|heic)/i.test(m)) ?? null }));
+  .map((p) => ({ id: p.id, title: p.title, lat: p.lat, lng: p.lng, thumb: thumb320((p.media || []).find((m) => /\.(jpe?g|png|webp|gif|heic)/i.test(m))) }));
 ---
 <div class="map-wrap" data-reveal>
   <script type="application/json" id="geo-posts" set:html={JSON.stringify(geoPosts)}></script>
