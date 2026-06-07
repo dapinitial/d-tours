@@ -194,7 +194,9 @@ export async function getCompanions(tenantId?: string): Promise<import('./types'
   const sb = getSupabase();
   if (!sb) return [];
   const tid = await resolveTid(tenantId);
-  let q = sb.from('companions').select('*').eq('published', true).order('sort', { ascending: true });
+  let q = sb.from('companions')
+    .select('id,name,nickname,emoji,color,role,leg,joins_at,joins_lat,joins_lng,status,status_note,mapshare_url,note,sort,last_lat,last_lng,last_seen,published')
+    .eq('published', true).order('sort', { ascending: true });  // track_key excluded (secret)
   if (tid) q = q.eq('tenant_id', tid);
   const { data, error } = await q;
   return error ? [] : (data as import('./types').Companion[]);

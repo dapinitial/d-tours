@@ -1,0 +1,164 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getSupabaseAdmin } from '../../lib/supabase';
+
+const tid = Astro.locals.tenantId;
+const sb = getSupabaseAdmin();
+let crew: any[] = [];
+if (sb) {
+  let q = sb.from('companions').select('*').order('sort', { ascending: true });
+  if (tid) q = q.eq('tenant_id', tid);
+  const { data } = await q;
+  crew = data ?? [];
+}
+const STATUS = ['confirmed', 'likely', 'maybe'];
+const site = Astro.url.origin;
+---
+<Base title="D-Tours · The Squad">
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">🤘 The Squad</p>
+        <h2>Who's on the trip</h2>
+        <p>Add companions, set which leg they ride and where they join. Each gets a private <strong>/track link</strong> — send it to anyone without an inReach and their phone shares their dot to the map. Toggle <strong>published</strong> off to stage someone privately.</p>
+        <a href="/cms" class="muted back">← back to CMS</a>
+      </div>
+
+      <div class="card add-card">
+        <h3>＋ Add to the squad</h3>
+        <div class="grid2">
+          <input id="a-name" placeholder="Name *" />
+          <input id="a-nick" placeholder="Nickname (optional)" />
+          <input id="a-emoji" class="sm" placeholder="🧗" maxlength="3" />
+          <input id="a-color" type="color" value="#34d399" title="Map color" />
+          <input id="a-role" placeholder="Role — Climbing partner / Second rig" />
+          <input id="a-leg" placeholder="Leg — Colorado → Squamish" />
+          <input id="a-joins" placeholder="Joins at — Estes Park, CO" />
+          <select id="a-status">{STATUS.map((s) => <option value={s}>{s}</option>)}</select>
+          <input id="a-note" placeholder="Status note — 90% in 🤞" />
+          <input id="a-mapshare" placeholder="inReach MapShare feed URL (optional)" />
+        </div>
+        <div class="composer-foot">
+          <label class="pub"><input type="checkbox" id="a-pub" checked /> published</label>
+          <button id="add" class="btn">Add companion</button>
+        </div>
+        <p class="msg" id="add-msg"></p>
+      </div>
+
+      <div class="crew">
+        {crew.map((c) => (
+          <div class="member-edit" data-id={c.id} style={`--c:${c.color || '#34d399'}`}>
+            <div class="me-head">
+              <span class="me-emoji">{c.emoji || '🧗'}</span>
+              <strong>{c.name}{c.nickname ? ` “${c.nickname}”` : ''}</strong>
+              <span class={`pill ${c.published ? 'on' : 'off'}`}>{c.published ? 'published' : 'hidden'}</span>
+            </div>
+            <div class="grid2">
+              <input data-f="name" value={c.name} placeholder="Name" />
+              <input data-f="nickname" value={c.nickname ?? ''} placeholder="Nickname" />
+              <input data-f="emoji" class="sm" value={c.emoji ?? ''} maxlength="3" />
+              <input data-f="color" type="color" value={c.color ?? '#34d399'} />
+              <input data-f="role" value={c.role ?? ''} placeholder="Role" />
+              <input data-f="leg" value={c.leg ?? ''} placeholder="Leg" />
+              <input data-f="joins_at" value={c.joins_at ?? ''} placeholder="Joins at" />
+              <select data-f="status">{STATUS.map((s) => <option value={s} selected={s === (c.status ?? 'confirmed')}>{s}</option>)}</select>
+              <input data-f="status_note" value={c.status_note ?? ''} placeholder="Status note" />
+              <input data-f="mapshare_url" value={c.mapshare_url ?? ''} placeholder="MapShare URL" />
+              <input data-f="sort" type="number" value={c.sort ?? 0} placeholder="Sort" class="sm" />
+              <label class="pub"><input type="checkbox" data-f="published" checked={!!c.published} /> published</label>
+            </div>
+            <div class="track-row">
+              <span class="muted tiny">📍 Phone-share link:</span>
+              <input class="track-link" readonly value={`${site}/track/${c.track_key}`} />
+              <button class="btn ghost sm copy">Copy</button>
+              <button class="btn ghost sm regen">↻ New key</button>
+            </div>
+            <div class="me-foot">
+              <button class="btn ghost sm del">🗑️ Remove</button>
+              <button class="btn sm save">Save</button>
+              <span class="msg row-msg"></span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <script define:vars={{ site }}>
+    const post = (body) => fetch('/api/companions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
+    const readCard = (card) => {
+      const item = {};
+      card.querySelectorAll('[data-f]').forEach((el) => {
+        item[el.dataset.f] = el.type === 'checkbox' ? el.checked : el.value;
+      });
+      return item;
+    };
+
+    // add
+    const addMsg = document.getElementById('add-msg');
+    document.getElementById('add')?.addEventListener('click', async () => {
+      const item = {
+        name: aval('a-name'), nickname: aval('a-nick'), emoji: aval('a-emoji'), color: aval('a-color'),
+        role: aval('a-role'), leg: aval('a-leg'), joins_at: aval('a-joins'), status: aval('a-status'),
+        status_note: aval('a-note'), mapshare_url: aval('a-mapshare'), published: document.getElementById('a-pub').checked,
+      };
+      if (!item.name) { addMsg.textContent = 'Name required.'; addMsg.className = 'msg err'; return; }
+      addMsg.textContent = 'Adding…'; addMsg.className = 'msg';
+      const j = await post({ action: 'add', item });
+      if (j.ok) { addMsg.textContent = '✅ Added!'; addMsg.className = 'msg ok'; setTimeout(() => location.reload(), 600); }
+      else { addMsg.textContent = j.error || 'Failed'; addMsg.className = 'msg err'; }
+    });
+    function aval(id) { return document.getElementById(id)?.value || ''; }
+
+    // per-card actions
+    document.querySelectorAll('.member-edit').forEach((card) => {
+      const id = card.dataset.id;
+      const msg = card.querySelector('.row-msg');
+      const setMsg = (t, err) => { msg.textContent = t; msg.className = 'msg row-msg' + (err ? ' err' : ' ok'); };
+      card.querySelector('.save')?.addEventListener('click', async () => {
+        setMsg('Saving…');
+        const j = await post({ action: 'update', id, item: readCard(card) });
+        setMsg(j.ok ? '✅ Saved' : (j.error || 'Failed'), !j.ok);
+      });
+      card.querySelector('.del')?.addEventListener('click', async () => {
+        if (!confirm('Remove this companion?')) return;
+        const j = await post({ action: 'remove', id });
+        if (j.ok) card.remove(); else setMsg(j.error || 'Failed', true);
+      });
+      card.querySelector('.copy')?.addEventListener('click', () => {
+        const inp = card.querySelector('.track-link');
+        navigator.clipboard?.writeText(inp.value); setMsg('📋 Link copied');
+      });
+      card.querySelector('.regen')?.addEventListener('click', async () => {
+        if (!confirm('Generate a new link? The old one stops working.')) return;
+        const j = await post({ action: 'regen', id });
+        if (j.ok) { card.querySelector('.track-link').value = `${site}/track/${j.track_key}`; setMsg('↻ New link generated'); }
+        else setMsg(j.error || 'Failed', true);
+      });
+    });
+  </script>
+
+  <style>
+    .container { width: min(100% - 2.5rem, 880px); }
+    .add-card { margin-bottom: 1.5rem; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+    .grid2 input, .grid2 select { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: .55rem .7rem; font: inherit; min-width: 0; }
+    .grid2 input.sm { max-width: 90px; }
+    input[type=color] { padding: .2rem; height: 40px; cursor: pointer; }
+    .composer-foot { display: flex; justify-content: space-between; align-items: center; margin-top: .8rem; }
+    .pub { display: flex; align-items: center; gap: .4rem; font-size: .85rem; color: var(--muted); }
+    .crew { display: grid; gap: 1rem; }
+    .member-edit { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-left: 3px solid var(--c); border-radius: var(--radius); padding: 1rem; }
+    .me-head { display: flex; align-items: center; gap: .5rem; margin-bottom: .7rem; }
+    .me-emoji { font-size: 1.3rem; }
+    .pill { font-size: .65rem; font-weight: 700; padding: .15rem .5rem; border-radius: 999px; margin-left: auto; }
+    .pill.on { background: rgba(52,211,153,.15); color: var(--green); }
+    .pill.off { background: rgba(148,163,184,.15); color: var(--muted); }
+    .track-row { display: flex; align-items: center; gap: .5rem; margin-top: .7rem; flex-wrap: wrap; }
+    .track-link { flex: 1; min-width: 200px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--sky, #38bdf8); padding: .45rem .6rem; font: .8rem monospace; }
+    .me-foot { display: flex; align-items: center; gap: .6rem; margin-top: .8rem; }
+    .me-foot .save { margin-left: auto; }
+    .msg { font-size: .82rem; } .msg.ok { color: var(--green); } .msg.err { color: var(--red); }
+    @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+  </style>
+</Base>
