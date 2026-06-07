@@ -124,7 +124,11 @@ export interface ObjectiveBeta {
   access?: { visitor_center?: string; ranger_station?: string; pass?: string; url?: string }; // visitor center / ranger / pass + official link
   poi?: { name: string; note?: string; url?: string }[]; // fire lookouts, downed aircraft, historic sites, old mines/relics
   photos?: { url: string; caption?: string }[];          // the place, the trail, plants/wildlife to recognize
-  conditions?: { weather_url?: string; mountain_forecast_url?: string; avalanche_url?: string; fire_url?: string; bugs?: string }; // live links
+  conditions?: {
+    weather_url?: string; mountain_forecast_url?: string; avalanche_url?: string; fire_url?: string; bugs?: string;
+    // Auto-refreshed daily by /api/refresh-conditions (Open-Meteo).
+    forecast?: { updated_at: string; days: { date: string; code: number; tmax: number; tmin: number; precip: number; precip_prob: number; wind: number }[] };
+  };
   nearby?: string[];      // other climbs / points of interest nearby
 }
 

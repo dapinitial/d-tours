@@ -17,6 +17,22 @@ const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString([], { month: 
 const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chip red' };
 const fgEmoji: Record<string, string> = { edible: '🍃', poisonous: '☠️', medicinal: '⚕️', wildlife: '🦌', snake: '🐍', insect: '🦟', landmark: '🪨' };
 const fg = b.field_guide ?? [];
+// WMO weather-code → emoji for the auto-refreshed forecast row.
+const wxEmoji = (c: number): string => {
+  if (c === 0) return '☀️';
+  if (c <= 2) return '🌤️';
+  if (c === 3) return '☁️';
+  if (c <= 48) return '🌫️';
+  if (c <= 57) return '🌦️';
+  if (c <= 67) return '🌧️';
+  if (c <= 77) return '🌨️';
+  if (c <= 82) return '🌧️';
+  if (c <= 86) return '🌨️';
+  return '⛈️';
+};
+const fc = b.conditions?.forecast;
+const fcAge = fc?.updated_at ? Math.round((Date.now() - new Date(fc.updated_at).getTime()) / 3600000) : null;
+const dayName = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' });
 // "Before you leave" checklist — auto-built from whatever this dossier knows.
 const checklist = [
   b.rack && `Rack — ${b.rack}`,
@@ -174,9 +190,25 @@ const checklist = [
         </section>
       )}
 
-      {b.conditions && (b.conditions.weather_url || b.conditions.mountain_forecast_url || b.conditions.avalanche_url || b.conditions.fire_url || b.conditions.bugs) && (
+      {b.conditions && (fc || b.conditions.weather_url || b.conditions.mountain_forecast_url || b.conditions.avalanche_url || b.conditions.fire_url || b.conditions.bugs) && (
         <section class="block">
           <h2>🌤️ Live conditions</h2>
+          {fc && fc.days?.length > 0 && (
+            <div class="wx">
+              <div class="wx-row">
+                {fc.days.slice(0, 5).map((d) => (
+                  <div class="wx-day">
+                    <div class="wx-dow">{dayName(d.date)}</div>
+                    <div class="wx-icon">{wxEmoji(d.code)}</div>
+                    <div class="wx-temp"><span class="hi">{d.tmax}°</span> <span class="lo">{d.tmin}°</span></div>
+                    {d.precip_prob > 10 && <div class="wx-precip">💧{d.precip_prob}%</div>}
+                    {d.wind >= 20 && <div class="wx-wind">💨{d.wind}</div>}
+                  </div>
+                ))}
+              </div>
+              <p class="wx-note muted tiny">Auto-updated {fcAge != null ? (fcAge < 1 ? 'just now' : `${fcAge}h ago`) : ''} · °F · tap a link for the mountain-specific picture ↓</p>
+            </div>
+          )}
           <div class="cond-links">
             {b.conditions.weather_url && <a class="btn ghost sm" href={b.conditions.weather_url} target="_blank" rel="noopener">🌦️ Weather</a>}
             {b.conditions.mountain_forecast_url && <a class="btn ghost sm" href={b.conditions.mountain_forecast_url} target="_blank" rel="noopener">⛰️ Mountain Forecast</a>}
@@ -330,6 +362,14 @@ const checklist = [
     .r-name { font-weight: 700; } .r-name a { color: var(--text); } .r-name a:hover { color: var(--green); }
     .r-grade { color: var(--green); font-size: .8rem; }
     .r-note { font-size: .9rem; margin-top: .2rem; }
+    .wx { margin-bottom: 1rem; }
+    .wx-row { display: flex; gap: .5rem; overflow-x: auto; padding-bottom: .3rem; }
+    .wx-day { flex: 0 0 auto; min-width: 68px; text-align: center; padding: .6rem .4rem; background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 10px; }
+    .wx-dow { font-size: .72rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .wx-icon { font-size: 1.5rem; line-height: 1.6; }
+    .wx-temp { font-size: .82rem; } .wx-temp .hi { font-weight: 700; } .wx-temp .lo { color: var(--muted); }
+    .wx-precip, .wx-wind { font-size: .68rem; color: var(--sky, #38bdf8); margin-top: .15rem; }
+    .wx-note { margin: .4rem 0 0; }
     .cond-links { display: flex; gap: .5rem; flex-wrap: wrap; }
     .seeds a { color: var(--sky); }
   </style>
