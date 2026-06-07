@@ -8,6 +8,14 @@ const [stops, objectives, resources, confirmedRdv] = await Promise.all([
 const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chip red' };
 const logistics = resources.filter((r) => r.layer === 'logistics' || r.layer === 'life');
 
+// Link each stop to its beta: a climb → its objective dossier; a town → its stop
+// dossier; plus coords + a one-tap Google Maps directions link.
+const objFor = (s: any) => {
+  const hay = `${s.name} ${s.sub ?? ''}`.toLowerCase();
+  return objectives.find((o) => { const key = o.name.toLowerCase().split(/[\s(/]/)[0]; return key.length > 3 && hay.includes(key); }) ?? null;
+};
+const mapsUrl = (s: any) => (s.lat != null && s.lng != null) ? `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}` : null;
+
 const packing = [
   { emoji: '🧗', title: 'Alpine Hardware', items: ['Double rack to 3"', '60m half ropes', 'Alpine draws', 'Helmet', 'Nut tool + cordelette'] },
   { emoji: '🐻', title: 'Backcountry / Wildlife Safety', items: ['Bear spray on chest harness', 'Certified bear canister', 'Tire protection (porcupines!)', 'First-aid + SAM splint'] },
@@ -32,14 +40,30 @@ const packing = [
     <!-- ROUTE -->
     <h2>🗺️ Route sequence</h2>
     <ol class="route">
-      {stops.map((s) => (
-        <li class:list={{ hard: s.flex === 'hard' }}>
+      {stops.map((s) => {
+        const obj = objFor(s);
+        const hasDoss = !!(s as any).dossier && Object.keys((s as any).dossier).length > 0;
+        const maps = mapsUrl(s);
+        return (
+        <li class:list={{ hard: s.flex === 'hard', rdv: !!s.rendezvous }}>
           <span class="r-emoji">{s.emoji}</span>
-          <span class="r-name">{s.name}</span>
-          {s.date && <span class="r-date">{s.date}</span>}
-          {s.sub && <span class="r-sub">{s.sub}</span>}
+          <div class="r-body">
+            <div class="r-top">
+              <span class="r-name">{s.name}</span>
+              {s.date && <span class="r-date">{s.date}</span>}
+            </div>
+            {s.sub && <div class="r-sub">{s.sub}</div>}
+            {s.rendezvous && <div class="r-rdv">🤝 {s.rendezvous}</div>}
+            <div class="r-links">
+              {obj && <a class="r-link climb" href={`/objectives/${obj.id}`}>🧗 {obj.grade} beta →</a>}
+              {!obj && hasDoss && <a class="r-link town" href={`/stops/${s.id}`}>📋 town dossier →</a>}
+              {!obj && !hasDoss && (s.lat != null) && <a class="r-link town" href={`/stops/${s.id}`}>📋 stop info →</a>}
+              {maps && <a class="r-link" href={maps} target="_blank" rel="noopener">📍 directions</a>}
+              {(s.lat != null && s.lng != null) && <span class="r-coord mono">{s.lat.toFixed(3)}, {s.lng.toFixed(3)}</span>}
+            </div>
+          </div>
         </li>
-      ))}
+      ); })}
     </ol>
 
     <!-- RENDEZVOUS -->
@@ -136,13 +160,23 @@ const packing = [
   .plan-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.5rem; margin-bottom: 2.5rem; }
   .plan h2 { margin-top: 3rem; padding-top: 1.2rem; border-top: 1px solid var(--border); }
   .route { list-style: none; counter-reset: step; padding: 0; display: grid; gap: .55rem; }
-  .route li { counter-increment: step; display: flex; align-items: baseline; gap: .6rem; padding: .6rem .85rem; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
-  .route li::before { content: counter(step); font-family: var(--font-mono); font-size: .72rem; color: var(--green); min-width: 1.4em; }
+  .route li { counter-increment: step; display: flex; align-items: flex-start; gap: .6rem; padding: .7rem .85rem; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
+  .route li::before { content: counter(step); font-family: var(--font-mono); font-size: .72rem; color: var(--green); min-width: 1.4em; padding-top: .15rem; }
   .route li.hard { border-color: rgba(251,113,133,.4); }
-  .r-emoji { font-size: 1.1rem; }
+  .route li.rdv { border-color: rgba(56,189,248,.4); }
+  .r-emoji { font-size: 1.2rem; padding-top: .05rem; }
+  .r-body { flex: 1; min-width: 0; }
+  .r-top { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
   .r-name { font-weight: 700; }
   .r-date { font-family: var(--font-mono); font-size: .72rem; color: var(--green); }
-  .r-sub { color: var(--muted); font-size: .85rem; }
+  .r-sub { color: var(--muted); font-size: .85rem; margin-top: .1rem; }
+  .r-rdv { font-size: .82rem; color: var(--sky, #38bdf8); margin-top: .2rem; }
+  .r-links { display: flex; align-items: center; gap: .5rem .9rem; flex-wrap: wrap; margin-top: .45rem; }
+  .r-link { font-size: .8rem; font-weight: 600; text-decoration: none; color: var(--text); border-bottom: 1px dashed var(--border-2); }
+  .r-link.climb { color: var(--green); border-color: rgba(52,211,153,.4); }
+  .r-link.town { color: var(--amber, #fbbf24); border-color: rgba(251,191,36,.35); }
+  .r-link:hover { border-style: solid; }
+  .r-coord { font-size: .68rem; color: var(--faint); }
   ul.check { list-style: none; padding: 0; margin: .5rem 0 0; display: grid; gap: .5rem; }
   ul.check li { display: flex; align-items: center; gap: .55rem; font-size: .9rem; }
   .box { width: 15px; height: 15px; border: 1.5px solid var(--border-2); border-radius: 4px; flex: 0 0 auto; }
