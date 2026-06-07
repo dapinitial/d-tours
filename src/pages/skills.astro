@@ -1,0 +1,75 @@
+---
+import Base from '../layouts/Base.astro';
+import { getSkills } from '../lib/data';
+
+export const prerender = false;
+
+const skills = await getSkills();
+const cats = [...new Set(skills.map((s) => s.category))];
+const ytId = (u?: string | null) => u?.match(/(?:youtu\.be\/|[?&]v=|embed\/)([\w-]{11})/)?.[1] ?? null;
+const search = (name: string) => `https://www.youtube.com/results?search_query=${encodeURIComponent(name + ' climbing technique')}`;
+---
+<Base title="D-Tours · Skills Library" description="Rope, rescue and alpine technique videos — knots, coils, hauls, anchors, crevasse rescue — to refresh on the long drives.">
+  <section>
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">🎓 Skills</p>
+        <h2>Rope & rescue refresher</h2>
+        <p>Knots, coils, hauls, anchors, glacier + alpine technique — queue these up for the long drives. Tap <strong>▶ Watch</strong> to play inline; <strong>🔍 More</strong> opens a YouTube search if you want options.</p>
+      </div>
+
+      {cats.map((cat) => (
+        <div class="skill-cat" data-reveal>
+          <h3>{cat}</h3>
+          <div class="skill-grid">
+            {skills.filter((s) => s.category === cat).map((s) => {
+              const vid = ytId(s.video_url);
+              return (
+                <div class="skill" data-embed={vid ? `https://www.youtube.com/embed/${vid}` : ''}>
+                  <div class="sk-name">{s.name}</div>
+                  {s.description && <div class="sk-desc">{s.description}</div>}
+                  <div class="sk-player"></div>
+                  <div class="sk-actions">
+                    {vid && <button class="sk-watch" type="button">▶ Watch</button>}
+                    <a class="sk-search" href={search(s.name)} target="_blank" rel="noopener">🔍 More</a>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <script>
+    document.querySelectorAll<HTMLElement>('.skill').forEach((card) => {
+      const btn = card.querySelector('.sk-watch');
+      const player = card.querySelector('.sk-player') as HTMLElement;
+      btn?.addEventListener('click', () => {
+        const embed = card.dataset.embed;
+        if (!embed || !player) return;
+        if (player.hasChildNodes()) { player.innerHTML = ''; btn.textContent = '▶ Watch'; return; }
+        player.innerHTML = `<iframe src="${embed}?autoplay=1&rel=0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen loading="lazy"></iframe>`;
+        btn.textContent = '✕ Close';
+      });
+    });
+  </script>
+
+  <style>
+    .skill-cat { margin-top: 2rem; }
+    .skill-cat h3 { margin-bottom: .9rem; padding-bottom: .4rem; border-bottom: 1px solid var(--border); }
+    .skill-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .skill { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; display: flex; flex-direction: column; }
+    .sk-name { font-weight: 700; }
+    .sk-desc { font-size: .85rem; color: var(--muted); line-height: 1.45; margin-top: .3rem; }
+    .sk-player { margin-top: .7rem; }
+    .sk-player:empty { display: none; }
+    .sk-player :global(iframe) { width: 100%; aspect-ratio: 16/9; border: 0; border-radius: 10px; display: block; }
+    .sk-actions { display: flex; gap: .6rem; align-items: center; margin-top: auto; padding-top: .8rem; }
+    .sk-watch { background: var(--green); color: #04231a; border: none; font-weight: 700; padding: .45rem .9rem; border-radius: 999px; cursor: pointer; font-size: .85rem; }
+    .sk-watch:hover { filter: brightness(1.08); }
+    .sk-search { font-size: .82rem; color: var(--muted); text-decoration: none; }
+    .sk-search:hover { color: var(--text); }
+  </style>
+</Base>

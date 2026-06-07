@@ -9,6 +9,16 @@ export type Flex = 'hard' | 'soft' | 'open';
 export type StopStatus = 'confirmed' | 'proposed' | 'suggested' | 'declined';
 export type StopKind = 'stop' | 'sidequest' | 'pitstop';
 
+/** A rope/rescue/alpine skill in the video refresher library. */
+export interface Skill {
+  id: string;
+  category: string;
+  name: string;
+  description?: string | null;
+  video_url?: string | null;
+  sort?: number;
+}
+
 /** A trip companion (the squad) — who's riding along which leg, and where. */
 export interface Companion {
   id: string;

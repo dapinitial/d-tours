@@ -197,6 +197,17 @@ export async function getRendezvous(tenantId?: string, status?: string) {
   return error ? [] : (data ?? []);
 }
 
+/** The skills video library (rope/rescue/alpine technique). Public read. */
+export async function getSkills(tenantId?: string): Promise<import('./types').Skill[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const tid = await resolveTid(tenantId);
+  let q = sb.from('skills').select('*').order('sort', { ascending: true });
+  if (tid) q = q.eq('tenant_id', tid);
+  const { data, error } = await q;
+  return error ? [] : (data as import('./types').Skill[]);
+}
+
 /** The squad — trip companions (who's riding which leg). Public read. */
 export async function getCompanions(tenantId?: string): Promise<import('./types').Companion[]> {
   const sb = getSupabase();
