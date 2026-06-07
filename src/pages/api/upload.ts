@@ -36,12 +36,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (!sb) return json({ ok: true, mock: true, url: URL.createObjectURL?.(file) ?? '#' });
 
   const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const path = `${tid ?? 'shared'}/${id}.${EXT[file.type]}`;
   const buf = await file.arrayBuffer();
 
-  // 📍 Pull GPS out of the photo's EXIF (where it was actually taken). Loaded
-  // dynamically + fully isolated — if exifr can't load/parse, the upload still works
-  // (we fall back to the live position). EXIF must NEVER break an upload.
+  // 📍 GPS from the ORIGINAL file's EXIF (read before we re-encode, which strips it).
+  // Fully isolated — if exifr can't load/parse, the upload still works (we fall back
+  // to the live position). EXIF must NEVER break an upload.
   let coords: { lat: number; lng: number } | null = null;
   try {
     const exifr = (await import('exifr')).default;
@@ -49,7 +48,27 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     if (g && isFinite(g.latitude) && isFinite(g.longitude)) coords = { lat: g.latitude, lng: g.longitude };
   } catch (e: any) { console.log('[upload] exif skipped:', e?.message ?? e); }
 
-  const { error } = await sb.storage.from('media').upload(path, buf, { contentType: file.type, upsert: false });
+  // 🗜️ Resize + compress (and HEIC→JPEG, auto-orient from EXIF). A phone photo can be
+  // 15-25MB; this gets it web-friendly (a few hundred KB) and renderable everywhere.
+  // Isolated — if sharp can't run we store the original so the upload never fails.
+  // GIFs pass through untouched to keep animation.
+  let outBuf: Buffer | ArrayBuffer = buf;
+  let ext = EXT[file.type];
+  let contentType = file.type;
+  if (file.type !== 'image/gif') {
+    try {
+      const sharp = (await import('sharp')).default;
+      outBuf = await sharp(Buffer.from(buf), { failOn: 'none' })
+        .rotate()
+        .resize(2000, 2000, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 82, mozjpeg: true })
+        .toBuffer();
+      ext = 'jpg'; contentType = 'image/jpeg';
+    } catch (e: any) { console.log('[upload] resize skipped:', e?.message ?? e); }
+  }
+
+  const path = `${tid ?? 'shared'}/${id}.${ext}`;
+  const { error } = await sb.storage.from('media').upload(path, outBuf, { contentType, upsert: false });
   if (error) { console.error('[upload]', error.message); return json({ ok: false, error: 'Upload failed — try again.' }, 500); }
 
   const { data } = sb.storage.from('media').getPublicUrl(path);
