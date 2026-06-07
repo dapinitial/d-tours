@@ -81,8 +81,13 @@ const geoPosts = posts
     const allPts = [...davidPts];
     for (const trip of trips.slice(1)) allPts.push(...drawTrip(trip, others));
     for (const r of (data.rendezvous || [])) {
+      const etaRows = (r.etas || []).map((e) =>
+        `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:${e.color}">●&nbsp;${e.name}</span><span>~${e.hours}h${e.live ? '' : ' <i style="opacity:.5">approx</i>'}</span></div>`).join('');
+      const conv = r.converge != null && (r.etas || []).length > 1
+        ? `<div style="margin-top:5px;border-top:1px solid rgba(255,255,255,.15);padding-top:5px">🤝 together in <b>~${r.converge}h</b></div>` : '';
+      const html = `<b>🤝 ${r.name}</b>${r.when_text ? `<br><span style="opacity:.6">${r.when_text}</span>` : ''}<div style="margin-top:6px;font-size:12px">${etaRows}${conv}</div>`;
       L.marker([r.lat, r.lng], { icon: L.divIcon({ className: 'rdv', html: '◆', iconSize: [22, 22] }) })
-        .addTo(others).bindPopup(`<b>🤝 Rendezvous</b> · ${r.name}`);
+        .addTo(others).bindPopup(html);
     }
     const allBounds = L.latLngBounds(allPts);
 

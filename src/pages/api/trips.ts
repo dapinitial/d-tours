@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
-import { getStops, getTenantBySlug, getDefaultTenant, getCompanions } from '../../lib/data';
+import { getStops, getTenantBySlug, getDefaultTenant, getCompanions, getRendezvous } from '../../lib/data';
+import { haversineMi, driveHours } from '../../lib/proximity';
 
 export const prerender = false;
 
@@ -58,17 +59,23 @@ export const GET: APIRoute = async () => {
     });
   }
 
-  // Rendezvous = stops that appear (≈same coords) on more than one route.
-  const rendezvous: any[] = [];
-  if (out.length >= 2) {
-    for (const a of out[0].stops) {
-      for (const b of out[1].stops) {
-        if (Math.abs(a.lat - b.lat) < 0.15 && Math.abs(a.lng - b.lng) < 0.15) {
-          rendezvous.push({ name: a.name, lat: a.lat, lng: a.lng });
-        }
-      }
-    }
-  }
+  // Rendezvous (explicit meet-ups) with a LIVE ETA per person — drive-time from
+  // their current position. Drift falls out for free: if someone isn't closing in,
+  // their ETA just grows. `converge` = when the LAST person arrives (everyone's there).
+  const rdvRows = await getRendezvous(undefined, 'confirmed');
+  const rendezvous = rdvRows
+    .filter((r: any) => typeof r.lat === 'number' && typeof r.lng === 'number')
+    .map((r: any) => {
+      const etas = out
+        .filter((t) => t.position)
+        .map((t) => {
+          const mi = haversineMi(t.position.lat, t.position.lng, r.lat, r.lng);
+          return { name: t.name, color: t.color, miles: Math.round(mi), hours: Math.round(driveHours(mi) * 10) / 10, live: !!t.position.live };
+        })
+        .sort((a, b) => a.hours - b.hours);
+      const converge = etas.length ? Math.max(...etas.map((e) => e.hours)) : null;
+      return { id: r.id, name: r.name, place: r.place ?? null, lat: r.lat, lng: r.lng, when_text: r.when_text ?? null, note: r.note ?? null, etas, converge };
+    });
   return json({ trips: out, rendezvous });
 };
 
