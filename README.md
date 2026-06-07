@@ -39,6 +39,17 @@ Home iMac (Claude Max + Claude Code)  ─writes→ Supabase  ─and─ pings Dav
 MapShare KML ─polled→ live map dot (the only feed live while off-grid)
 ```
 
+## 🛰️ Proactive location awareness (the on-the-road unlock)
+
+The site knows **where David is** (live inReach MapShare) and **where every awesome climb is** (objectives have `lat`/`lng`), so it can be *proactive* instead of a static guidebook.
+
+- **`src/lib/proximity.ts`** — shared geo helpers: `getLivePosition()` (parses the MapShare KML feed; returns a mock Cirque point + `mock:true` when no feed, so the watcher safely skips), `haversineMi()`, `driveHours()` (straight-line × 1.35 ÷ 45 mph).
+- **`GET /api/nearby?lat&lng&hours`** — ranks all objectives (confirmed + proposed) by distance with a rough drive-time + a within-N-hours flag. Powers the location-aware **"Help us decide"** strip on the home page (each scouted alternative shows "~Xh away" from your real position and sorts nearest-first).
+- **`POST /api/watch?hours=3`** — 🛰️ **the proactive watcher.** Reads the live position, finds climbs within N hours' drive that haven't been pinged about (`objectives.alerted_at`), **emails David the dossier links**, and stamps `alerted_at` so he isn't spammed. **Token-gated** (`WATCH_TOKEN`); **skips on a mock/missing GPS fix** (no false alerts).
+- **The cron** — a scheduler pings `/api/watch` every ~30 min (Supabase `pg_cron` → `pg_net`, always-on in the cloud; no machine needed). So: *you drive → cloud sees you roll near a great climb → emails you the beta link.*
+
+**Env it needs:** `MAPSHARE_FEED_URL` (the Garmin **Raw KML feed**: `https://share.garmin.com/Feed/Share/<name>` — NOT the page URL), `WATCH_TOKEN`, `NOTIFY_EMAIL` + SMTP. *(Note: carrier email-to-SMS is dead as of AT&T's June 2025 shutdown — alerts go via email; iMessage from a server isn't possible.)*
+
 ## Stack
 - **Astro 5** (SSR via `@astrojs/node`) — fast static visitor pages + dynamic API routes.
 - **Supabase** — Postgres, magic-link auth, storage. Schema in `supabase/migrations/`.

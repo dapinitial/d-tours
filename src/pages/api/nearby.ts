@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getObjectives } from '../../lib/data';
+import { haversineMi, driveHours } from '../../lib/proximity';
 
 export const prerender = false;
 
@@ -7,16 +8,6 @@ export const prerender = false;
 // distance with a rough drive-time + a within-N-hours flag. Powers the location-
 // aware "Help us decide" strip AND the proactive watcher (email when you roll near one).
 //   GET /api/nearby?lat=40.3&lng=-105.6&hours=3
-
-const R_MI = 3958.8;
-function haversineMi(aLat: number, aLng: number, bLat: number, bLng: number) {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(bLat - aLat), dLng = toRad(bLng - aLng);
-  const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R_MI * Math.asin(Math.sqrt(s));
-}
-// Mountain-road reality: straight-line × ~1.35, ~45 mph average.
-const driveHours = (straightMi: number) => (straightMi * 1.35) / 45;
 
 export const GET: APIRoute = async ({ url }) => {
   const lat = Number(url.searchParams.get('lat'));
