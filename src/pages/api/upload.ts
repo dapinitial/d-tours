@@ -71,8 +71,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const { error } = await sb.storage.from('media').upload(path, outBuf, { contentType, upsert: false });
   if (error) { console.error('[upload]', error.message); return json({ ok: false, error: 'Upload failed — try again.' }, 500); }
 
-  const { data } = sb.storage.from('media').getPublicUrl(path);
-  return json({ ok: true, url: data.publicUrl, ...(coords ?? {}) });
+  // Return our same-origin proxy URL (not the raw supabase.co URL) so the image
+  // loads on any network — see src/pages/img/[...path].ts.
+  return json({ ok: true, url: `/img/${path}`, ...(coords ?? {}) });
 };
 
 function json(d: unknown, status = 200) {
