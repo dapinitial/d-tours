@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import exifr from 'exifr';
 import { getSupabaseAdmin } from '../../lib/supabase';
 import { supabaseServer, authConfigured } from '../../lib/supabaseServer';
 
@@ -38,11 +39,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const path = `${tid ?? 'shared'}/${id}.${EXT[file.type]}`;
   const buf = await file.arrayBuffer();
+
+  // 📍 Pull GPS out of the photo's EXIF (where it was actually taken).
+  let coords: { lat: number; lng: number } | null = null;
+  try {
+    const g = await exifr.gps(buf);
+    if (g && isFinite(g.latitude) && isFinite(g.longitude)) coords = { lat: g.latitude, lng: g.longitude };
+  } catch { /* no EXIF / unsupported — fine, we'll fall back to the live position */ }
+
   const { error } = await sb.storage.from('media').upload(path, buf, { contentType: file.type, upsert: false });
   if (error) { console.error('[upload]', error.message); return json({ ok: false, error: 'Upload failed — try again.' }, 500); }
 
   const { data } = sb.storage.from('media').getPublicUrl(path);
-  return json({ ok: true, url: data.publicUrl });
+  return json({ ok: true, url: data.publicUrl, ...(coords ?? {}) });
 };
 
 function json(d: unknown, status = 200) {

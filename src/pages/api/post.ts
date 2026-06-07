@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getSupabaseAdmin } from '../../lib/supabase';
 import { supabaseServer, authConfigured } from '../../lib/supabaseServer';
+import { getLivePosition } from '../../lib/proximity';
 
 export const prerender = false;
 
@@ -32,14 +33,22 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
   const media = Array.isArray(p.media) ? p.media.filter((m: any) => typeof m === 'string').slice(0, 12) : [];
 
+  // Geotag: prefer the photo's EXIF coords (sent from the composer); else fall back
+  // to David's live inReach position right now ("nearest ping").
+  let lat = typeof p.lat === 'number' ? p.lat : null;
+  let lng = typeof p.lng === 'number' ? p.lng : null;
+  if (lat == null || lng == null) {
+    try { const pos = await getLivePosition(); if (pos && !pos.mock) { lat = pos.lat; lng = pos.lng; } } catch {}
+  }
+
   const row: any = {
     title: title || '📷',
     body,
     media,
     tier: p.published ? 2 : 1,
     published_at: p.published ? new Date().toISOString() : null,
-    ...(p.lat != null ? { lat: p.lat } : {}),
-    ...(p.lng != null ? { lng: p.lng } : {}),
+    ...(lat != null ? { lat } : {}),
+    ...(lng != null ? { lng } : {}),
     ...(tid ? { tenant_id: tid } : {}),
   };
 

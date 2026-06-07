@@ -2,8 +2,16 @@
 // "Where's David" map — David by default; tap "See the brothers" to overlay
 // Derek's route + position and the 🤝 rendezvous points (both at once). Loads
 // Leaflet from CDN with a graceful offline fallback. Data from /api/trips.
+// Geotagged journal posts (photo EXIF / live position) drop as 📷 pins.
+import type { Post } from '../lib/types';
+interface Props { posts?: Post[] }
+const { posts = [] } = Astro.props;
+const geoPosts = posts
+  .filter((p) => typeof p.lat === 'number' && typeof p.lng === 'number' && p.published_at)
+  .map((p) => ({ id: p.id, title: p.title, lat: p.lat, lng: p.lng, thumb: (p.media || []).find((m) => /\.(jpe?g|png|webp|gif|heic)/i.test(m)) ?? null }));
 ---
 <div class="map-wrap" data-reveal>
+  <script type="application/json" id="geo-posts" set:html={JSON.stringify(geoPosts)}></script>
   <div id="dtours-map" class="map">
     <div class="map-fallback">
       <span class="big">🛰️</span>
@@ -58,6 +66,16 @@
     const davidBounds = L.latLngBounds(davidPts);
     map.fitBounds(davidBounds.pad(0.15));
 
+    // 📷 Geotagged journal posts drop as pins (photo EXIF / live position).
+    try {
+      const posts = JSON.parse(document.getElementById('geo-posts')?.textContent || '[]');
+      for (const p of posts) {
+        const thumb = p.thumb ? `<img src="${p.thumb}" style="width:160px;border-radius:8px;display:block;margin-bottom:6px">` : '';
+        L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'post-pin', html: '📷', iconSize: [24, 24] }) })
+          .addTo(map).bindPopup(`${thumb}<b>${p.title}</b><br><a href="/journal/${p.id}">read →</a>`);
+      }
+    } catch {}
+
     // The brothers overlay (Derek + rendezvous) lives in a toggleable group.
     const others = L.layerGroup();
     const allPts = [...davidPts];
@@ -103,5 +121,6 @@
   .bros-btn { margin-left: auto; background: rgba(251,146,60,.12); border: 1px solid rgba(251,146,60,.4); color: #fb923c; font-weight: 700; font-size: .82rem; padding: .4rem .8rem; border-radius: 999px; cursor: pointer; }
   .bros-btn:hover { background: rgba(251,146,60,.2); }
   :global(.rdv) { color: #fbbf24; font-size: 18px; line-height: 22px; text-align: center; text-shadow: 0 0 6px rgba(251,191,36,.8); }
+  :global(.post-pin) { font-size: 18px; line-height: 24px; text-align: center; filter: drop-shadow(0 0 4px rgba(0,0,0,.6)); }
   :global(.leaflet-popup-content) { font-family: inherit; }
 </style>

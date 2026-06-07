@@ -62,7 +62,7 @@ const shareImg = posts.flatMap((p) => p.media ?? [])
         <h2>Where's David right now?</h2>
         <p>inReach satellite breadcrumbs polled from MapShare — the dot stays live off-grid even with the Starlink dish stowed. Tap <strong>👬 See the brothers</strong> to overlay Derek's route and the 🤝 rendezvous where they meet.</p>
       </div>
-      <LiveMap />
+      <LiveMap posts={posts} />
     </div>
   </section>
 
