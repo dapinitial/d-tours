@@ -9,6 +9,25 @@ export type Flex = 'hard' | 'soft' | 'open';
 export type StopStatus = 'confirmed' | 'proposed' | 'suggested' | 'declined';
 export type StopKind = 'stop' | 'sidequest' | 'pitstop';
 
+/** A trip companion (the squad) — who's riding along which leg, and where. */
+export interface Companion {
+  id: string;
+  name: string;
+  nickname?: string | null;
+  emoji?: string;
+  color?: string;
+  role?: string | null;
+  leg?: string | null;
+  joins_at?: string | null;
+  joins_lat?: number | null;
+  joins_lng?: number | null;
+  status?: 'confirmed' | 'likely' | 'maybe';
+  status_note?: string | null;
+  mapshare_url?: string | null;
+  note?: string | null;
+  sort?: number;
+}
+
 /** A stop on the route timeline / a travel day. `flex` drives the detour engine. */
 export interface Stop {
   id: string;

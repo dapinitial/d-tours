@@ -1,0 +1,59 @@
+---
+import type { Companion } from '../lib/types';
+interface Props { crew?: Companion[] }
+const { crew = [] } = Astro.props;
+const STATUS: Record<string, { label: string; cls: string }> = {
+  confirmed: { label: '✅ confirmed', cls: 'ok' },
+  likely: { label: '🤞 likely', cls: 'maybe' },
+  maybe: { label: '❓ maybe', cls: 'maybe' },
+};
+---
+{crew.length > 0 && (
+  <section class="squad">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">🤘 The Squad</p>
+        <h2>Who's riding which leg</h2>
+      </div>
+      <div class="squad-grid">
+        {crew.map((c) => (
+          <div class="member" style={`--c:${c.color || '#34d399'}`} data-reveal>
+            <div class="m-emoji">{c.emoji || '🧗'}</div>
+            <div class="m-body">
+              <div class="m-name">{c.name}{c.nickname && <span class="m-nick">“{c.nickname}”</span>}</div>
+              {c.role && <div class="m-role">{c.role}</div>}
+              {c.leg && <div class="m-leg">🛣️ {c.leg}</div>}
+              {c.joins_at && !['Austin, TX', 'TBD'].includes(c.joins_at) && (
+                <div class="m-joins">📍 joins at {c.joins_at}</div>
+              )}
+            </div>
+            <span class={`m-status ${STATUS[c.status || 'confirmed']?.cls}`}>
+              {c.status_note || STATUS[c.status || 'confirmed']?.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+)}
+
+<style>
+  .squad { padding: 3rem 0 1rem; }
+  .squad-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+  .member {
+    position: relative; display: flex; gap: .9rem; align-items: flex-start;
+    padding: 1.1rem; border-radius: var(--radius);
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border: 1px solid var(--border); border-left: 3px solid var(--c);
+  }
+  .m-emoji { font-size: 1.9rem; line-height: 1; flex: 0 0 auto; filter: drop-shadow(0 0 8px color-mix(in srgb, var(--c) 50%, transparent)); }
+  .m-body { flex: 1; min-width: 0; }
+  .m-name { font-weight: 800; font-size: 1.05rem; }
+  .m-nick { color: var(--c); font-weight: 700; margin-left: .35rem; }
+  .m-role { font-size: .82rem; color: var(--muted); margin-top: .1rem; }
+  .m-leg { font-size: .86rem; margin-top: .5rem; font-weight: 600; }
+  .m-joins { font-size: .76rem; color: var(--muted); margin-top: .2rem; }
+  .m-status { position: absolute; top: .9rem; right: .9rem; font-size: .68rem; font-weight: 700; padding: .2rem .5rem; border-radius: 999px; white-space: nowrap; }
+  .m-status.ok { background: rgba(52,211,153,.14); color: var(--green); border: 1px solid rgba(52,211,153,.3); }
+  .m-status.maybe { background: rgba(56,189,248,.14); color: var(--sky, #38bdf8); border: 1px solid rgba(56,189,248,.3); }
+</style>

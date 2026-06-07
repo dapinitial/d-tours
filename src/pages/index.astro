@@ -11,10 +11,11 @@ import TryItWidget from '../components/TryItWidget.astro';
 import ShotgunChat from '../components/ShotgunChat.astro';
 import ShareButton from '../components/ShareButton.astro';
 import ReachUs from '../components/ReachUs.astro';
-import { getStops, getObjectives, getProposedObjectives, getResources, getPosts, getDetours, getPlaylists } from '../lib/data';
+import SquadStrip from '../components/SquadStrip.astro';
+import { getStops, getObjectives, getProposedObjectives, getResources, getPosts, getDetours, getPlaylists, getCompanions } from '../lib/data';
 
-const [stops, objectives, proposedObjectives, resources, posts, detours, playlists] = await Promise.all([
-  getStops(), getObjectives(), getProposedObjectives(), getResources(), getPosts({ publishedOnly: true }), getDetours(), getPlaylists(),
+const [stops, objectives, proposedObjectives, resources, posts, detours, playlists, companions] = await Promise.all([
+  getStops(), getObjectives(), getProposedObjectives(), getResources(), getPosts({ publishedOnly: true }), getDetours(), getPlaylists(), getCompanions(),
 ]);
 // Share card uses the latest real trip photo when one exists (storage URLs are absolute).
 const shareImg = posts.flatMap((p) => p.media ?? [])
@@ -72,6 +73,8 @@ const venmoUrl = import.meta.env.PUBLIC_VENMO_URL ?? '';
       <LiveMap posts={posts} />
     </div>
   </section>
+
+  <SquadStrip crew={companions} />
 
   <!-- MEET SHOTGUN — the companion + live demo (combined) -->
   <section id="shotgun">

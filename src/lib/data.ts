@@ -189,6 +189,17 @@ export async function getRendezvous(tenantId?: string, status?: string) {
   return error ? [] : (data ?? []);
 }
 
+/** The squad — trip companions (who's riding which leg). Public read. */
+export async function getCompanions(tenantId?: string): Promise<import('./types').Companion[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const tid = await resolveTid(tenantId);
+  let q = sb.from('companions').select('*').eq('published', true).order('sort', { ascending: true });
+  if (tid) q = q.eq('tenant_id', tid);
+  const { data, error } = await q;
+  return error ? [] : (data as import('./types').Companion[]);
+}
+
 /** The dispatch subscriber list (owner-only → service role; table has no public
  *  RLS policy). Optionally filter by cadence. Server-side use only. */
 export async function getSubscribers(tenantId?: string, cadence?: string): Promise<{ email: string; cadence: string }[]> {
