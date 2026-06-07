@@ -51,6 +51,14 @@ export async function getStops(tenantId?: string): Promise<Stop[]> {
   return error ? [] : (data as Stop[]);
 }
 
+/** A single stop (for its town dossier page). */
+export async function getStop(id: string): Promise<Stop | null> {
+  const sb = getSupabase();
+  if (!sb) return (mock.stops as Stop[]).find((s) => s.id === id) ?? null;
+  const { data, error } = await sb.from('stops').select('*').eq('id', id).maybeSingle();
+  return error ? null : (data as Stop | null);
+}
+
 export async function getObjectives(tenantId?: string, opts: { includeProposed?: boolean } = {}): Promise<Objective[]> {
   const sb = getSupabase();
   if (!sb) return mock.objectives;

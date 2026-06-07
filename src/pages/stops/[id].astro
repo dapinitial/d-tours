@@ -1,0 +1,85 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getStop } from '../../lib/data';
+
+export const prerender = false;
+
+const { id } = Astro.params;
+const stop = id ? await getStop(id) : null;
+if (!stop) return Astro.redirect('/');
+const d: any = stop.dossier ?? {};
+
+const sections = [
+  { key: 'eat', icon: '🍽️', label: 'Where to eat' },
+  { key: 'coffee', icon: '☕', label: 'Coffee' },
+  { key: 'sleep', icon: '🛏️', label: 'Where to sleep' },
+  { key: 'gas', icon: '⛽', label: 'Fuel' },
+  { key: 'resupply', icon: '🛒', label: 'Resupply' },
+  { key: 'do', icon: '🎒', label: 'Rest-day fun' },
+];
+const lines = [
+  { key: 'water', icon: '💧', label: 'Water' },
+  { key: 'dump', icon: '🚽', label: 'Dump station' },
+  { key: 'showers', icon: '🚿', label: 'Showers' },
+  { key: 'laundry', icon: '🧺', label: 'Laundry' },
+  { key: 'wifi', icon: '📶', label: 'Wifi' },
+];
+const hasAny = sections.some((s) => (d[s.key] || []).length) || lines.some((l) => d[l.key]) || d.summary || d.note;
+---
+<Base title={`${stop.name} · Stop dossier`}>
+  <section>
+    <div class="container narrow">
+      <a href="/" class="muted back">← back to the route</a>
+      <div class="s-head">
+        <span class="s-emoji">{stop.emoji || '📍'}</span>
+        <div>
+          <h1>{stop.name}</h1>
+          {(stop.region || stop.date) && <p class="muted">{[stop.region, stop.date].filter(Boolean).join(' · ')}</p>}
+        </div>
+      </div>
+      {d.summary && <p class="lede">{d.summary}</p>}
+      {!hasAny && <p class="muted empty">No town dossier yet — Shotgun fills these in on the way (where to eat, sleep, fuel, fill water, grab coffee).</p>}
+
+      {sections.map((sec) => (d[sec.key]?.length > 0) && (
+        <div class="card">
+          <h3>{sec.icon} {sec.label}</h3>
+          <ul class="d-list">
+            {d[sec.key].map((it: any) => (
+              <li>
+                <strong>{it.url ? <a href={it.url} target="_blank" rel="noopener">{it.name}</a> : it.name}</strong>
+                {it.note && <span class="muted"> — {it.note}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+
+      {lines.some((l) => d[l.key]) && (
+        <div class="card">
+          <h3>🚐 Van logistics</h3>
+          <ul class="d-list">
+            {lines.map((l) => d[l.key] && <li><strong>{l.icon} {l.label}:</strong> <span class="muted">{d[l.key]}</span></li>)}
+          </ul>
+        </div>
+      )}
+
+      {d.note && <p class="muted note">📝 {d.note}</p>}
+    </div>
+  </section>
+
+  <style>
+    .container.narrow { width: min(100% - 2.5rem, 720px); }
+    .back { display: inline-block; margin-bottom: 1rem; font-size: .9rem; }
+    .s-head { display: flex; align-items: center; gap: 1rem; margin-bottom: .8rem; }
+    .s-emoji { font-size: 2.4rem; line-height: 1; }
+    .s-head h1 { margin: 0; }
+    .lede { font-size: 1.05rem; color: var(--muted); line-height: 1.6; margin: 0 0 1.5rem; }
+    .empty { padding: 1.2rem; background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 12px; }
+    .card { margin-bottom: 1rem; }
+    .card h3 { margin: 0 0 .6rem; }
+    .d-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; }
+    .d-list li { line-height: 1.45; }
+    .d-list a { color: var(--green); }
+    .note { margin-top: 1.2rem; font-size: .9rem; }
+  </style>
+</Base>

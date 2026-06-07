@@ -28,9 +28,28 @@ export interface Companion {
   sort?: number;
 }
 
+/** Where-to-X intel for a travel stop (van-life dossier). */
+export interface DossierItem { name: string; note?: string; url?: string; }
+export interface StopDossier {
+  summary?: string;
+  eat?: DossierItem[];
+  coffee?: DossierItem[];
+  sleep?: DossierItem[];       // free camp + campgrounds + the occasional motel
+  gas?: DossierItem[];
+  resupply?: DossierItem[];    // groceries / gear
+  water?: string;              // potable fill
+  dump?: string;               // dump station
+  showers?: string;
+  laundry?: string;
+  wifi?: string;
+  do?: DossierItem[];          // rest-day fun / things to see
+  note?: string;
+}
+
 /** A stop on the route timeline / a travel day. `flex` drives the detour engine. */
 export interface Stop {
   id: string;
+  dossier?: StopDossier;
   order: number;         // fractional ok (7.5 inserts between 7 and 8)
   name: string;
   sub?: string;          // "Refuel & Whitley", "Chels, Jillian & Fam"

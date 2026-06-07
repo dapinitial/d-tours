@@ -19,12 +19,14 @@ const dossierFor = (s: Stop): string | null => {
   <div class="track">
     {ordered.map((s, i) => {
       const did = dossierFor(s);
+      const stopDoss = !!(s as any).dossier && Object.keys((s as any).dossier).length > 0;
+      const href = stopDoss ? `/stops/${s.id}` : (did ? `/objectives/${did}` : null);
       return (
-      <div class:list={['node', statusOf(s), { hard: s.flex === 'hard', rdv: !!s.rendezvous, clickable: !!did }]} data-href={did ? `/objectives/${did}` : undefined} title={did ? 'Open dossier' : undefined}>
+      <div class:list={['node', statusOf(s), { hard: s.flex === 'hard', rdv: !!s.rendezvous, clickable: !!href }]} data-href={href ?? undefined} title={href ? 'Open dossier' : undefined}>
         <div class="dot">{s.emoji}</div>
         {i < ordered.length - 1 && <div class="line" />}
         <div class="meta">
-          <div class="name">{s.name} {did && <span class="dnote">📋</span>}</div>
+          <div class="name">{s.name} {href && <span class="dnote">📋</span>}</div>
           {s.date && <div class="date">{s.date}</div>}
           {s.sub && <div class="sub muted">{s.sub}</div>}
           <div class="tags">

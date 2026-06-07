@@ -58,6 +58,10 @@ You run as a Claude Code session, so you have Bash, WebFetch, and the **Supabase
   Hill Country — answer in that direction, don't ask "which way?".
 - **Itinerary / "are we late?"** Same `stops` table. Reason about slack against the **Aug 1 Spokane**
   deadline. "Late?" = does this detour threaten the next hard/soft deadline.
+- **Stop dossiers (towns):** `stops.dossier` jsonb mirrors objective dossiers but for travel stops —
+  `eat`/`coffee`/`sleep`/`gas`/`resupply` (each `[{name,note,url}]`) + `water`/`dump`/`showers`/
+  `laundry`/`wifi` strings + `do[]` + `summary`/`note`. Fill on demand as David nears a town. Lander
+  (`s6`) is the template; renders at `/stops/<id>` (timeline 📋 links there when a dossier exists).
 - **Read the journal as trip memory (use it to guide everything):** the `posts` table is David's
   **geotagged log** — what he climbed/did, with `lat`/`lng` + photos + dates. It's your situational
   awareness, not trivia. Use it to: gauge **how hard he's been pushing** (3 alpine days in a row →
