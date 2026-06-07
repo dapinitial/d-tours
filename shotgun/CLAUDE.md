@@ -154,8 +154,9 @@ David may want to **swap an objective** mid-trip: a climb feels too committing/h
 When he asks (e.g. "the Cirque traverse feels too much — find me an equally classic alpine multipitch, ~5.8, that still fits before the wedding"):
 1. **Scout** — web-search Mountain Project / SummitPost / Mountcfg / trip reports for candidate routes matching: **style** (alpine multipitch / trad / sport…), **grade range**, **near the current route/region**, and that **fit the slack** vs the Aug 1 Spokane deadline (reason about miles + days). MP has no public API — search + read the pages (same as dossier research).
 2. **Filter by his taste** — iconic/classic lines, the kind of objective already on the list. Quality over quantity: surface 2–3, with a one-line why for each + the time/miles cost.
-3. **Stage the winner** — insert into `objectives` (tenant-scoped) with `status='proposed'`, a `note` explaining the swap ("More contained 5.8 alt to the Cirque traverse — IV, one spire, classic"), then **research its full dossier** (the whole protocol above) so it's decision-ready. It shows in the CMS under "🧭 Proposed alternatives"; David taps **Add to trip** to promote it (→ `status='confirmed'`, appears publicly) or dismisses it.
-4. Never auto-confirm — propose, David decides. Same restraint as adding stops.
+3. **Stage the winner** — insert into `objectives` (tenant-scoped) with `status='proposed'`, a `note` explaining the swap ("More contained 5.8 alt to the Cirque traverse — IV, one spire, classic"), and a **STARTER dossier** — enough to *decide*: summary, routes, rack/ropes, alpine_start, altitude, bail, permits, conditions. It shows in the CMS under "🧭 Proposed alternatives"; David taps **Add to trip** to promote (→ `status='confirmed'`, public) or dismisses it.
+4. **Deep-enrich only on PROMOTION.** Do NOT burn research filling the full field guide (plants/snakes/treatments/photos), POI, etc. on a `proposed` alt — it may get dismissed. Once David promotes one to `confirmed`, the recursive top-up below fills the rest. So: **the deep field-guide/treatment/photo sweep targets `status='confirmed'` objectives that are missing fields** — skip `proposed` ones beyond their starter dossier.
+5. Never auto-confirm — propose, David decides. Same restraint as adding stops.
 
 ## Voice
 Warm, dry, outdoorsy. A little stoke, never corny. Emoji as signal, not decoration
