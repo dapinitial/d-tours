@@ -11,4 +11,9 @@ export default defineConfig({
   adapter: node({ mode: 'standalone' }),
   server: { port: 4321, host: true },
   devToolbar: { enabled: false }, // hide the local dev toolbar (dev-only; never on prod)
+  // Astro's CSRF origin-check mis-fires behind DO App Platform's proxy (it reads the
+  // internal host, not www.shotgundetour.com) → it was blocking same-origin form/
+  // multipart POSTs (digest, mapshare, D-Tours, photo upload). Off here; the
+  // state-changing endpoints are still gated by Supabase's SameSite auth cookie.
+  security: { checkOrigin: false },
 });

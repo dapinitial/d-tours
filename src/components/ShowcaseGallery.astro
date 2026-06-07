@@ -5,19 +5,32 @@ import type { Post } from '../lib/types';
 interface Props { posts: Post[]; }
 const { posts } = Astro.props;
 const tiles = posts.slice(0, 6);
+
+// A tile needs an IMAGE. Prefer a real photo; for video posts, derive the YouTube
+// thumbnail; otherwise fall back to the gradient placeholder. (media[0] may be a
+// YouTube/Vimeo URL, which is NOT an image — that's what broke the tile.)
+const ytId = (u: string) => u.match(/(?:youtu\.be\/|[?&]v=|embed\/)([\w-]{11})/)?.[1];
+const tileImage = (media: string[] = []): string | null => {
+  for (const m of media) if (/\.(jpe?g|png|webp|gif|heic|avif)(\?|$)/i.test(m)) return m;
+  for (const m of media) { const id = ytId(m); if (id) return `https://img.youtube.com/vi/${id}/hqdefault.jpg`; }
+  return null;
+};
 ---
 <div class="gallery">
-  {tiles.map((p, i) => (
+  {tiles.map((p, i) => {
+    const img = tileImage(p.media);
+    return (
     <a class:list={['tile', { wide: i % 5 === 0 }]} href={`/journal#${p.id}`} data-reveal>
-      {p.media[0]
-        ? <img src={p.media[0]} alt={p.title} loading="lazy" />
+      {img
+        ? <img src={img} alt={p.title} loading="lazy" />
         : <div class="ph" style={`--h:${(i * 57) % 360}`}></div>}
       <div class="overlay">
         <div class="o-title">{p.title}</div>
         <div class="o-meta mono">{p.published_at ? new Date(p.published_at).toLocaleDateString() : 'queued · Tier 1'}</div>
       </div>
     </a>
-  ))}
+    );
+  })}
 </div>
 
 <style>
