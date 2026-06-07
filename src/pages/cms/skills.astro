@@ -1,0 +1,96 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getSkills } from '../../lib/data';
+
+const tid = Astro.locals.tenantId;
+const skills = await getSkills(tid);
+const cats = [...new Set(skills.map((s) => s.category))];
+const CATS = ['Knots & Hitches', 'Coiling & Carrying', 'Rope Rescue & Hauling', 'Anchors', 'Glacier & Alpine'];
+const allCats = [...new Set([...CATS, ...cats])];
+---
+<Base title="D-Tours · Edit Skills">
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">🎓 Skills</p>
+        <h2>Skills video library</h2>
+        <p>Pin or swap the YouTube link for each technique, add new skills, reorder with <code>sort</code>. Paste any YouTube URL — the public page extracts the video + lazy-embeds it.</p>
+        <a href="/cms" class="muted back">← back to CMS</a>
+      </div>
+
+      <div class="card add-card">
+        <h3>＋ Add a skill</h3>
+        <div class="grid2">
+          <input id="a-name" placeholder="Name *" />
+          <select id="a-cat">{allCats.map((c) => <option value={c}>{c}</option>)}</select>
+          <input id="a-desc" placeholder="One-line description" />
+          <input id="a-vid" placeholder="YouTube URL" />
+          <input id="a-sort" type="number" placeholder="Sort" class="sm" />
+        </div>
+        <div class="composer-foot"><button id="add" class="btn">Add skill</button><p class="msg" id="add-msg"></p></div>
+      </div>
+
+      {cats.map((cat) => (
+        <div class="cat-block">
+          <h3 class="cat-h">{cat}</h3>
+          {skills.filter((s) => s.category === cat).map((s) => (
+            <div class="srow" data-id={s.id}>
+              <div class="grid2">
+                <input data-f="name" value={s.name} placeholder="Name" />
+                <select data-f="category">{allCats.map((c) => <option value={c} selected={c === s.category}>{c}</option>)}</select>
+                <input data-f="description" value={s.description ?? ''} placeholder="Description" />
+                <input data-f="video_url" value={s.video_url ?? ''} placeholder="YouTube URL" />
+                <input data-f="sort" type="number" value={s.sort ?? 0} class="sm" />
+              </div>
+              <div class="srow-foot">
+                {s.video_url && <a class="muted tiny" href={s.video_url} target="_blank" rel="noopener">▶ preview</a>}
+                <button class="btn ghost sm del">🗑️</button>
+                <button class="btn sm save">Save</button>
+                <span class="msg row-msg"></span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <script>
+    const post = (body) => fetch('/api/skills', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
+    const read = (row) => { const item = {}; row.querySelectorAll('[data-f]').forEach((el) => item[el.dataset.f] = el.value); return item; };
+
+    const addMsg = document.getElementById('add-msg');
+    document.getElementById('add')?.addEventListener('click', async () => {
+      const item = { name: v('a-name'), category: v('a-cat'), description: v('a-desc'), video_url: v('a-vid'), sort: v('a-sort') };
+      if (!item.name) { addMsg.textContent = 'Name required.'; addMsg.className = 'msg err'; return; }
+      addMsg.textContent = 'Adding…';
+      const j = await post({ action: 'add', item });
+      if (j.ok) { addMsg.textContent = '✅ Added!'; setTimeout(() => location.reload(), 500); } else { addMsg.textContent = j.error || 'Failed'; addMsg.className = 'msg err'; }
+    });
+    function v(id) { return document.getElementById(id)?.value || ''; }
+
+    document.querySelectorAll('.srow').forEach((row) => {
+      const id = row.dataset.id;
+      const msg = row.querySelector('.row-msg');
+      const setMsg = (t, err) => { msg.textContent = t; msg.className = 'msg row-msg' + (err ? ' err' : ' ok'); };
+      row.querySelector('.save')?.addEventListener('click', async () => { setMsg('Saving…'); const j = await post({ action: 'update', id, item: read(row) }); setMsg(j.ok ? '✅ Saved' : (j.error || 'Failed'), !j.ok); });
+      row.querySelector('.del')?.addEventListener('click', async () => { if (!confirm('Remove this skill?')) return; const j = await post({ action: 'remove', id }); if (j.ok) row.remove(); else setMsg(j.error || 'Failed', true); });
+    });
+  </script>
+
+  <style>
+    .container { width: min(100% - 2.5rem, 900px); }
+    .add-card { margin-bottom: 1.5rem; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+    .grid2 input, .grid2 select { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: .5rem .65rem; font: inherit; min-width: 0; }
+    .grid2 input.sm { max-width: 90px; }
+    .composer-foot { display: flex; gap: 1rem; align-items: center; margin-top: .8rem; }
+    .cat-block { margin-bottom: 1.4rem; }
+    .cat-h { padding-bottom: .3rem; border-bottom: 1px solid var(--border); margin-bottom: .7rem; }
+    .srow { background: rgba(255,255,255,.025); border: 1px solid var(--border); border-radius: 10px; padding: .7rem; margin-bottom: .6rem; }
+    .srow-foot { display: flex; align-items: center; gap: .6rem; margin-top: .6rem; }
+    .srow-foot .save { margin-left: auto; }
+    .msg { font-size: .82rem; } .msg.ok { color: var(--green); } .msg.err { color: var(--red); }
+    @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+  </style>
+</Base>

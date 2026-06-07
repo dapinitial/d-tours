@@ -192,7 +192,7 @@ const checklist = [
           <h2>👀 In the field</h2>
           <p class="muted tiny">Tap any for ID, edibility &amp; first-aid.</p>
           <div class="fg-chips">
-            {fg.map((f, i) => <button class="fg-chip" data-fg={i} data-kind={f.kind} type="button">{fgEmoji[f.kind] ?? '•'} {f.name}</button>)}
+            {fg.map((f, i) => <button class="fg-chip" data-fg={i} data-kind={f.kind} type="button">{fgEmoji[f.kind] ?? '•'} {f.name}{f.photo && <span class="fg-cam" title="has a photo">📷</span>}</button>)}
           </div>
         </section>
       ) : (b.watch_for && b.watch_for.length > 0 && (
@@ -366,6 +366,7 @@ const checklist = [
     .fg-chips { display: flex; flex-wrap: wrap; gap: .5rem; }
     .fg-chip { cursor: pointer; font-size: .85rem; font-weight: 600; padding: .4rem .75rem; border-radius: 999px; border: 1px solid var(--border-2); background: rgba(255,255,255,.04); color: var(--text); transition: all .15s; }
     .fg-chip:hover { border-color: var(--green); transform: translateY(-1px); }
+    .fg-cam { font-size: .7rem; margin-left: .25rem; opacity: .65; }
     .fg-chip[data-kind="poisonous"], .fg-chip[data-kind="snake"] { border-color: rgba(251,113,133,.5); }
     .fg-chip[data-kind="edible"] { border-color: rgba(52,211,153,.45); }
     .fg-chip[data-kind="medicinal"] { border-color: rgba(56,189,248,.45); }
