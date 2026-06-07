@@ -7,7 +7,14 @@ export const prerender = false;
 // Conversational Shotgun. Trip-aware Q&A + pivot suggestions, powered by the
 // Anthropic API. Needs ANTHROPIC_API_KEY. Public-facing → keep it cheap (Haiku)
 // and capped. It SUGGESTS; it doesn't write to the trip (that stays owner-gated).
-const MODEL = process.env.SHOTGUN_MODEL || 'claude-haiku-4-5';
+// User-pickable models (the chat switcher). All Anthropic API (paid); Haiku is
+// cheapest, Opus smartest. Defaults to Haiku / the SHOTGUN_MODEL override.
+const MODELS: Record<string, string> = {
+  haiku: 'claude-haiku-4-5',
+  sonnet: 'claude-sonnet-4-6',
+  opus: 'claude-opus-4-8',
+};
+const DEFAULT_MODEL = process.env.SHOTGUN_MODEL || 'claude-haiku-4-5';
 
 export const POST: APIRoute = async ({ request }) => {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -45,9 +52,10 @@ ALTERNATIVES BEING WEIGHED: ${propLine}
 
 WHAT YOU DO: answer trip questions, give climbing beta, and suggest alternatives ("an equally classic but more moderate/harder line near X"). When someone wants to swap a climb, suggest 1-3 real options with grade + a one-line why, factoring the Aug-1 slack. Be honest about hazards (lightning, grizzlies, altitude, heat). You can SUGGEST but not change the plan — point them to the dossiers (/objectives) or tell them David promotes picks in the CMS. If asked something off-topic, gently steer back to the trip. Never invent fake facts; if unsure, say so.`;
 
+  const model = MODELS[String(body.model)] || DEFAULT_MODEL;
   try {
     const client = new Anthropic({ apiKey: key });
-    const resp = await client.messages.create({ model: MODEL, max_tokens: 600, system, messages });
+    const resp = await client.messages.create({ model, max_tokens: 600, system, messages });
     const reply = resp.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('').trim();
     return json({ ok: true, reply: reply || "…lost signal for a sec. Try again?" });
   } catch (e: any) {

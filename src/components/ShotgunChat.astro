@@ -11,7 +11,11 @@ const starters = [
   <div class="chat-head">
     <span class="avatar">📡</span>
     <div><div class="who">Shotgun</div><div class="muted tiny">ask me anything about the trip</div></div>
-    <span class="chip live">● online</span>
+    <select id="chat-model" class="model-sel" title="Pick the brain (Haiku = cheap, Opus = smartest)">
+      <option value="haiku" selected>⚡ Haiku</option>
+      <option value="sonnet">🎯 Sonnet</option>
+      <option value="opus">🧠 Opus</option>
+    </select>
   </div>
   <div class="thread" id="chat-thread">
     <div class="msg bot">Riding shotgun. 🤘 Ask me about the route, a climb, swapping an objective, or whether we'll make the wedding.</div>
@@ -35,7 +39,8 @@ const starters = [
   const bubble = (text: string, who: 'me' | 'bot', typing = false) => {
     const el = document.createElement('div');
     el.className = 'msg ' + who + (typing ? ' typing' : '');
-    el.textContent = text;
+    if (typing) el.innerHTML = '<span class="dots"><i></i><i></i><i></i></span>';
+    else el.textContent = text;
     thread!.appendChild(el);
     thread!.scrollTop = thread!.scrollHeight;
     return el;
@@ -46,9 +51,10 @@ const starters = [
     starters?.remove();
     bubble(text, 'me');
     history.push({ role: 'user', content: text });
-    const t = bubble('…', 'bot', true);
+    const t = bubble('', 'bot', true);
+    const model = (document.getElementById('chat-model') as HTMLSelectElement)?.value || 'haiku';
     try {
-      const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: history }) });
+      const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: history, model }) });
       const j = await r.json();
       t.classList.remove('typing');
       t.textContent = j.reply || 'Try that again?';
@@ -69,7 +75,12 @@ const starters = [
   .chat-head { display: flex; align-items: center; gap: .6rem; padding: .8rem 1rem; border-bottom: 1px solid var(--border); }
   .chat-head .avatar { font-size: 1.4rem; }
   .chat-head .who { font-weight: 700; }
-  .chip.live { margin-left: auto; font-size: .72rem; color: var(--green); }
+  .model-sel { margin-left: auto; background: var(--bg-2); border: 1px solid var(--border); border-radius: 999px; color: var(--muted); font-size: .76rem; padding: .25rem .5rem; cursor: pointer; }
+  /* animated thinking dots */
+  .dots { display: inline-flex; gap: .25rem; align-items: center; height: 1em; }
+  .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; animation: bounce 1.2s infinite ease-in-out; }
+  .dots i:nth-child(2) { animation-delay: .2s; } .dots i:nth-child(3) { animation-delay: .4s; }
+  @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); opacity: .4; } 40% { transform: translateY(-4px); opacity: 1; } }
   .thread { padding: 1rem; display: flex; flex-direction: column; gap: .6rem; max-height: 360px; overflow-y: auto; min-height: 120px; }
   .msg { max-width: 85%; padding: .6rem .85rem; border-radius: 14px; font-size: .92rem; line-height: 1.45; white-space: pre-wrap; }
   .msg.bot { background: var(--bg-2); border: 1px solid var(--border); align-self: flex-start; border-bottom-left-radius: 4px; }
