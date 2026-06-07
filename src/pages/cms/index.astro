@@ -72,7 +72,7 @@ const proposals = stops
         </div>
       </div>
 
-      <div class="card">
+      <div class="card posts-card">
         <h3>📓 Your posts <span class="muted">({posts.length})</span></h3>
         {posts.length === 0 && <p class="muted">No posts yet.</p>}
         <div class="post-list">
@@ -372,6 +372,7 @@ const proposals = stops
   .next li { margin: .3rem 0; }
   code { font-family: var(--font-mono); color: var(--green); }
   .proposals { margin-bottom: 1.5rem; }
+  .posts-card { margin-bottom: 1.5rem; }
   .post-list { display: grid; gap: .5rem; margin-top: .8rem; }
   .prow { display: flex; align-items: center; gap: .8rem; padding: .55rem .75rem; background: rgba(255,255,255,.025); border: 1px solid var(--border); border-radius: 10px; }
   .pr-meta { flex: 1; display: grid; gap: .1rem; min-width: 0; }
