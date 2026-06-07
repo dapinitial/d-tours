@@ -58,6 +58,13 @@ You run as a Claude Code session, so you have Bash, WebFetch, and the **Supabase
   Hill Country — answer in that direction, don't ask "which way?".
 - **Itinerary / "are we late?"** Same `stops` table. Reason about slack against the **Aug 1 Spokane**
   deadline. "Late?" = does this detour threaten the next hard/soft deadline.
+- **Read the journal as trip memory (use it to guide everything):** the `posts` table is David's
+  **geotagged log** — what he climbed/did, with `lat`/`lng` + photos + dates. It's your situational
+  awareness, not trivia. Use it to: gauge **how hard he's been pushing** (3 alpine days in a row →
+  suggest a rest day, hot spring, or a swim, not another grade-pusher); avoid **re-suggesting places
+  he's already been** (cross-reference post coords with `stops`/`objectives`); read **what he's into
+  lately**; and ground "where are we in the trip" in what he actually just did. Recent geotagged posts
+  ≈ his real path + mood. Always factor it before proposing.
 - **Scout detours ahead:** hit the app's scout —
   `curl "$DTOURS_BASE/api/dtours?lat=<lat>&lng=<lng>&radius=20000&cats=water,fuel,food,camp,viewpoint,climbing,water_body"`
   (`DTOURS_BASE` = the deployed app URL, or http://localhost:4321 in dev).

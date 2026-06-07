@@ -60,7 +60,7 @@ const proposals = stops
             </div>
             <p class="msg" id="post-msg"></p>
           </form>
-          <p class="muted tiny">Photos upload to Supabase Storage; video links embed. Publish goes live now; Queue holds for the next signal.</p>
+          <p class="muted tiny">Drag thumbnails to reorder · tap ✕ to remove. Photos → Storage, video links embed. Use ✏️ below to add media to a post after the fact.</p>
         </div>
 
         <div class="card">
@@ -77,13 +77,14 @@ const proposals = stops
         {posts.length === 0 && <p class="muted">No posts yet.</p>}
         <div class="post-list">
           {posts.map((p) => (
-            <div class="prow" data-post={p.id}>
+            <div class="prow" data-post={p.id} data-edit={JSON.stringify({ t: p.title, b: p.body, m: p.media ?? [] })}>
               <div class="pr-meta">
                 <span class="pr-title">{p.title}</span>
                 <span class="muted tiny">{p.published_at ? new Date(p.published_at).toLocaleDateString() : '🕒 queued'}{p.lat != null ? ' · 📍 geotagged' : ''}{p.media && p.media.length ? ` · ${p.media.length} media` : ''}</span>
               </div>
               <div class="pr-act">
                 {p.published_at && <a class="btn ghost sm" href={`/journal/${p.id}`} target="_blank">view</a>}
+                <button class="btn ghost sm post-edit" data-id={p.id} title="Edit / add media">✏️</button>
                 <button class="btn ghost sm post-del" data-id={p.id} title="Delete post">🗑️</button>
               </div>
             </div>
@@ -249,9 +250,28 @@ const proposals = stops
   // ── post composer: upload photos → collect URLs → create post ──
   const uploaded = [];            // public URLs of uploaded photos
   let geo = null;                 // first photo's EXIF coords → geotags the post
+  let editingId = null;           // when set, the composer EDITS this post instead of creating
   const thumbs = document.getElementById('thumbs');
   const pmsg = document.getElementById('post-msg');
   const setMsg = (m, err = false) => { if (pmsg) { pmsg.textContent = m; pmsg.className = 'msg' + (err ? ' err' : ' ok'); } };
+
+  // managed thumbnail strip — preview, drag to REORDER, ✕ to DELETE (before posting)
+  let dragFrom = null;
+  const renderThumbs = () => {
+    thumbs.innerHTML = '';
+    uploaded.forEach((url, i) => {
+      const ph = document.createElement('div');
+      ph.className = 'thumb'; ph.style.backgroundImage = `url(${url})`; ph.draggable = true;
+      const x = document.createElement('button'); x.type = 'button'; x.className = 'thumb-x'; x.textContent = '✕';
+      x.addEventListener('click', (ev) => { ev.stopPropagation(); uploaded.splice(i, 1); renderThumbs(); });
+      ph.appendChild(x);
+      ph.addEventListener('dragstart', () => { dragFrom = i; ph.classList.add('dragging'); });
+      ph.addEventListener('dragend', () => ph.classList.remove('dragging'));
+      ph.addEventListener('dragover', (ev) => ev.preventDefault());
+      ph.addEventListener('drop', (ev) => { ev.preventDefault(); if (dragFrom != null && dragFrom !== i) { const [m] = uploaded.splice(dragFrom, 1); uploaded.splice(i, 0, m); } dragFrom = null; renderThumbs(); });
+      thumbs.appendChild(ph);
+    });
+  };
 
   document.getElementById('post-photos')?.addEventListener('change', async (e) => {
     const files = [...e.target.files];
@@ -262,9 +282,10 @@ const proposals = stops
       try {
         const r = await fetch('/api/upload', { method: 'POST', body: fd });
         const j = await r.json();
-        if (j.ok && j.url) { uploaded.push(j.url); if (geo == null && typeof j.lat === 'number') { geo = { lat: j.lat, lng: j.lng }; setMsg('📍 Photo location detected'); } ph.className = 'thumb'; ph.style.backgroundImage = `url(${j.url})`; ph.textContent = ''; }
-        else { ph.className = 'thumb err'; ph.textContent = '⚠️'; setMsg(j.error || 'Upload failed', true); }
-      } catch { ph.className = 'thumb err'; ph.textContent = '⚠️'; setMsg('Upload failed', true); }
+        ph.remove();
+        if (j.ok && j.url) { uploaded.push(j.url); if (geo == null && typeof j.lat === 'number') { geo = { lat: j.lat, lng: j.lng }; setMsg('📍 Photo location detected'); } renderThumbs(); }
+        else { setMsg(j.error || 'Upload failed', true); }
+      } catch { ph.remove(); setMsg('Upload failed', true); }
     }
     e.target.value = '';
   });
@@ -277,15 +298,32 @@ const proposals = stops
     if (!title && !body && !media.length) { setMsg('Add a title, some words, or a photo.', true); return; }
     setMsg('Saving…');
     try {
-      const r = await fetch('/api/post', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, body, media, published, ...(geo || {}) }) });
+      const payload = editingId
+        ? { action: 'update', id: editingId, title, body, media, published, ...(geo || {}) }
+        : { title, body, media, published, ...(geo || {}) };
+      const r = await fetch('/api/post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const j = await r.json();
-      if (j.ok) { setMsg(published ? '✅ Published!' : '🕒 Queued.'); setTimeout(() => location.reload(), 800); }
+      if (j.ok) { setMsg(editingId ? '✅ Updated!' : (published ? '✅ Published!' : '🕒 Queued.')); setTimeout(() => location.reload(), 800); }
       else setMsg(j.error || 'Failed', true);
     } catch { setMsg('Network hiccup — try again.', true); }
   };
   document.getElementById('post-publish')?.addEventListener('click', () => submitPost(true));
   document.getElementById('post-queue')?.addEventListener('click', () => submitPost(false));
+
+  // edit an existing post → load into the composer; add/reorder/delete media; save = update
+  const VID = /youtube|youtu\.be|vimeo|\.mp4/i;
+  document.querySelectorAll('.post-edit').forEach((b) => b.addEventListener('click', () => {
+    let d; try { d = JSON.parse(b.closest('.prow').dataset.edit); } catch { return; }
+    editingId = b.dataset.id;
+    document.getElementById('post-title').value = d.t || '';
+    document.getElementById('post-body').value = d.b || '';
+    uploaded.length = 0; let video = '';
+    for (const m of (d.m || [])) { if (VID.test(m)) video = m; else uploaded.push(m); }
+    document.getElementById('post-video').value = video;
+    renderThumbs();
+    setMsg('✏️ Editing — add/reorder/delete media, then Publish to save.');
+    document.getElementById('post-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }));
 
   // delete a post
   document.querySelectorAll('.post-del').forEach((b) => b.addEventListener('click', async () => {
@@ -316,9 +354,12 @@ const proposals = stops
   .actions { display: flex; gap: .5rem; }
   .thumbs { display: flex; gap: .5rem; flex-wrap: wrap; }
   .thumbs:empty { display: none; }
-  .thumb { width: 64px; height: 64px; border-radius: 8px; background: var(--bg-2) center/cover no-repeat; border: 1px solid var(--border); display: grid; place-items: center; font-size: 1.1rem; }
+  .thumb { position: relative; width: 64px; height: 64px; border-radius: 8px; background: var(--bg-2) center/cover no-repeat; border: 1px solid var(--border); display: grid; place-items: center; font-size: 1.1rem; cursor: grab; }
+  .thumb[draggable] { cursor: grab; } .thumb.dragging { opacity: .4; }
   .thumb.loading { animation: pulse 1s infinite; }
   .thumb.err { border-color: var(--red); }
+  .thumb-x { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; border: none; background: var(--red); color: #2a0a0f; font-size: .6rem; font-weight: 900; line-height: 1; cursor: pointer; display: grid; place-items: center; padding: 0; }
+  .thumb-x:hover { transform: scale(1.15); }
   @keyframes pulse { 50% { opacity: .5; } }
   .msg { font-size: .85rem; margin: 0; min-height: 1.1em; }
   .msg.ok { color: var(--green); } .msg.err { color: var(--red); }

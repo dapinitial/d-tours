@@ -27,6 +27,25 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   let p: any = {};
   try { p = await request.json(); } catch {}
 
+  // Update an existing post — edit text + add photos/videos after the fact.
+  if (p.action === 'update') {
+    if (!p.id) return json({ ok: false, error: 'missing id' }, 400);
+    const upd: any = {};
+    if (p.title !== undefined) upd.title = String(p.title).slice(0, 160).trim() || '📷';
+    if (p.body !== undefined) upd.body = String(p.body).slice(0, 5000).trim();
+    if (Array.isArray(p.media)) upd.media = p.media.filter((m: any) => typeof m === 'string').slice(0, 12);
+    if (p.published !== undefined) { upd.tier = p.published ? 2 : 1; upd.published_at = p.published ? new Date().toISOString() : null; }
+    if (typeof p.lat === 'number') upd.lat = p.lat;
+    if (typeof p.lng === 'number') upd.lng = p.lng;
+    const sbU = getSupabaseAdmin();
+    if (!sbU) return json({ ok: true, mock: true, id: p.id });
+    let q = sbU.from('posts').update(upd).eq('id', p.id);
+    if (tid) q = q.eq('tenant_id', tid);
+    const { error } = await q;
+    if (error) { console.error('[post:update]', error.message); return json({ ok: false, error: 'Update failed' }, 500); }
+    return json({ ok: true, id: p.id, updated: true });
+  }
+
   // Delete a post (owner-gated, tenant-scoped).
   if (p.action === 'delete') {
     if (!p.id) return json({ ok: false, error: 'missing id' }, 400);
