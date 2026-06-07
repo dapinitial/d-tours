@@ -3,6 +3,7 @@ import Base from '../../layouts/Base.astro';
 import { getObjective, getSources, getObjectiveComments } from '../../lib/data';
 import type { ObjectiveBeta } from '../../lib/types';
 import { isSendDay, sendWindow, windowLabel } from '../../lib/weather';
+import { extImg } from '../../lib/packet';
 
 export const prerender = false;
 
@@ -17,7 +18,9 @@ const comments = await getObjectiveComments(obj.id);
 const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
 const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chip red' };
 const fgEmoji: Record<string, string> = { edible: '🍃', poisonous: '☠️', medicinal: '⚕️', wildlife: '🦌', snake: '🐍', insect: '🦟', landmark: '🪨' };
-const fg = b.field_guide ?? [];
+// Route field-guide photos (external Wikimedia) through our first-party /extimg
+// proxy so they load on DNS-filtered wifi AND cache offline in the packet.
+const fg = (b.field_guide ?? []).map((f) => ({ ...f, photo: f.photo ? extImg(f.photo) : f.photo }));
 // WMO weather-code → emoji for the auto-refreshed forecast row.
 const wxEmoji = (c: number): string => {
   if (c === 0) return '☀️';
@@ -101,7 +104,7 @@ const checklist = [
       {b.photos && b.photos.length > 0 && (
         <div class="photos">
           {b.photos.map((p) => (
-            <figure><img src={p.url} loading="lazy" alt={p.caption ?? obj.name} />{p.caption && <figcaption>{p.caption}</figcaption>}</figure>
+            <figure><img src={extImg(p.url)} loading="lazy" alt={p.caption ?? obj.name} />{p.caption && <figcaption>{p.caption}</figcaption>}</figure>
           ))}
         </div>
       )}

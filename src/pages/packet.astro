@@ -1,0 +1,212 @@
+---
+import Base from '../layouts/Base.astro';
+import { getObjectives, getStops, getSkills } from '../lib/data';
+import type { ObjectiveBeta } from '../lib/types';
+
+export const prerender = false;
+
+// 📦 The offline packet: one tap precaches the whole reference kit (every objective
+// dossier, all town dossiers, the skills library, field-guide photos) into the
+// service worker so it reads fully off-grid. This page is also the offline hub —
+// the table of contents + an aggregated emergency card that needs no navigation.
+const [objectives, stops, skills] = await Promise.all([getObjectives(), getStops(), getSkills()]);
+
+// Pull every objective's emergency contacts into one always-visible list.
+const emergency = objectives.flatMap((o) => {
+  const b: ObjectiveBeta = (o.beta as any) ?? {};
+  return (b.emergency ?? []).map((e) => ({ ...e, where: o.name, objId: o.id }));
+});
+
+const tel = (p?: string) => (p ?? '').replace(/[^+\d]/g, '');
+const skillCats = [...new Set(skills.map((s) => s.category))];
+---
+<Base title="D-Tours · Offline Packet" description="Download every dossier, town guide, skill, field guide and emergency contact for the dead zones.">
+  <section>
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">📦 Offline Packet</p>
+        <h2>The whole trip, off-grid</h2>
+        <p>One tap saves every climbing dossier, all {stops.length} town guides, the skills library, the field guides and every emergency contact to your phone — so it all reads with <strong>zero signal</strong>. Do it on wifi before you roll into the backcountry.</p>
+      </div>
+
+      <!-- DOWNLOAD CARD (driven by the service worker) -->
+      <div class="dl-card" data-reveal>
+        <div class="dl-state" id="dl-state">
+          <span class="dl-dot" id="dl-dot"></span>
+          <span id="dl-status">Checking…</span>
+        </div>
+        <div class="dl-bar" id="dl-bar" hidden><div class="dl-fill" id="dl-fill"></div></div>
+        <div class="dl-actions">
+          <button class="btn" id="dl-go" type="button" disabled>⬇ Download for offline</button>
+          <button class="btn ghost" id="dl-clear" type="button" hidden>🗑️ Clear</button>
+        </div>
+        <p class="dl-hint" id="dl-hint">Best on wifi — this can be tens of MB with all the photos.</p>
+      </div>
+
+      <!-- EMERGENCY (pinned, always readable offline) -->
+      <div class="emg-card" data-reveal>
+        <h3>🆘 Emergency — works offline</h3>
+        <ul class="emg-generic">
+          <li><strong>911</strong> — when you have any cell signal, even roaming.</li>
+          <li><strong>Garmin inReach SOS</strong> — hold the SOS button for Garmin Response (works with no cell signal).</li>
+        </ul>
+        {emergency.length > 0 && (
+          <ul class="emg-list">
+            {emergency.map((e) => (
+              <li>
+                <a class="emg-where" href={`/objectives/${e.objId}`}>{e.where}</a>
+                <span class="emg-label">{e.label}</span>
+                {e.phone && <a class="emg-tel" href={`tel:${tel(e.phone)}`}>{e.phone}</a>}
+                {e.note && <span class="muted"> — {e.note}</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <!-- INDEX / table of contents -->
+      <div class="idx" data-reveal>
+        <div class="idx-col">
+          <h3>🧗 Objectives <span class="ct">{objectives.length}</span></h3>
+          <ul>
+            {objectives.map((o) => (
+              <li><a href={`/objectives/${o.id}`}>{o.name}</a> <span class="muted">{o.grade} · {o.region}</span></li>
+            ))}
+          </ul>
+        </div>
+        <div class="idx-col">
+          <h3>📋 Towns <span class="ct">{stops.length}</span></h3>
+          <ul>
+            {stops.map((s) => (
+              <li><a href={`/stops/${s.id}`}>{s.emoji} {s.name}</a>{s.region && <span class="muted"> · {s.region}</span>}</li>
+            ))}
+          </ul>
+        </div>
+        <div class="idx-col">
+          <h3>🎓 Skills <span class="ct">{skills.length}</span></h3>
+          <ul>
+            {skillCats.map((c) => <li><a href="/skills">{c}</a></li>)}
+          </ul>
+          <p class="muted tiny">Videos play online; titles + thumbnails read offline.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    (() => {
+      const $ = (id: string) => document.getElementById(id)!;
+      const statusEl = $('dl-status'), dot = $('dl-dot'), go = $('dl-go') as HTMLButtonElement,
+        clear = $('dl-clear') as HTMLButtonElement, bar = $('dl-bar'), fill = $('dl-fill'),
+        hint = $('dl-hint');
+
+      if (!('serviceWorker' in navigator)) {
+        statusEl.textContent = 'Offline saving needs a modern browser.';
+        return;
+      }
+
+      const mb = (b: number) => b >= 1048576 ? (b / 1048576).toFixed(0) + ' MB'
+        : b > 0 ? (b / 1024).toFixed(0) + ' KB' : '';
+      const when = () => new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+      let sw: ServiceWorker | null = null;
+      const send = (msg: any) => sw && sw.postMessage(msg);
+
+      // Render resting state from a status reply.
+      function rest(s: any) {
+        bar.hidden = true;
+        if (s && s.cached && s.items > 0) {
+          dot.className = 'dl-dot ok';
+          statusEl.innerHTML = `✓ Saved — <strong>${s.items}</strong> items${s.bytes ? ' · ' + mb(s.bytes) : ''}`;
+          go.textContent = '↻ Update'; go.disabled = false;
+          clear.hidden = false;
+          hint.textContent = `Tap Update if dossiers changed. Saved ${window.__pkt_when || 'recently'}.`;
+        } else {
+          dot.className = 'dl-dot';
+          statusEl.textContent = 'Not downloaded yet';
+          go.textContent = '⬇ Download for offline'; go.disabled = false;
+          clear.hidden = true;
+          hint.textContent = 'Best on wifi — this can be tens of MB with all the photos.';
+        }
+      }
+
+      // Listen for SW progress/done/status/cleared replies.
+      navigator.serviceWorker.addEventListener('message', (e) => {
+        const m = e.data || {};
+        if (m.type === 'packet-status') rest(m);
+        else if (m.type === 'packet-cleared') rest({ cached: false });
+        else if (m.type === 'packet-progress') {
+          bar.hidden = false;
+          const pct = m.total ? Math.round((m.done / m.total) * 100) : 0;
+          (fill as HTMLElement).style.width = pct + '%';
+          statusEl.textContent = `Saving… ${m.done} / ${m.total}${m.failed ? ` (${m.failed} skipped)` : ''}`;
+        } else if (m.type === 'packet-done') {
+          (window as any).__pkt_when = when();
+          const note = m.failed ? ` · ${m.failed} images unavailable` : '';
+          rest(m);
+          statusEl.innerHTML = `✓ Saved — <strong>${m.items}</strong> items${m.bytes ? ' · ' + mb(m.bytes) : ''}${note}`;
+        }
+      });
+
+      async function download() {
+        go.disabled = true; clear.hidden = true;
+        dot.className = 'dl-dot busy';
+        statusEl.textContent = 'Building list…';
+        try {
+          const manifest = await fetch('/api/packet-manifest').then((r) => r.json());
+          const urls = [...(manifest.pages || []), ...(manifest.images || [])];
+          bar.hidden = false; (fill as HTMLElement).style.width = '0%';
+          send({ type: 'cache-packet', urls, version: manifest.version });
+        } catch {
+          dot.className = 'dl-dot err';
+          statusEl.textContent = 'Couldn’t build the packet — check your connection.';
+          go.disabled = false;
+        }
+      }
+
+      go.addEventListener('click', download);
+      clear.addEventListener('click', () => { dot.className = 'dl-dot busy'; statusEl.textContent = 'Clearing…'; send({ type: 'clear-packet' }); });
+
+      // Register (idempotent) + grab the active worker, then ask for current status.
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      navigator.serviceWorker.ready.then((reg) => {
+        sw = reg.active;
+        if (sw) send({ type: 'packet-status' });
+        else rest({ cached: false });
+      });
+    })();
+  </script>
+
+  <style>
+    .dl-card { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.3rem; margin: 1.4rem 0; }
+    .dl-state { display: flex; align-items: center; gap: .6rem; font-size: 1.05rem; font-weight: 600; }
+    .dl-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+    .dl-dot.ok { background: var(--green); box-shadow: 0 0 8px rgba(52,211,153,.6); }
+    .dl-dot.busy { background: #fbbf24; animation: pulse 1s infinite; }
+    .dl-dot.err { background: #f87171; }
+    @keyframes pulse { 50% { opacity: .35; } }
+    .dl-bar { height: 7px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; margin: .9rem 0; }
+    .dl-fill { height: 100%; width: 0; background: var(--green); transition: width .25s; }
+    .dl-actions { display: flex; gap: .7rem; flex-wrap: wrap; margin-top: 1rem; }
+    .dl-hint { font-size: .82rem; color: var(--muted); margin-top: .7rem; }
+
+    .emg-card { border: 1px solid rgba(248,113,113,.35); background: rgba(248,113,113,.06); border-radius: var(--radius); padding: 1.2rem 1.3rem; margin: 1.4rem 0; }
+    .emg-card h3 { margin: 0 0 .6rem; }
+    .emg-generic { margin: 0 0 .8rem; padding-left: 1.1rem; }
+    .emg-generic li { margin: .2rem 0; }
+    .emg-list { list-style: none; margin: 0; padding: .6rem 0 0; border-top: 1px solid rgba(248,113,113,.2); display: grid; gap: .4rem; }
+    .emg-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem; font-size: .92rem; }
+    .emg-where { font-weight: 700; color: var(--text); }
+    .emg-label { color: var(--muted); }
+    .emg-tel { color: var(--green); font-weight: 700; }
+
+    .idx { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.4rem; margin-top: 1.4rem; }
+    .idx-col h3 { padding-bottom: .4rem; border-bottom: 1px solid var(--border); }
+    .idx-col .ct { font-size: .8rem; color: var(--muted); font-weight: 400; }
+    .idx-col ul { list-style: none; padding: 0; margin: .7rem 0 0; display: grid; gap: .35rem; }
+    .idx-col li { font-size: .9rem; }
+    .idx-col a { color: var(--text); }
+    .idx-col a:hover { color: var(--green); }
+    .tiny { font-size: .76rem; margin-top: .6rem; }
+  </style>
+</Base>

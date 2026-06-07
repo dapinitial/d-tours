@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import { getSkills } from '../lib/data';
+import { ytThumb } from '../lib/packet';
 
 export const prerender = false;
 
@@ -24,8 +25,15 @@ const search = (name: string) => `https://www.youtube.com/results?search_query=$
           <div class="skill-grid">
             {skills.filter((s) => s.category === cat).map((s) => {
               const vid = ytId(s.video_url);
+              const thumb = ytThumb(s.video_url);
               return (
                 <div class="skill" data-embed={vid ? `https://www.youtube.com/embed/${vid}` : ''}>
+                  {thumb && (
+                    <button class="sk-thumb" type="button" aria-label={`Play ${s.name}`}>
+                      <img src={thumb} alt={s.name} loading="lazy" width="480" height="360" />
+                      <span class="sk-play">▶</span>
+                    </button>
+                  )}
                   <div class="sk-name">{s.name}</div>
                   {s.description && <div class="sk-desc">{s.description}</div>}
                   <div class="sk-player"></div>
@@ -45,14 +53,21 @@ const search = (name: string) => `https://www.youtube.com/results?search_query=$
   <script>
     document.querySelectorAll<HTMLElement>('.skill').forEach((card) => {
       const btn = card.querySelector('.sk-watch');
+      const thumb = card.querySelector('.sk-thumb') as HTMLElement | null;
       const player = card.querySelector('.sk-player') as HTMLElement;
-      btn?.addEventListener('click', () => {
+      const play = () => {
         const embed = card.dataset.embed;
         if (!embed || !player) return;
-        if (player.hasChildNodes()) { player.innerHTML = ''; btn.textContent = '▶ Watch'; return; }
+        if (player.hasChildNodes()) {
+          player.innerHTML = ''; if (btn) btn.textContent = '▶ Watch'; if (thumb) thumb.hidden = false;
+          return;
+        }
         player.innerHTML = `<iframe src="${embed}?autoplay=1&rel=0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen loading="lazy"></iframe>`;
-        btn.textContent = '✕ Close';
-      });
+        if (btn) btn.textContent = '✕ Close';
+        if (thumb) thumb.hidden = true; // swap the poster out for the live player
+      };
+      btn?.addEventListener('click', play);
+      thumb?.addEventListener('click', play);
     });
   </script>
 
@@ -61,6 +76,11 @@ const search = (name: string) => `https://www.youtube.com/results?search_query=$
     .skill-cat h3 { margin-bottom: .9rem; padding-bottom: .4rem; border-bottom: 1px solid var(--border); }
     .skill-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
     .skill { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; display: flex; flex-direction: column; }
+    .sk-thumb { position: relative; padding: 0; margin: 0 0 .7rem; border: 0; background: none; cursor: pointer; border-radius: 10px; overflow: hidden; display: block; line-height: 0; }
+    .sk-thumb[hidden] { display: none; }
+    .sk-thumb img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+    .sk-play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; color: #fff; background: rgba(4,10,16,.28); text-shadow: 0 2px 8px rgba(0,0,0,.6); transition: background .15s; }
+    .sk-thumb:hover .sk-play { background: rgba(4,10,16,.12); }
     .sk-name { font-weight: 700; }
     .sk-desc { font-size: .85rem; color: var(--muted); line-height: 1.45; margin-top: .3rem; }
     .sk-player { margin-top: .7rem; }
