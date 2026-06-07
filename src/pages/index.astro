@@ -103,17 +103,42 @@ const shareImg = posts.flatMap((p) => p.media ?? [])
         <div class="considering" data-reveal>
           <h3>🧭 Help us decide — climbs we're weighing</h3>
           <p class="muted">Might swap one of these in depending on how we're feeling. <strong>Tap one, read the beta, and tell us what to send</strong> (drop a comment)!</p>
-          <div class="cons-list">
+          <div class="cons-list" id="cons-list">
             {proposedObjectives.map((o) => (
-              <a class="cons" href={`/objectives/${o.id}`}>
+              <a class="cons" href={`/objectives/${o.id}`} data-oid={o.id}>
                 <span class="cons-name">🧗 {o.name}</span>
                 <span class="cons-meta mono">{o.grade} · {o.region}</span>
+                <span class="cons-dist"></span>
                 {o.note && <span class="cons-note muted">{o.note}</span>}
               </a>
             ))}
           </div>
         </div>
       )}
+
+      <script>
+        // Location-aware: annotate each proposed climb with drive-time from where we are now.
+        (() => {
+          const cards = [...document.querySelectorAll<HTMLElement>('.cons[data-oid]')];
+          if (!cards.length) return;
+          fetch('/api/mapshare').then((r) => r.json()).then((pos) => {
+            if (!pos || typeof pos.lat !== 'number') return;
+            return fetch(`/api/nearby?lat=${pos.lat}&lng=${pos.lng}`).then((r) => r.json()).then((d) => {
+              const byId: Record<string, any> = Object.fromEntries((d.all || []).map((x: any) => [x.id, x]));
+              cards.forEach((c) => {
+                const n = byId[c.dataset.oid!];
+                const dist = c.querySelector('.cons-dist');
+                if (n && dist) {
+                  dist.textContent = `🛰️ ~${n.drive_hours}h away (${n.miles} mi)` + (n.within ? ' · in range!' : '');
+                  if (n.within) c.classList.add('near-now');
+                }
+              });
+              const list = document.getElementById('cons-list');
+              if (list) cards.sort((a, b) => (byId[a.dataset.oid!]?.miles ?? 1e9) - (byId[b.dataset.oid!]?.miles ?? 1e9)).forEach((c) => list.appendChild(c));
+            });
+          }).catch(() => {});
+        })();
+      </script>
     </div>
   </section>
 
@@ -170,4 +195,8 @@ const shareImg = posts.flatMap((p) => p.media ?? [])
   .cons-name { font-weight: 700; color: var(--text); }
   .cons-meta { font-size: .76rem; color: var(--green); }
   .cons-note { font-size: .82rem; line-height: 1.4; }
+  .cons-dist { font-size: .76rem; color: var(--sky); font-weight: 600; }
+  .cons-dist:empty { display: none; }
+  .cons.near-now { border-color: var(--green); box-shadow: 0 0 0 2px rgba(52,211,153,.18); }
+  .cons.near-now .cons-dist { color: var(--green); }
 </style>

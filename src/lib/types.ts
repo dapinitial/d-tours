@@ -93,6 +93,8 @@ export interface Objective {
   gpx_url?: string;      // downloadable GPX track
   status?: 'confirmed' | 'proposed';  // scouted alternatives = 'proposed' until promoted
   note?: string;         // why it's proposed / what it swaps for
+  lat?: number;          // for proximity / "how far am I" + proactive alerts
+  lng?: number;
 }
 
 /** The RIG — build-page spotlight + maintenance log (one per tenant). */
