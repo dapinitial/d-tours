@@ -1,8 +1,44 @@
 import type { APIRoute } from 'astro';
 import Anthropic from '@anthropic-ai/sdk';
-import { getStops, getObjectives, getProposedObjectives } from '../../lib/data';
+import { getStops, getObjectives, getProposedObjectives, getDefaultTenant } from '../../lib/data';
+import { getSupabaseAdmin } from '../../lib/supabase';
 
 export const prerender = false;
+
+// Tool: stage a climbing alternative as 'proposed' for David to review (it does NOT
+// touch the confirmed plan — proposed objectives are hidden from the public list and
+// promoted only from the CMS). This is the chat *doing* something, safely.
+const TOOLS = [{
+  name: 'stage_proposal',
+  description: "Stage a climbing alternative for David to review on the 'Help us decide' board. Use ONLY when someone proposes/wants a specific climb added as an option (a swap, a harder/easier line, a nearby classic) and would clearly want it on the review list. Not for general questions. It's a suggestion queue — owner-reviewed before anything changes.",
+  input_schema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'Route/objective name, e.g. "Petit Grepon — South Face"' },
+      grade: { type: 'string', description: 'Climbing grade, e.g. "III 5.8"' },
+      region: { type: 'string', description: 'Area/region, e.g. "RMNP, CO"' },
+      note: { type: 'string', description: 'One line: why it fits / what it swaps for' },
+    },
+    required: ['name'],
+  },
+}];
+
+async function stageProposal(input: any) {
+  const sb = getSupabaseAdmin();
+  if (!sb) return { ok: false, error: 'storage unavailable' };
+  const tenant = await getDefaultTenant();
+  const id = 'prop-' + ((globalThis.crypto?.randomUUID?.() ?? `${Date.now()}${Math.random()}`).replace(/-/g, '').slice(0, 10));
+  const row: any = {
+    id, name: String(input?.name ?? '').slice(0, 160),
+    grade: input?.grade ? String(input.grade).slice(0, 40) : '?',
+    region: input?.region ? String(input.region).slice(0, 80) : null,
+    status: 'proposed', note: (input?.note ? String(input.note).slice(0, 240) : 'Suggested via Shotgun chat'),
+    ...(tenant ? { tenant_id: tenant.id } : {}),
+  };
+  if (!row.name) return { ok: false, error: 'name required' };
+  const { error } = await sb.from('objectives').insert(row);
+  return error ? { ok: false, error: error.message } : { ok: true, id, staged: row.name };
+}
 
 // Conversational Shotgun. Trip-aware Q&A + pivot suggestions, powered by the
 // Anthropic API. Needs ANTHROPIC_API_KEY. Public-facing → keep it cheap (Haiku)
@@ -50,14 +86,33 @@ ROUTE: ${routeLine}
 CLIMBING OBJECTIVES: ${climbLine}
 ALTERNATIVES BEING WEIGHED: ${propLine}
 
-WHAT YOU DO: answer trip questions, give climbing beta, and suggest alternatives ("an equally classic but more moderate/harder line near X"). When someone wants to swap a climb, suggest 1-3 real options with grade + a one-line why, factoring the Aug-1 slack. Be honest about hazards (lightning, grizzlies, altitude, heat). You can SUGGEST but not change the plan — point them to the dossiers (/objectives) or tell them David promotes picks in the CMS. If asked something off-topic, gently steer back to the trip. Never invent fake facts; if unsure, say so.`;
+WHAT YOU DO: answer trip questions, give climbing beta, and suggest alternatives ("an equally classic but more moderate/harder line near X"). When someone wants to swap a climb, suggest 1-3 real options with grade + a one-line why, factoring the Aug-1 slack. Be honest about hazards (lightning, grizzlies, altitude, heat).
+
+STAGING: you can't change the confirmed plan, but you CAN stage an alternative for review with the stage_proposal tool — it lands on David's "Help us decide" board (owner-reviewed; promoted to the itinerary only from the CMS). Use it when someone clearly wants a specific climb added as an option to weigh, then tell them it's staged for David to review. Don't stage for vague chatter or general questions. Never invent fake routes; if unsure of a real line, say so rather than staging something made up.
+
+If asked something off-topic, gently steer back to the trip.`;
 
   const model = MODELS[String(body.model)] || DEFAULT_MODEL;
   try {
     const client = new Anthropic({ apiKey: key });
-    const resp = await client.messages.create({ model, max_tokens: 600, system, messages });
-    const reply = resp.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('').trim();
-    return json({ ok: true, reply: reply || "…lost signal for a sec. Try again?" });
+    const convo: any[] = [...messages];
+    const staged: string[] = [];
+    let reply = '';
+    for (let turn = 0; turn < 3; turn++) {
+      const resp: any = await client.messages.create({ model, max_tokens: 700, system, messages: convo, tools: TOOLS as any });
+      reply = resp.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('').trim();
+      const toolUses = resp.content.filter((b: any) => b.type === 'tool_use');
+      if (resp.stop_reason !== 'tool_use' || !toolUses.length) break;
+      convo.push({ role: 'assistant', content: resp.content });
+      const results: any[] = [];
+      for (const tu of toolUses) {
+        const out = tu.name === 'stage_proposal' ? await stageProposal(tu.input) : { ok: false, error: 'unknown tool' };
+        if ((out as any).ok && (out as any).staged) staged.push((out as any).staged);
+        results.push({ type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(out) });
+      }
+      convo.push({ role: 'user', content: results });
+    }
+    return json({ ok: true, reply: reply || "…lost signal for a sec. Try again?", staged });
   } catch (e: any) {
     console.error('[chat]', e?.message ?? e);
     return json({ ok: false, reply: "Hit a snag reaching Shotgun — try again in a sec." }, 502);
