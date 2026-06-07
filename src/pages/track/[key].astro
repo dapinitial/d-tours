@@ -1,0 +1,96 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getSupabaseAdmin } from '../../lib/supabase';
+
+export const prerender = false;
+
+// Personal location-share page for a companion without an inReach. The secret key
+// in the URL identifies them; the page uses the browser Geolocation API to POST
+// their position to /api/checkin so they appear on the live map.
+const { key } = Astro.params;
+let companion: { name: string; emoji: string; color: string } | null = null;
+const sb = getSupabaseAdmin();
+if (sb && key?.startsWith('trk_')) {
+  const { data } = await sb.from('companions').select('name, emoji, color').eq('track_key', key).maybeSingle();
+  if (data) companion = data as any;
+}
+---
+<Base title="Share your location · D-Tours">
+  <section>
+    <div class="container narrow">
+      {!companion ? (
+        <div class="track-card">
+          <h2>Link not recognized</h2>
+          <p class="muted">This tracking link isn't valid. Ask David for a fresh one.</p>
+        </div>
+      ) : (
+        <div class="track-card" style={`--c:${companion.color || '#fb923c'}`}>
+          <div class="t-emoji">{companion.emoji || '🚙'}</div>
+          <h2>Hey {companion.name} 👋</h2>
+          <p class="muted">Share your location so the crew sees you on the map. That's all this does — just your dot. Nothing stored but your latest position.</p>
+          <div class="t-btns">
+            <button id="live-btn" class="btn big">🛰️ Start sharing live</button>
+            <button id="once-btn" class="btn ghost big">📍 Drop my spot once</button>
+          </div>
+          <p class="t-status" id="status"></p>
+          <p class="muted tiny">Live runs while this page is open — mount your phone on the dash and let it ride. Close the tab to stop. Works wherever you have cell signal.</p>
+        </div>
+      )}
+    </div>
+  </section>
+
+  <script define:vars={{ key }}>
+    const status = document.getElementById('status');
+    const liveBtn = document.getElementById('live-btn');
+    const onceBtn = document.getElementById('once-btn');
+    let watchId = null;
+
+    const send = async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      try {
+        const r = await fetch('/api/checkin', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, lat: latitude, lng: longitude }),
+        });
+        const j = await r.json();
+        if (j.ok) { status.textContent = `✅ Sent ${new Date().toLocaleTimeString()} — you're on the map`; status.className = 't-status ok'; }
+        else { status.textContent = '⚠️ ' + (j.error || 'failed'); status.className = 't-status err'; }
+      } catch { status.textContent = '⚠️ network error — will retry on next fix'; status.className = 't-status err'; }
+    };
+    const onErr = (e) => {
+      status.textContent = e.code === 1
+        ? '⚠️ Location permission denied — enable it for this site in your browser settings.'
+        : '⚠️ Could not get your location. Make sure GPS/location is on.';
+      status.className = 't-status err';
+    };
+    onceBtn?.addEventListener('click', () => {
+      if (!navigator.geolocation) { status.textContent = '⚠️ This browser has no geolocation.'; return; }
+      status.textContent = '📡 getting your location…';
+      navigator.geolocation.getCurrentPosition(send, onErr, { enableHighAccuracy: true, timeout: 15000 });
+    });
+    liveBtn?.addEventListener('click', () => {
+      if (!navigator.geolocation) { status.textContent = '⚠️ This browser has no geolocation.'; return; }
+      if (watchId != null) {
+        navigator.geolocation.clearWatch(watchId); watchId = null;
+        liveBtn.textContent = '🛰️ Start sharing live'; liveBtn.classList.remove('on');
+        status.textContent = 'Stopped sharing.'; status.className = 't-status';
+        return;
+      }
+      status.textContent = '📡 starting live share…';
+      watchId = navigator.geolocation.watchPosition(send, onErr, { enableHighAccuracy: true, maximumAge: 30000, timeout: 20000 });
+      liveBtn.textContent = '⏹️ Stop sharing'; liveBtn.classList.add('on');
+    });
+  </script>
+
+  <style>
+    .container.narrow { width: min(100% - 2.5rem, 460px); }
+    .track-card { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-left: 3px solid var(--c, var(--green)); border-radius: var(--radius); padding: 2rem 1.6rem; text-align: center; margin-top: 2rem; }
+    .t-emoji { font-size: 3rem; line-height: 1; margin-bottom: .5rem; filter: drop-shadow(0 0 12px color-mix(in srgb, var(--c, var(--green)) 55%, transparent)); }
+    .track-card h2 { margin: .2rem 0 .6rem; }
+    .t-btns { display: grid; gap: .7rem; margin: 1.4rem 0 .6rem; }
+    .btn.big { padding: 1rem; font-size: 1.05rem; width: 100%; }
+    .btn.big.on { background: var(--red); border-color: var(--red); color: #2a0a0f; }
+    .t-status { min-height: 1.3em; font-size: .9rem; margin: .4rem 0; font-weight: 600; }
+    .t-status.ok { color: var(--green); } .t-status.err { color: var(--red); }
+  </style>
+</Base>
