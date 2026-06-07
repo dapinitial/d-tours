@@ -1,5 +1,4 @@
 import type { APIRoute } from 'astro';
-import exifr from 'exifr';
 import { getSupabaseAdmin } from '../../lib/supabase';
 import { supabaseServer, authConfigured } from '../../lib/supabaseServer';
 
@@ -40,12 +39,15 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const path = `${tid ?? 'shared'}/${id}.${EXT[file.type]}`;
   const buf = await file.arrayBuffer();
 
-  // 📍 Pull GPS out of the photo's EXIF (where it was actually taken).
+  // 📍 Pull GPS out of the photo's EXIF (where it was actually taken). Loaded
+  // dynamically + fully isolated — if exifr can't load/parse, the upload still works
+  // (we fall back to the live position). EXIF must NEVER break an upload.
   let coords: { lat: number; lng: number } | null = null;
   try {
+    const exifr = (await import('exifr')).default;
     const g = await exifr.gps(buf);
     if (g && isFinite(g.latitude) && isFinite(g.longitude)) coords = { lat: g.latitude, lng: g.longitude };
-  } catch { /* no EXIF / unsupported — fine, we'll fall back to the live position */ }
+  } catch (e: any) { console.log('[upload] exif skipped:', e?.message ?? e); }
 
   const { error } = await sb.storage.from('media').upload(path, buf, { contentType: file.type, upsert: false });
   if (error) { console.error('[upload]', error.message); return json({ ok: false, error: 'Upload failed — try again.' }, 500); }
