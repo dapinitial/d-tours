@@ -19,7 +19,7 @@ export interface LivePosition { lat: number; lng: number; when?: string; mock: b
 /** Latest inReach MapShare point. Mock (Cirque) when no feed is configured, so
  *  the map still renders — but `mock:true` lets the watcher SKIP (no false alerts). */
 export async function getLivePosition(): Promise<LivePosition | null> {
-  const feed = process.env.MAPSHARE_FEED_URL;
+  const feed = process.env.MAPSHARE_FEED_URL?.trim(); // tolerate stray whitespace in the env value
   if (!feed) return { lat: 42.7, lng: -109.2, when: 'mock · Cirque of the Towers', mock: true };
   try {
     const kml = await (await fetch(feed)).text();
