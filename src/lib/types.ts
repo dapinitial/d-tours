@@ -128,6 +128,7 @@ export interface ObjectiveBeta {
     weather_url?: string; mountain_forecast_url?: string; avalanche_url?: string; fire_url?: string; bugs?: string;
     // Auto-refreshed daily by /api/refresh-conditions (Open-Meteo).
     forecast?: { updated_at: string; days: { date: string; code: number; tmax: number; tmin: number; precip: number; precip_prob: number; wind: number }[] };
+    window_alerted?: string; // start-date of the last send-window we emailed about (de-dup)
   };
   nearby?: string[];      // other climbs / points of interest nearby
 }

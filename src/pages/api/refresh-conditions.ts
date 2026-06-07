@@ -1,6 +1,9 @@
 import type { APIRoute } from 'astro';
 import { getObjectives } from '../../lib/data';
 import { getSupabaseAdmin } from '../../lib/supabase';
+import { getLivePosition, haversineMi, driveHours } from '../../lib/proximity';
+import { sendWindow, windowLabel } from '../../lib/weather';
+import { notify } from '../../lib/notifier';
 
 export const prerender = false;
 
@@ -40,7 +43,11 @@ export const POST: APIRoute = async ({ request, url }) => {
   const sb = getSupabaseAdmin();
   if (!sb) return json({ ok: true, mock: true });
 
+  const pos = await getLivePosition();  // for send-window proximity alerts
+  const origin = new URL(request.url).origin;
+  const alerts: { name: string; id: string; label: string; hrs: number }[] = [];
   let updated = 0;
+
   for (const o of objectives) {
     if (typeof o.lat !== 'number' || typeof o.lng !== 'number') continue;
     try {
@@ -48,11 +55,29 @@ export const POST: APIRoute = async ({ request, url }) => {
       if (!f) continue;
       const beta: any = { ...((o as any).beta ?? {}) };
       beta.conditions = { ...(beta.conditions ?? {}), forecast: f };
+
+      // Send-window alert: a new window + David within ~a day's drive + not already pinged.
+      const win = sendWindow(f.days);
+      if (win && pos && !pos.mock) {
+        const hrs = driveHours(haversineMi(pos.lat, pos.lng, o.lat as number, o.lng as number));
+        if (hrs <= 10 && beta.conditions.window_alerted !== win.start) {
+          beta.conditions.window_alerted = win.start;
+          alerts.push({ name: o.name, id: o.id, label: windowLabel(f.days, win), hrs: Math.round(hrs) });
+        }
+      }
+
       const { error } = await sb.from('objectives').update({ beta }).eq('id', o.id);
       if (!error) updated++;
     } catch { /* skip this objective, keep going */ }
   }
-  return json({ ok: true, updated, of: objectives.length });
+
+  if (alerts.length) {
+    const lines = alerts.map((a) => `🟢 ${a.name} — send window ${a.label} · ~${a.hrs}h away\n   ${origin}/objectives/${a.id}`);
+    const subject = alerts.length === 1 ? `🟢 Send window opening: ${alerts[0].name}` : `🟢 ${alerts.length} send windows opening near you`;
+    try { await notify({ subject, body: `Weather's lining up:\n\n${lines.join('\n\n')}\n\nGo get it. 🧗`, short: subject }); } catch {}
+  }
+
+  return json({ ok: true, updated, of: objectives.length, window_alerts: alerts.length });
 };
 
 export const GET = POST;
