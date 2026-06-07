@@ -24,13 +24,18 @@ const isActive = (href: string) => href === '/' ? path === '/' : path.startsWith
         <a href={l.href} class:list={['navlink', { active: isActive(l.href) }]}>{l.label}</a>
       ))}
     </nav>
+    <!-- Mobile-only: Drive lives up here so the bottom tab bar stays at 6 tabs
+         (7 was wrapping). Hidden on desktop, where it's in .top-nav. -->
+    <a href="/drive" class:list={['drive-mobile', { active: isActive('/drive') }]} aria-label="Drive mode">
+      <span class="dm-icon">📡</span><span class="dm-label">Drive</span>
+    </a>
   </div>
 </header>
 
-<!-- Mobile: app-style bottom tab bar (thumb-reachable). Drop Home — the brand
-     logo already goes home, and this keeps the tabs from wrapping. -->
+<!-- Mobile: app-style bottom tab bar (thumb-reachable). Drop Home (brand logo goes
+     home) and Drive (moved to the header) so the 6 tabs fit without wrapping. -->
 <nav class="tabbar">
-  {links.filter((l) => l.href !== '/').map((l) => (
+  {links.filter((l) => l.href !== '/' && l.href !== '/drive').map((l) => (
     <a href={l.href} class:list={['tab', { active: isActive(l.href) }]}>
       <span class="tab-icon">{l.icon}</span>
       <span class="tab-label">{l.label}</span>
@@ -55,11 +60,23 @@ const isActive = (href: string) => href === '/' ? path === '/' : path.startsWith
   .navlink:hover { color: var(--text); background: rgba(255,255,255,.04); }
   .navlink.active { color: var(--green); background: rgba(52,211,153,.1); }
 
+  /* Drive shortcut in the header — phones only (desktop uses .top-nav). */
+  .drive-mobile { display: none; }
+
   /* ── mobile bottom tab bar ── */
   .tabbar { display: none; }
   @media (max-width: 640px) {
     .top-nav { display: none; }            /* hide top links on phones */
     .brand-sub { display: none; }
+    .drive-mobile {
+      display: inline-flex; align-items: center; gap: .35rem;
+      padding: .42rem .72rem; border-radius: 999px;
+      font-size: .85rem; font-weight: 600; color: var(--muted);
+      background: rgba(255,255,255,.05); border: 1px solid var(--border);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .drive-mobile.active { color: var(--green); background: rgba(52,211,153,.12); border-color: rgba(52,211,153,.3); }
+    .drive-mobile .dm-icon { font-size: 1rem; line-height: 1; }
     .tabbar {
       display: grid; grid-template-columns: repeat(6, 1fr);
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 200;
