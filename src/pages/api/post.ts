@@ -26,6 +26,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   let p: any = {};
   try { p = await request.json(); } catch {}
+
+  // Delete a post (owner-gated, tenant-scoped).
+  if (p.action === 'delete') {
+    if (!p.id) return json({ ok: false, error: 'missing id' }, 400);
+    const sb0 = getSupabaseAdmin();
+    if (!sb0) return json({ ok: true, mock: true, deleted: p.id });
+    let q = sb0.from('posts').delete().eq('id', p.id);
+    if (tid) q = q.eq('tenant_id', tid);
+    const { error } = await q;
+    if (error) { console.error('[post:delete]', error.message); return json({ ok: false, error: 'Delete failed' }, 500); }
+    return json({ ok: true, deleted: p.id });
+  }
+
   const title = String(p.title ?? '').slice(0, 160).trim();
   const body = String(p.body ?? '').slice(0, 5000).trim();
   if (!title && !body && !(Array.isArray(p.media) && p.media.length)) {

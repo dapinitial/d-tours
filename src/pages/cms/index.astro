@@ -72,6 +72,25 @@ const proposals = stops
         </div>
       </div>
 
+      <div class="card">
+        <h3>📓 Your posts <span class="muted">({posts.length})</span></h3>
+        {posts.length === 0 && <p class="muted">No posts yet.</p>}
+        <div class="post-list">
+          {posts.map((p) => (
+            <div class="prow" data-post={p.id}>
+              <div class="pr-meta">
+                <span class="pr-title">{p.title}</span>
+                <span class="muted tiny">{p.published_at ? new Date(p.published_at).toLocaleDateString() : '🕒 queued'}{p.lat != null ? ' · 📍 geotagged' : ''}{p.media && p.media.length ? ` · ${p.media.length} media` : ''}</span>
+              </div>
+              <div class="pr-act">
+                {p.published_at && <a class="btn ghost sm" href={`/journal/${p.id}`} target="_blank">view</a>}
+                <button class="btn ghost sm post-del" data-id={p.id} title="Delete post">🗑️</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div class="card proposals">
         <h3>🌀 D-Tours proposals — Shotgun found these on the fly</h3>
         <p class="muted tiny">Approve to drop it into the live itinerary (no deploy — instant). This is the same action a "YES" text triggers.</p>
@@ -267,6 +286,17 @@ const proposals = stops
   };
   document.getElementById('post-publish')?.addEventListener('click', () => submitPost(true));
   document.getElementById('post-queue')?.addEventListener('click', () => submitPost(false));
+
+  // delete a post
+  document.querySelectorAll('.post-del').forEach((b) => b.addEventListener('click', async () => {
+    if (!confirm('Delete this post? This removes it from the journal + map.')) return;
+    const row = b.closest('.prow');
+    try {
+      const r = await fetch('/api/post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', id: b.dataset.id }) });
+      const j = await r.json();
+      if (j.ok) { row?.remove(); } else alert(j.error || 'Delete failed');
+    } catch { alert('Network error'); }
+  }));
 </script>
 
 <style>
@@ -301,6 +331,11 @@ const proposals = stops
   .next li { margin: .3rem 0; }
   code { font-family: var(--font-mono); color: var(--green); }
   .proposals { margin-bottom: 1.5rem; }
+  .post-list { display: grid; gap: .5rem; margin-top: .8rem; }
+  .prow { display: flex; align-items: center; gap: .8rem; padding: .55rem .75rem; background: rgba(255,255,255,.025); border: 1px solid var(--border); border-radius: 10px; }
+  .pr-meta { flex: 1; display: grid; gap: .1rem; min-width: 0; }
+  .pr-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pr-act { display: flex; gap: .4rem; flex: 0 0 auto; }
   .prop-list { display: grid; gap: .6rem; margin-top: 1rem; }
   .prop { display: flex; align-items: center; gap: .8rem; padding: .7rem .85rem; background: rgba(255,255,255,.025); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
   .p-emoji { font-size: 1.4rem; }
