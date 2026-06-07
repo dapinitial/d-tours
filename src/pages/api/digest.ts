@@ -11,8 +11,10 @@ export const prerender = false;
 // session (the CMS button) OR a cron token (DIGEST_TOKEN for the home-iMac job).
 async function authorized(cookies: any, headers: Headers, url: URL): Promise<boolean> {
   if (!authConfigured) return true; // local/mock
-  const token = process.env.DIGEST_TOKEN;
-  if (token && url.searchParams.get('token') === token) return true;
+  // Cron token via ?token= or Authorization: Bearer — accepts DIGEST_TOKEN or WATCH_TOKEN.
+  const provided = headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? url.searchParams.get('token') ?? '';
+  const tokens = [process.env.DIGEST_TOKEN, process.env.WATCH_TOKEN].filter(Boolean) as string[];
+  if (provided && tokens.includes(provided)) return true;
   const sb = supabaseServer(cookies, headers);
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return false;
