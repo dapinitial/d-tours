@@ -98,6 +98,30 @@ const proposed = objectives.filter((o) => o.status === 'proposed');
                 <label class="btn ghost sm gpx-up">⬆ Upload .gpx<input type="file" accept=".gpx" hidden /></label>
               </div>
 
+              <details class="beta-edit">
+                <summary>📋 Full dossier — trailhead · approach · rack · hazards…</summary>
+                <div class="be-grid">
+                  <label class="full">Summary<textarea data-b="summary">{(o.beta as any)?.summary ?? ''}</textarea></label>
+                  <label>Trailhead name<input data-b="trailhead.name" value={(o.beta as any)?.trailhead?.name ?? ''} /></label>
+                  <label>TH lat<input data-b="trailhead.lat" value={(o.beta as any)?.trailhead?.lat ?? ''} /></label>
+                  <label>TH lng<input data-b="trailhead.lng" value={(o.beta as any)?.trailhead?.lng ?? ''} /></label>
+                  <label class="full">Trailhead / drive directions<textarea data-b="trailhead.drive">{(o.beta as any)?.trailhead?.drive ?? ''}</textarea></label>
+                  <label class="full">Approach<textarea data-b="approach">{(o.beta as any)?.approach ?? ''}</textarea></label>
+                  <label class="full">Descent<textarea data-b="descent">{(o.beta as any)?.descent ?? ''}</textarea></label>
+                  <label class="full">Season<input data-b="season" value={(o.beta as any)?.season ?? ''} /></label>
+                  <label class="full">Rack<textarea data-b="rack">{(o.beta as any)?.rack ?? ''}</textarea></label>
+                  <label>Ropes<input data-b="ropes" value={(o.beta as any)?.ropes ?? ''} /></label>
+                  <label>Footwear<input data-b="footwear" value={(o.beta as any)?.footwear ?? ''} /></label>
+                  <label class="full">Last services<input data-b="last_services" value={(o.beta as any)?.last_services ?? ''} /></label>
+                  <label class="full">Cell signal<input data-b="signal" value={(o.beta as any)?.signal ?? ''} /></label>
+                  <label class="full">Land &amp; passes<input data-b="land" value={(o.beta as any)?.land ?? ''} /></label>
+                  <label class="full">Permits<input data-b="permits" value={(o.beta as any)?.permits ?? ''} /></label>
+                  <label class="full">Hazards (one per line)<textarea data-b="hazards">{((o.beta as any)?.hazards ?? []).join('\n')}</textarea></label>
+                  <label class="full">Nearby (one per line)<textarea data-b="nearby">{((o.beta as any)?.nearby ?? []).join('\n')}</textarea></label>
+                </div>
+                <div class="be-foot"><span class="muted tiny">Emergency, routes &amp; field-guide stay with Shotgun for now.</span><button class="btn sm be-save" type="button">Save dossier</button></div>
+              </details>
+
               <div class="seeds">
                 <div class="seeds-label">🔗 Seed links <span class="muted">— what Shotgun researches from</span></div>
                 {seeds.length > 0 && (
@@ -185,6 +209,19 @@ const proposed = objectives.filter((o) => o.status === 'proposed');
         const j = await post('/api/objectives', { action: 'update', id, obj: { gpx_verified: true } });
         if (j.ok) { toast('Marked verified ✓'); location.reload(); }
       });
+      // Full-beta dossier save → merges the patch into the objective's beta jsonb
+      card.querySelector('.be-save')?.addEventListener('click', async () => {
+        const patch = {}; const th = {};
+        card.querySelectorAll('[data-b]').forEach((el) => {
+          const k = el.dataset.b; const v = el.value.trim();
+          if (k.startsWith('trailhead.')) { const s = k.split('.')[1]; if (v) th[s] = (s === 'lat' || s === 'lng') ? parseFloat(v) : v; }
+          else if (k === 'hazards' || k === 'nearby') { patch[k] = v ? v.split('\n').map((x) => x.trim()).filter(Boolean) : []; }
+          else if (v) patch[k] = v;
+        });
+        if (Object.keys(th).length) patch.trailhead = th;
+        const j = await post('/api/objectives', { action: 'update-beta', id, obj: { beta: patch } });
+        if (j.ok) toast('Dossier saved ✓');
+      });
     });
   </script>
 
@@ -224,6 +261,15 @@ const proposed = objectives.filter((o) => o.status === 'proposed');
     .gpx-st.ok { color: var(--green); }
     .gpx-st.prov { color: var(--amber); }
     .gpx-up { cursor: pointer; margin-left: auto; }
+    .beta-edit { margin-top: .3rem; padding-top: .5rem; border-top: 1px dashed var(--border); }
+    .beta-edit > summary { cursor: pointer; font-size: .82rem; font-weight: 600; color: var(--sky); }
+    .be-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .6rem; }
+    .be-grid label { display: flex; flex-direction: column; gap: .2rem; font-size: .72rem; color: var(--muted); }
+    .be-grid label.full { grid-column: 1 / -1; }
+    .be-grid input, .be-grid textarea { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: .45rem .55rem; font: inherit; font-size: .82rem; }
+    .be-grid textarea { min-height: 3.2rem; resize: vertical; line-height: 1.4; }
+    .be-foot { display: flex; justify-content: space-between; align-items: center; margin-top: .6rem; gap: 1rem; flex-wrap: wrap; }
+    @media (max-width: 560px) { .be-grid { grid-template-columns: 1fr; } }
     .seeds { margin-top: .3rem; padding-top: .6rem; border-top: 1px dashed var(--border); }
     .seeds-label { font-size: .82rem; font-weight: 600; margin-bottom: .4rem; }
     .seed-list { list-style: none; padding: 0; margin: 0 0 .5rem; display: grid; gap: .25rem; font-size: .85rem; }

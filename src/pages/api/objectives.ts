@@ -67,6 +67,15 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         if (error) throw error;
         return json({ ok: true, action, id });
       }
+      case 'update-beta': { // owner edits the dossier beta (trailhead/approach/rack/…) from the CMS
+        const oid = id ?? obj?.id;
+        const patch = obj?.beta ?? {};
+        const { data: cur } = await scoped(sb.from('objectives').select('beta').eq('id', oid)).maybeSingle();
+        const merged = { ...((cur?.beta as any) ?? {}), ...patch }; // form sends complete sub-objects/arrays
+        const { error } = await scoped(sb.from('objectives').update({ beta: merged }).eq('id', oid));
+        if (error) throw error;
+        return json({ ok: true, action, id: oid });
+      }
       default: return json({ ok: false, error: `unknown action ${action}` }, 400);
     }
   } catch (e: any) {
