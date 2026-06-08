@@ -3,6 +3,7 @@
 // configured, queries are scoped to a tenant and return that tenant's real data
 // (even if empty) — never mock — so tenants stay isolated.
 import { getSupabase, getSupabaseAdmin, supabaseConfigured } from './supabase';
+import { haversineMi } from './proximity';
 import * as mock from './mock';
 import type { Stop, Objective, Resource, Post, Detour, GearItem, Source } from './types';
 
@@ -99,6 +100,52 @@ export async function getProposedObjectives(tenantId?: string): Promise<Objectiv
   if (tid) q = q.eq('tenant_id', tid);
   const { data, error } = await q;
   return error ? [] : (data as Objective[]);
+}
+
+// ── Duplicate detection ──────────────────────────────────────────────────────
+// A real duplicate = the SAME route, not the same mountain. Stuart has a West Ridge
+// AND a North Ridge; Dragontail has Serpentine AND Backbone — different lines on one
+// peak are NOT dupes. So we match on FULL-NAME similarity (Jaccard over normalized
+// tokens), with nearby coords only as a secondary signal. "mt stuart west ridge" vs
+// "mt stuart complete north ridge" → Jaccard ~0.33 → correctly NOT flagged.
+const DUP_STOP = new Set(['the', 'via', 'and', 'for', 'a', 'of', 'to']);
+function dupTokens(s?: string): string[] {
+  return (s ?? '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')   // strip accents (Arête → arete)
+    .replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/)
+    .map((w) => (w === 'mount' ? 'mt' : w))
+    .filter((w) => w.length >= 3 && !DUP_STOP.has(w));
+}
+function jaccard(a: string[], b: string[]): number {
+  const A = new Set(a), B = new Set(b);
+  if (!A.size || !B.size) return 0;
+  let inter = 0; for (const x of A) if (B.has(x)) inter++;
+  return inter / (A.size + B.size - inter);
+}
+
+export interface DupHit { id: string; name: string; score: number; near_mi: number | null; level: 'likely' | 'possible'; }
+
+/** Find existing objectives that look like duplicates of a (name, lat, lng).
+ *  `likely` = strong name overlap (probably the same route); `possible` = moderate
+ *  overlap AND basically the same spot. Returns [] when it's clearly a new line. */
+export async function findDuplicateObjectives(
+  name: string, lat?: number | null, lng?: number | null, tenantId?: string, excludeId?: string,
+): Promise<DupHit[]> {
+  const objs = await getObjectives(tenantId, { includeProposed: true });
+  const nt = dupTokens(name);
+  if (!nt.length) return [];
+  const hits: DupHit[] = [];
+  for (const o of objs) {
+    if (o.id === excludeId) continue;
+    const score = jaccard(nt, dupTokens(o.name));
+    const near = (lat != null && lng != null && o.lat != null && o.lng != null)
+      ? haversineMi(lat, lng, o.lat as number, o.lng as number) : null;
+    let level: 'likely' | 'possible' | null = null;
+    if (score >= 0.6) level = 'likely';                                   // same route, name-wise
+    else if (score >= 0.45 && near != null && near <= 0.7) level = 'possible'; // close name + same spot
+    if (level) hits.push({ id: o.id, name: o.name, score: Math.round(score * 100) / 100, near_mi: near == null ? null : Math.round(near * 10) / 10, level });
+  }
+  return hits.sort((a, b) => b.score - a.score);
 }
 
 /** A single objective by id (for the /objectives/[id] dossier page). */

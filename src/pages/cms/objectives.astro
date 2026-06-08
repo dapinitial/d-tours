@@ -175,10 +175,17 @@ const proposed = objectives.filter((o) => o.status === 'proposed');
     document.getElementById('add-obj').addEventListener('click', async () => {
       const v = (id) => (document.getElementById(id)).value.trim();
       const name = v('o-name'); if (!name) { toast('Name it first', true); return; }
-      const j = await post('/api/objectives', { action: 'add', obj: {
+      const obj = {
         id: rid(), name, region: v('o-region'), grade: v('o-grade'), commitment: v('o-commit'),
         discipline: v('o-disc'), hazard: v('o-hazard'), severity: (document.getElementById('o-sev')).value,
-      }});
+      };
+      let j = await post('/api/objectives', { action: 'add', obj });
+      if (j.dup && j.dupes?.length) {
+        const d = j.dupes[0];
+        const ok = confirm(`⚠ Possible duplicate of "${d.name}" (${Math.round(d.score * 100)}% name match${d.near_mi != null ? `, ~${d.near_mi} mi away` : ''}).\n\nThis catches the SAME route added twice — different routes on the same peak are fine to add.\n\nAdd it anyway?`);
+        if (!ok) return;
+        j = await post('/api/objectives', { action: 'add', obj: { ...obj, force: true } });
+      }
       if (j.ok) location.reload();
     });
 

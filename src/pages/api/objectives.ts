@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getSupabaseAdmin } from '../../lib/supabase';
+import { findDuplicateObjectives } from '../../lib/data';
 import { supabaseServer, authConfigured } from '../../lib/supabaseServer';
 
 export const prerender = false;
@@ -43,6 +44,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       case 'add': {
         const row = { ...pick(obj), id: obj?.id, severity: obj?.severity ?? 'med', ...(tid ? { tenant_id: tid } : {}) };
         if (!row.name) return json({ ok: false, error: 'name required' }, 400);
+        // Dedup guard: refuse a likely-duplicate route unless the owner forces it.
+        if (!obj?.force) {
+          const dupes = await findDuplicateObjectives(obj.name, obj.lat, obj.lng, tid ?? undefined, obj.id);
+          if (dupes.length) return json({ ok: false, dup: true, error: `Possible duplicate of "${dupes[0].name}"`, dupes }, 409);
+        }
         const { error } = await sb.from('objectives').insert(row);
         if (error) throw error;
         return json({ ok: true, action, id: obj?.id });
