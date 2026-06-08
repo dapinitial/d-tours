@@ -39,6 +39,7 @@ const search = (name: string) => `https://www.youtube.com/results?search_query=$
                   <div class="sk-player"></div>
                   <div class="sk-actions">
                     {vid && <button class="sk-watch" type="button">▶ Watch</button>}
+                    {!vid && s.video_url && <a class="sk-read" href={s.video_url} target="_blank" rel="noopener">📖 Read →</a>}
                     <a class="sk-search" href={search(s.name)} target="_blank" rel="noopener">🔍 More</a>
                   </div>
                 </div>
@@ -91,5 +92,7 @@ const search = (name: string) => `https://www.youtube.com/results?search_query=$
     .sk-watch:hover { filter: brightness(1.08); }
     .sk-search { font-size: .82rem; color: var(--muted); text-decoration: none; }
     .sk-search:hover { color: var(--text); }
+    .sk-read { font-size: .82rem; color: var(--green-2); text-decoration: none; font-weight: 600; }
+    .sk-read:hover { color: var(--green); }
   </style>
 </Base>
