@@ -52,9 +52,17 @@ export const POST: APIRoute = async ({ request, url }) => {
 
   try { await notify({ subject, body, short: subject }); } catch {}
 
-  // De-dup: mark these so we don't re-ping.
   const sb = getSupabaseAdmin();
   if (sb) {
+    // 📍 Log to the rolled-past feed (reviewable + requeue-able in the CMS). Best-effort.
+    try {
+      await sb.from('proximity_log').insert(candidates.map((c) => ({
+        tenant_id: (c.o as any).tenant_id ?? null,
+        objective_id: c.o.id, name: c.o.name, grade: c.o.grade,
+        miles: c.miles, drive_hours: c.hrs, lat: pos.lat, lng: pos.lng, fix_at: pos.when ?? null,
+      })));
+    } catch {}
+    // De-dup: mark these so we don't re-ping (reset via the CMS to requeue).
     try { await sb.from('objectives').update({ alerted_at: new Date().toISOString() }).in('id', candidates.map((c) => c.o.id)); } catch {}
   }
 

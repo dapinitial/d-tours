@@ -62,6 +62,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         if (error) throw error;
         return json({ ok: true, action, id });
       }
+      case 'requeue': { // clear alerted_at so the proximity watcher can alert this climb again
+        const { error } = await scoped(sb.from('objectives').update({ alerted_at: null }).eq('id', id));
+        if (error) throw error;
+        return json({ ok: true, action, id });
+      }
       default: return json({ ok: false, error: `unknown action ${action}` }, 400);
     }
   } catch (e: any) {

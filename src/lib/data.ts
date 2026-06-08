@@ -247,6 +247,18 @@ export async function getSuggestions(tenantId?: string, status = 'pending') {
   return error ? [] : (data ?? []);
 }
 
+/** 📍 The rolled-past log — every proximity-watcher hit, newest first. Owner-only
+ *  (service role; the table has no public RLS policy). Server-side use only. */
+export async function getProximityLog(tenantId?: string, limit = 60) {
+  const sb = getSupabaseAdmin();
+  if (!sb) return [];
+  const tid = await resolveTid(tenantId);
+  let q = sb.from('proximity_log').select('*').order('created_at', { ascending: false }).limit(limit);
+  if (tid) q = q.eq('tenant_id', tid);
+  const { data, error } = await q;
+  return error ? [] : (data ?? []);
+}
+
 /** Pending music picks awaiting the owner's approval (CMS moderation). Owner-only
  *  → service role: the public policy only exposes 'approved' rows. Server-side use only. */
 export async function getPlaylistSuggestions(tenantId?: string, status = 'pending') {

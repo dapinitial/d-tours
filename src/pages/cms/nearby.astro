@@ -1,0 +1,91 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getProximityLog } from '../../lib/data';
+
+const tid = Astro.locals.tenantId;
+const log = await getProximityLog(tid, 80);
+const fmt = (d?: string | null) => d ? new Date(d).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+// Group repeated hits on the same objective so the feed reads "you've rolled past X 3 times".
+const byObj = new Map<string, any[]>();
+for (const r of log) {
+  const k = (r as any).objective_id ?? (r as any).name;
+  if (!byObj.has(k)) byObj.set(k, []);
+  byObj.get(k)!.push(r);
+}
+const groups = [...byObj.values()].sort((a, b) => new Date(b[0].created_at).getTime() - new Date(a[0].created_at).getTime());
+---
+<Base title="D-Tours · Rolled-past log">
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">📍 Rolled-past</p>
+        <h2>What Shotgun flagged as you drove by</h2>
+        <p>Every proximity-watcher hit, newest first — the climbs you rolled within range of. <strong>Requeue</strong> one to clear its alert flag so the watcher will ping you about it again next time you're near.</p>
+        <a href="/cms" class="muted back">← back to CMS</a>
+      </div>
+
+      {groups.length === 0 ? (
+        <div class="card empty">
+          <p>No proximity hits logged yet.</p>
+          <p class="muted tiny">The watcher logs here when you roll within range of an objective on a live GPS fix (it skips the mock position). On the road, the cloud cron fills this automatically.</p>
+        </div>
+      ) : (
+        <div class="feed">
+          {groups.map((rows) => {
+            const r = rows[0];
+            const oid = (r as any).objective_id;
+            return (
+              <div class="hit card" data-oid={oid}>
+                <div class="hit-main">
+                  <div class="hit-top">
+                    <span class="hit-name">{oid ? <a href={`/objectives/${oid}`} target="_blank">{r.name}</a> : r.name}</span>
+                    {r.grade && <span class="mono hit-grade">{r.grade}</span>}
+                  </div>
+                  <div class="hit-meta muted">
+                    {typeof r.miles === 'number' && <span>~{r.miles} mi</span>}
+                    {r.drive_hours != null && <span>· ~{r.drive_hours}h drive</span>}
+                    <span>· flagged {fmt(r.created_at)}</span>
+                    {rows.length > 1 && <span class="badge">×{rows.length}</span>}
+                  </div>
+                  {r.fix_at && <div class="muted tiny">GPS fix: {fmt(r.fix_at)}</div>}
+                </div>
+                {oid && <button class="btn ghost sm requeue">🔔 Requeue</button>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div id="toast" class="toast"></div>
+    </div>
+  </section>
+
+  <script>
+    const toastEl = document.getElementById('toast');
+    const toast = (m: string, err = false) => { toastEl.textContent = m; toastEl.className = 'toast show' + (err ? ' err' : ''); setTimeout(() => toastEl.className = 'toast', 1600); };
+    document.querySelectorAll('.hit .requeue').forEach((b) => b.addEventListener('click', async () => {
+      const card = (b as HTMLElement).closest('.hit') as HTMLElement;
+      const id = card.dataset.oid;
+      const r = await fetch('/api/objectives', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'requeue', id }) });
+      const j = await r.json();
+      toast(j.ok ? '🔔 Requeued — the watcher will ping you again' : (j.error || 'Failed'), !j.ok);
+    }));
+  </script>
+
+  <style>
+    .container { width: min(100% - 2.5rem, 820px); }
+    .back { display: inline-block; margin-top: .5rem; font-size: .9rem; }
+    .empty { text-align: center; padding: 2rem; }
+    .feed { display: grid; gap: .7rem; }
+    .hit { display: flex; align-items: center; gap: 1rem; }
+    .hit-main { flex: 1; min-width: 0; }
+    .hit-top { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+    .hit-name { font-weight: 700; } .hit-name a { color: var(--text); } .hit-name a:hover { color: var(--green); }
+    .hit-grade { font-size: .82rem; color: var(--muted); }
+    .hit-meta { display: flex; gap: .35rem; flex-wrap: wrap; font-size: .85rem; margin-top: .25rem; }
+    .badge { background: rgba(52,211,153,.15); color: var(--green); border-radius: 999px; padding: 0 .45rem; font-weight: 700; }
+    .tiny { font-size: .76rem; }
+    .toast { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--green); color: #06210f; padding: .6rem 1.1rem; border-radius: 999px; font-weight: 700; opacity: 0; pointer-events: none; transition: all .3s var(--ease); z-index: 300; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.err { background: var(--red); }
+  </style>
+</Base>
