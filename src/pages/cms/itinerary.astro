@@ -1,8 +1,11 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { getStops } from '../../lib/data';
+import { getStops, getProposedObjectives } from '../../lib/data';
 const tid = Astro.locals.tenantId;
 const stops = (await getStops(tid)).sort((a, b) => a.order - b.order);
+// 📥 The suggestion box: scouted climbs (status='proposed') waiting for a spot on
+// the route. Adding one drops it onto the timeline + promotes it out of the queue.
+const proposed = await getProposedObjectives(tid);
 const flexes = ['hard', 'soft', 'open'];
 ---
 <Base title="D-Tours · Edit Itinerary">
@@ -14,6 +17,25 @@ const flexes = ['hard', 'soft', 'open'];
         <p>Drag the ⠿ handle to reorder. Edit any field — it saves on blur. Everything here is owner-only and scoped to your trip.</p>
         <a href="/cms" class="muted back">← back to CMS</a>
       </div>
+
+      {proposed.length > 0 && (
+        <div class="suggestion-box">
+          <h3>📥 Suggestion box <span class="sb-count">{proposed.length}</span></h3>
+          <p class="muted tiny">Scouted climbs awaiting a spot on the route. <strong>Add one</strong> → it drops onto the timeline below, then drag ⠿ it into place.</p>
+          <div class="sb-list">
+            {proposed.map((o) => (
+              <div class="sb-item" data-oid={o.id} data-name={o.name} data-grade={o.grade ?? ''} data-region={o.region ?? ''} data-lat={o.lat ?? ''} data-lng={o.lng ?? ''}>
+                <span class="sb-emoji">🧗</span>
+                <div class="sb-meta">
+                  <a href={`/objectives/${o.id}`} target="_blank" class="sb-name">{o.name}</a>
+                  <span class="muted tiny">{o.grade}{o.region ? ` · ${o.region}` : ''}</span>
+                </div>
+                <button class="btn sm sb-add">＋ Add to route</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div id="rows" class="rows">
         {stops.map((s) => (
@@ -113,11 +135,39 @@ const flexes = ['hard', 'soft', 'open'];
       if (j.ok) location.reload();
     });
 
+    // ── suggestion box → drop a scouted climb onto the route (as a stop) + promote it ──
+    document.querySelectorAll('.sb-add').forEach((btn) => btn.addEventListener('click', async () => {
+      const item = btn.closest('.sb-item');
+      const order = list.querySelectorAll('.row').length + 1;
+      const stop = {
+        id: 'stop-' + (item.dataset.oid || Math.random().toString(36).slice(2)),
+        name: item.dataset.name, emoji: '🧗', sub: item.dataset.grade,
+        region: item.dataset.region, flex: 'soft', status: 'confirmed', kind: 'sidequest', order,
+        ...(item.dataset.lat ? { lat: parseFloat(item.dataset.lat) } : {}),
+        ...(item.dataset.lng ? { lng: parseFloat(item.dataset.lng) } : {}),
+      };
+      const j = await post({ action: 'add', stop });
+      if (!j.ok) return;
+      // promote the objective out of the proposed queue so it's confirmed + public
+      await fetch('/api/objectives', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'promote', id: item.dataset.oid }) });
+      toast('Added to route ✓'); location.reload();
+    }));
+
     wireFields(list); wireDelete(list); wireDrag(list);
   </script>
 
   <style>
     .back { display: inline-block; margin-top: .5rem; font-size: .9rem; }
+    .suggestion-box { background: linear-gradient(180deg, rgba(56,189,248,.08), var(--panel)); border: 1px solid rgba(56,189,248,.3); border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1.3rem; }
+    .suggestion-box h3 { margin: 0 0 .15rem; }
+    .sb-count { font-size: .72rem; background: rgba(56,189,248,.2); color: var(--sky); padding: .1rem .5rem; border-radius: 999px; vertical-align: middle; }
+    .sb-list { display: grid; gap: .5rem; margin-top: .7rem; }
+    .sb-item { display: flex; align-items: center; gap: .7rem; background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: .5rem .7rem; }
+    .sb-emoji { font-size: 1.2rem; }
+    .sb-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .1rem; }
+    .sb-name { color: var(--text); font-weight: 700; }
+    .sb-name:hover { color: var(--green); }
+    .sb-add { white-space: nowrap; }
     .rows { display: grid; gap: .6rem; }
     .row { display: flex; align-items: flex-start; gap: .7rem; padding: .8rem; background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 12px; }
     .row.dragging { opacity: .5; border-color: var(--green); }

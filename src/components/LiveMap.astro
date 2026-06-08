@@ -24,7 +24,7 @@ const geoPosts = posts
     <span class="chip" style="--c:#34d399">● David</span>
     <span class="chip bro" style="--c:#fb923c" hidden>● Derek</span>
     <span class="chip bro" style="--c:#fbbf24" hidden>◆ rendezvous</span>
-    <button id="bros-toggle" class="bros-btn" hidden>👬 See the brothers</button>
+    <button id="bros-toggle" class="bros-btn" hidden>🚐🚐 See the brothers</button>
   </div>
 </div>
 
@@ -100,8 +100,8 @@ const geoPosts = posts
       let shown = false;
       btn.addEventListener('click', () => {
         shown = !shown;
-        if (shown) { others.addTo(map); map.fitBounds(allBounds.pad(0.15)); btn.textContent = '👤 Just David'; }
-        else { map.removeLayer(others); map.fitBounds(davidBounds.pad(0.15)); btn.textContent = '👬 See the brothers'; }
+        if (shown) { others.addTo(map); map.fitBounds(allBounds.pad(0.15)); btn.textContent = '🚐 Just David'; }
+        else { map.removeLayer(others); map.fitBounds(davidBounds.pad(0.15)); btn.textContent = '🚐🚐 See the brothers'; }
         broChips.forEach((c) => (c.hidden = !shown));
       });
     }
