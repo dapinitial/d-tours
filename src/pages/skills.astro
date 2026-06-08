@@ -20,7 +20,7 @@ const search = (name: string) => `https://www.youtube.com/results?search_query=$
       </div>
 
       {cats.map((cat) => (
-        <div class="skill-cat" data-reveal>
+        <div class="skill-cat">
           <h3>{cat}</h3>
           <div class="skill-grid">
             {skills.filter((s) => s.category === cat).map((s) => {
