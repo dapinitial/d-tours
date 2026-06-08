@@ -3,6 +3,11 @@ import type { Objective } from '../lib/types';
 interface Props { objectives: Objective[]; }
 const { objectives } = Astro.props;
 const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chip red' };
+// WFH-friendly crag vs weekend alpine mission.
+const dayBadge: Record<string, { icon: string; label: string }> = {
+  crag: { icon: '🪨', label: 'Crag · WFH' },
+  alpine: { icon: '⛰️', label: 'Weekend alpine' },
+};
 ---
 <div class="table-wrap" data-reveal>
   <table class="data">
@@ -18,7 +23,7 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
     <tbody>
       {objectives.map((o) => (
         <tr class="clickable" data-href={`/objectives/${o.id}`} title="Open dossier">
-          <td><strong><a href={`/objectives/${o.id}`} class="obj-link">{o.name}</a></strong> {(o.beta || o.gpx_url) && <span class="dossier-dot" title="Dossier ready">📋</span>}{o.discipline && <div class="muted disc">{o.discipline}</div>}</td>
+          <td><strong><a href={`/objectives/${o.id}`} class="obj-link">{o.name}</a></strong> {(o.beta || o.gpx_url) && <span class="dossier-dot" title="Dossier ready">📋</span>}<div class="tags">{o.discipline && <span class="muted disc">{o.discipline}</span>}{o.day_type && dayBadge[o.day_type] && <span class={`daytag ${o.day_type}`} title={dayBadge[o.day_type].label}>{dayBadge[o.day_type].icon} {dayBadge[o.day_type].label}</span>}</div></td>
           <td class="muted">{o.region}</td>
           <td>{o.commitment}</td>
           <td class="mono">{o.grade}</td>
@@ -46,6 +51,10 @@ const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chi
   tr.clickable:hover { background: rgba(52,211,153,.06); }
   tr.clickable:hover .obj-link { color: var(--green); }
   .dossier-dot { font-size: .8rem; }
-  .disc { font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; margin-top: .2rem; }
+  .tags { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; margin-top: .25rem; }
+  .disc { font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; }
+  .daytag { font-size: .68rem; padding: .1rem .45rem; border-radius: 999px; border: 1px solid var(--border-2); white-space: nowrap; }
+  .daytag.crag { color: var(--green-2); border-color: rgba(52,211,153,.4); background: rgba(52,211,153,.08); }
+  .daytag.alpine { color: #93c5fd; border-color: rgba(147,197,253,.4); background: rgba(147,197,253,.08); }
   .hint { font-size: .8rem; margin-top: .6rem; }
 </style>

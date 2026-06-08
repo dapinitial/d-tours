@@ -142,6 +142,7 @@ export interface Objective {
   hazard: string;
   severity: 'low' | 'med' | 'high';
   discipline?: string;   // trad / sport / scramble / alpine
+  day_type?: 'crag' | 'alpine'; // crag = WFH-friendly near town/cell; alpine = weekend committing mission
   beta?: ObjectiveBeta;  // Shotgun-compiled dossier (jsonb)
   gpx_url?: string;      // downloadable GPX track
   status?: 'confirmed' | 'proposed';  // scouted alternatives = 'proposed' until promoted
