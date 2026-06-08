@@ -17,7 +17,7 @@ async function requireOwner(cookies: any, headers: Headers): Promise<{ tenantId:
   return { tenantId: crew.tenant_id };
 }
 
-const FIELDS = ['name', 'region', 'commitment', 'grade', 'hazard', 'severity', 'discipline', 'day_type', 'gpx_url', 'status', 'note'] as const;
+const FIELDS = ['name', 'region', 'commitment', 'grade', 'hazard', 'severity', 'discipline', 'day_type', 'gpx_url', 'gpx_verified', 'status', 'note'] as const;
 function pick(o: any) {
   const out: Record<string, any> = {};
   for (const k of FIELDS) if (o?.[k] !== undefined) out[k] = o[k] === '' ? null : o[k];

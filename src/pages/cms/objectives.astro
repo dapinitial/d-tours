@@ -5,6 +5,7 @@ const tid = Astro.locals.tenantId;
 const [objectives, sources] = await Promise.all([getObjectives(tid, { includeProposed: true }), getSources(tid)]);
 const seedsFor = (oid: string) => sources.filter((s: any) => s.objective_id === oid);
 const sevs = ['low', 'med', 'high'];
+const days: [string, string][] = [['', '—'], ['crag', '🪨 Crag · WFH'], ['alpine', '⛰️ Weekend alpine']];
 const TAGS = ['mountain-project', 'wta', 'summitpost', 'alltrails', 'gpx', 'forecast', 'avalanche', 'general'];
 const needsResearch = objectives.filter((o) => !o.beta).length;
 const proposed = objectives.filter((o) => o.status === 'proposed');
@@ -82,10 +83,19 @@ const proposed = objectives.filter((o) => o.status === 'proposed');
                 <input class="sm" data-field="grade" value={o.grade ?? ''} placeholder="Grade" />
                 <input class="sm" data-field="discipline" value={o.discipline ?? ''} placeholder="Discipline" />
                 <select class="sm" data-field="severity">{sevs.map((s) => <option value={s} selected={o.severity === s}>{s}</option>)}</select>
+                <select class="sm" data-field="day_type" title="Crag (WFH) vs weekend alpine">{days.map(([val, l]) => <option value={val} selected={(o.day_type ?? '') === val}>{l}</option>)}</select>
               </div>
               <div class="meta-row">
                 <input class="wide" data-field="commitment" value={o.commitment ?? ''} placeholder="Commitment" />
                 <input class="wide" data-field="hazard" value={o.hazard ?? ''} placeholder="Key hazard" />
+              </div>
+              <div class="gpx-row">
+                <span class="gpx-lbl">🛰️ GPX</span>
+                {o.gpx_url
+                  ? <span class="gpx-current"><a href={o.gpx_url} target="_blank" rel="noopener">⬇ track</a> <span class={`gpx-st ${o.gpx_verified ? 'ok' : 'prov'}`}>{o.gpx_verified ? '✓ verified' : '⚠ provisional — verify in Gaia'}</span></span>
+                  : <span class="muted tiny gpx-current">none yet</span>}
+                {o.gpx_url && !o.gpx_verified && <button class="btn ghost sm gpx-verify" type="button">Mark verified</button>}
+                <label class="btn ghost sm gpx-up">⬆ Upload .gpx<input type="file" accept=".gpx" hidden /></label>
               </div>
 
               <div class="seeds">
@@ -158,6 +168,24 @@ const proposed = objectives.filter((o) => o.status === 'proposed');
       const j = await post('/api/objectives', { action: 'remove', id: b.dataset.id });
       if (j.ok) { b.closest('.prop')?.remove(); toast('Dismissed'); }
     }));
+
+    // GPX: upload a real track (David's own from Gaia → marked verified) / mark a provisional one verified
+    document.querySelectorAll('.obj').forEach((card) => {
+      const id = card.dataset.id;
+      const up = card.querySelector('.gpx-up input');
+      up?.addEventListener('change', async () => {
+        const file = up.files && up.files[0]; if (!file) return;
+        toast('Uploading GPX…');
+        const fd = new FormData(); fd.append('file', file); fd.append('id', id);
+        const r = await fetch('/api/gpx', { method: 'POST', body: fd });
+        const j = await r.json();
+        if (j.ok) { toast('GPX saved ✓'); location.reload(); } else toast(j.error || 'Upload failed', true);
+      });
+      card.querySelector('.gpx-verify')?.addEventListener('click', async () => {
+        const j = await post('/api/objectives', { action: 'update', id, obj: { gpx_verified: true } });
+        if (j.ok) { toast('Marked verified ✓'); location.reload(); }
+      });
+    });
   </script>
 
   <style>
@@ -190,6 +218,12 @@ const proposed = objectives.filter((o) => o.status === 'proposed');
     .meta-row { display: flex; gap: .5rem; flex-wrap: wrap; }
     .meta-row .sm { flex: 1; min-width: 7rem; font-size: .85rem; }
     .meta-row .wide { flex: 1; min-width: 12rem; font-size: .85rem; }
+    .gpx-row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; font-size: .85rem; }
+    .gpx-lbl { font-weight: 600; }
+    .gpx-current a { color: var(--sky); }
+    .gpx-st.ok { color: var(--green); }
+    .gpx-st.prov { color: var(--amber); }
+    .gpx-up { cursor: pointer; margin-left: auto; }
     .seeds { margin-top: .3rem; padding-top: .6rem; border-top: 1px dashed var(--border); }
     .seeds-label { font-size: .82rem; font-weight: 600; margin-bottom: .4rem; }
     .seed-list { list-style: none; padding: 0; margin: 0 0 .5rem; display: grid; gap: .25rem; font-size: .85rem; }

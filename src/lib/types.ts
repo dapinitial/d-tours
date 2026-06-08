@@ -145,6 +145,7 @@ export interface Objective {
   day_type?: 'crag' | 'alpine'; // crag = WFH-friendly near town/cell; alpine = weekend committing mission
   beta?: ObjectiveBeta;  // Shotgun-compiled dossier (jsonb)
   gpx_url?: string;      // downloadable GPX track
+  gpx_verified?: boolean;// false = auto-found provisional (verify in Gaia); true = owner-uploaded/confirmed
   status?: 'confirmed' | 'proposed';  // scouted alternatives = 'proposed' until promoted
   note?: string;         // why it's proposed / what it swaps for
   lat?: number;          // for proximity / "how far am I" + proactive alerts

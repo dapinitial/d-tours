@@ -67,7 +67,7 @@ const checklist = [
           {obj.discipline && <span class="chip sky">{obj.discipline}</span>}
           <span class={sev[obj.severity]}>{obj.hazard}</span>
         </div>
-        {obj.gpx_url && <a class="btn gpx" href={obj.gpx_url} target="_blank" rel="noopener">⬇ GPX / track</a>}
+        {obj.gpx_url && <a class="btn gpx" href={obj.gpx_url} target="_blank" rel="noopener">⬇ GPX / track{!obj.gpx_verified && <span class="gpx-prov" title="Auto-found track — verify against Gaia">⚠ unverified</span>}</a>}
       </header>
 
       {b.at_a_glance && (
@@ -346,6 +346,7 @@ const checklist = [
     .obj-head .meta { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
     .obj-head .mono { font-family: var(--font-mono); font-size: .8rem; color: var(--muted); }
     .btn.gpx { display: inline-block; }
+    .gpx-prov { margin-left: .4rem; font-size: .72rem; font-weight: 600; color: #1a1205; background: var(--amber, #fbbf24); padding: .05rem .35rem; border-radius: 6px; }
     .pending { text-align: center; display: grid; gap: .3rem; padding: 2rem; }
     .pending .big { font-size: 2.5rem; }
     .summary { font-size: 1.05rem; line-height: 1.6; margin: 1.2rem 0; }
