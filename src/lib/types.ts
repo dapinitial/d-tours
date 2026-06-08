@@ -85,6 +85,9 @@ export interface ObjectiveBeta {
   at_a_glance?: { hike_type?: string; trail?: string; road?: string; bugs?: string; snow?: string }; // WTA-style quick status, bubbled to top
   fishing?: string;       // can we fish? species, license, where
   trailhead?: { name?: string; gmaps_url?: string; drive?: string; lat?: number; lng?: number }; // directions to the TH
+  approach?: string;      // the hike/scramble from the trailhead to the base of the climb
+  descent?: string;       // the standard way down (distinct from `bail`, the emergency retreat)
+  season?: string;        // when the route is in condition
   routes?: { name: string; grade?: string; note?: string; url?: string }[]; // incl. the main + nearby
   rack?: string;          // "Doubles to #3, single #4"
   ropes?: string;         // "60m doubles" / "70m single"

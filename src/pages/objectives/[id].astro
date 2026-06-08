@@ -123,6 +123,15 @@ const checklist = [
         </section>
       )}
 
+      {(b.approach || b.descent || b.season) && (
+        <section class="block">
+          <h2>🥾 Approach · descent · season</h2>
+          {b.approach && <p><strong>Approach:</strong> {b.approach}</p>}
+          {b.descent && <p><strong>⬇️ Descent:</strong> {b.descent}</p>}
+          {b.season && <p><strong>🗓️ Season:</strong> {b.season}</p>}
+        </section>
+      )}
+
       <div class="cols">
         {(b.rack || b.ropes || b.footwear || b.mountaineering || b.food) && (
           <section class="block">
