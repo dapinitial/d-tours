@@ -3,6 +3,7 @@ import { getObjectives } from '../../lib/data';
 import { getSupabaseAdmin } from '../../lib/supabase';
 import { getLivePosition, haversineMi, driveHours } from '../../lib/proximity';
 import { notify } from '../../lib/notifier';
+import { siteUrl } from '../../lib/site';
 
 export const prerender = false;
 
@@ -39,8 +40,9 @@ export const POST: APIRoute = async ({ request, url }) => {
 
   if (!candidates.length) return json({ ok: true, position: pos, alerted: 0 });
 
-  // One email listing them all (links to the dossiers).
-  const origin = new URL(request.url).origin;
+  // One email listing them all (links to the dossiers). Use the PUBLIC site URL —
+  // behind DO's proxy `request.url` is the internal host, which gave localhost links.
+  const origin = siteUrl(request);
   const lines = candidates.map((c) => {
     const tag = c.o.status === 'proposed' ? ' (a swap we\'re weighing)' : '';
     return `🧗 ${c.o.name} — ${c.o.grade} · ~${c.hrs}h away${tag}\n   ${origin}/objectives/${c.o.id}`;

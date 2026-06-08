@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from '../../lib/supabase';
 import { getLivePosition, haversineMi, driveHours } from '../../lib/proximity';
 import { sendWindow, windowLabel } from '../../lib/weather';
 import { notify } from '../../lib/notifier';
+import { siteUrl } from '../../lib/site';
 
 export const prerender = false;
 
@@ -44,7 +45,7 @@ export const POST: APIRoute = async ({ request, url }) => {
   if (!sb) return json({ ok: true, mock: true });
 
   const pos = await getLivePosition();  // for send-window proximity alerts
-  const origin = new URL(request.url).origin;
+  const origin = siteUrl(request);      // public base URL (not the internal proxy host)
   const alerts: { name: string; id: string; label: string; hrs: number }[] = [];
   let updated = 0;
 
