@@ -18,7 +18,7 @@ async function requireOwner(cookies: any, headers: Headers): Promise<{ tenantId:
   return { tenantId: crew.tenant_id };
 }
 
-const FIELDS = ['name', 'region', 'commitment', 'grade', 'hazard', 'severity', 'discipline', 'day_type', 'gpx_url', 'gpx_verified', 'status', 'note'] as const;
+const FIELDS = ['name', 'region', 'commitment', 'grade', 'hazard', 'severity', 'discipline', 'day_type', 'sort', 'gpx_url', 'gpx_verified', 'status', 'note'] as const;
 function pick(o: any) {
   const out: Record<string, any> = {};
   for (const k of FIELDS) if (o?.[k] !== undefined) out[k] = o[k] === '' ? null : o[k];
@@ -32,7 +32,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   let payload: any = {};
   try { payload = await request.json(); } catch {}
-  const { action, id, obj } = payload;
+  const { action, id, obj, items } = payload;
   if (!action) return json({ ok: false, error: 'missing action' }, 400);
 
   const sb = getSupabaseAdmin();
@@ -67,6 +67,15 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         const { error } = await scoped(sb.from('objectives').update({ status: 'confirmed' }).eq('id', id));
         if (error) throw error;
         return json({ ok: true, action, id });
+      }
+      case 'reorder': { // drag-set trip-sequence order: [{ id, sort }, …]
+        const list = Array.isArray(items) ? items : [];
+        for (const it of list) {
+          if (!it?.id) continue;
+          const { error } = await scoped(sb.from('objectives').update({ sort: it.sort }).eq('id', it.id));
+          if (error) throw error;
+        }
+        return json({ ok: true, action, count: list.length });
       }
       case 'requeue': { // clear alerted_at so the proximity watcher can alert this climb again
         const { error } = await scoped(sb.from('objectives').update({ alerted_at: null }).eq('id', id));

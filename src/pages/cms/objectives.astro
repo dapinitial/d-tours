@@ -21,6 +21,26 @@ const proposed = objectives.filter((o) => o.status === 'proposed');
         {needsResearch > 0 && <p class="research-note">🔍 <strong>{needsResearch}</strong> objective{needsResearch === 1 ? '' : 's'} awaiting a Shotgun dossier pass.</p>}
       </div>
 
+      <div class="view-toggle">
+        <button id="view-edit" class="vt active" type="button">🗂️ Edit &amp; beta</button>
+        <button id="view-order" class="vt" type="button">🔀 Reorder route ({objectives.length})</button>
+      </div>
+
+      <div id="order-list" class="order-list" hidden>
+        <p class="muted tiny ord-hint">Drag ⠿ to set the order you'll hit these on the trip (top = first). Saves automatically.</p>
+        {objectives.map((o) => (
+          <div class="ord-row" draggable="true" data-id={o.id}>
+            <span class="ord-handle" title="Drag to reorder">⠿</span>
+            <span class="ord-grade mono">{o.grade}</span>
+            <span class="ord-body">
+              <span class="ord-name">{o.name}</span>
+              <span class="ord-region muted">{o.region}{o.day_type ? ` · ${o.day_type === 'crag' ? '🪨' : '⛰️'}` : ''}</span>
+            </span>
+            {o.status === 'proposed' && <span class="ord-badge">proposed</span>}
+          </div>
+        ))}
+      </div>
+
       {proposed.length > 0 && (
         <div class="card proposed-card">
           <h3>🧭 Shotgun's proposed alternatives <span class="tag suggested">{proposed.length}</span></h3>
@@ -149,6 +169,49 @@ const proposed = objectives.filter((o) => o.status === 'proposed');
     const post = async (url, body) => { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const j = await r.json(); if (!j.ok) toast(j.error || 'Failed', true); return j; };
     const rid = () => (crypto.randomUUID ? crypto.randomUUID() : 'o-' + Math.random().toString(36).slice(2));
 
+    // ── view toggle: Edit cards ⇄ Reorder list ──
+    const orderList = document.getElementById('order-list');
+    const vEdit = document.getElementById('view-edit');
+    const vOrder = document.getElementById('view-order');
+    const editEls = ['.proposed-card', '.add-card', '#rows'].map((s) => document.querySelector(s)).filter(Boolean);
+    function showView(order) {
+      orderList.hidden = !order;
+      editEls.forEach((el) => (el.hidden = order));
+      vOrder.classList.toggle('active', order);
+      vEdit.classList.toggle('active', !order);
+    }
+    vEdit?.addEventListener('click', () => showView(false));
+    vOrder?.addEventListener('click', () => showView(true));
+
+    // ── drag-to-reorder the trip sequence ──
+    let dragEl = null;
+    orderList?.querySelectorAll('.ord-row').forEach((row) => {
+      row.addEventListener('dragstart', () => { dragEl = row; setTimeout(() => row.classList.add('dragging'), 0); });
+      row.addEventListener('dragend', () => { row.classList.remove('dragging'); dragEl = null; persistOrder(); });
+    });
+    orderList?.addEventListener('dragover', (e) => {
+      e.preventDefault(); if (!dragEl) return;
+      const after = afterEl(e.clientY);
+      if (after == null) orderList.appendChild(dragEl); else orderList.insertBefore(dragEl, after);
+    });
+    function afterEl(y) {
+      const els = [...orderList.querySelectorAll('.ord-row:not(.dragging)')];
+      return els.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        return (offset < 0 && offset > closest.offset) ? { offset, element: child } : closest;
+      }, { offset: -Infinity }).element;
+    }
+    let saveTimer;
+    function persistOrder() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(async () => {
+        const items = [...orderList.querySelectorAll('.ord-row')].map((r, i) => ({ id: r.dataset.id, sort: (i + 1) * 10 }));
+        const j = await post('/api/objectives', { action: 'reorder', items });
+        if (j.ok) toast('Order saved ✓');
+      }, 400);
+    }
+
     // inline edits
     document.querySelectorAll('.obj [data-field]').forEach((inp) => inp.addEventListener('change', async () => {
       const card = inp.closest('.obj');
@@ -235,6 +298,21 @@ const proposed = objectives.filter((o) => o.status === 'proposed');
   <style>
     .back { display: inline-block; margin-top: .5rem; font-size: .9rem; }
     .research-note { margin-top: .7rem; color: var(--amber); font-size: .9rem; }
+    .view-toggle { display: flex; gap: .5rem; margin-bottom: 1.2rem; }
+    .vt { background: var(--bg-2); border: 1px solid var(--border); border-radius: 999px; color: var(--muted); padding: .4rem .9rem; font: inherit; font-size: .85rem; cursor: pointer; }
+    .vt.active { background: rgba(52,211,153,.12); border-color: var(--green); color: var(--green); font-weight: 700; }
+    .order-list { display: grid; gap: .35rem; margin-bottom: 1.5rem; }
+    .ord-hint { margin-bottom: .5rem; }
+    .ord-row { display: flex; align-items: center; gap: .7rem; padding: .55rem .7rem; background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 10px; }
+    .ord-row.dragging { opacity: .5; border-color: var(--green); }
+    .ord-handle { cursor: grab; color: var(--faint); font-size: 1.1rem; user-select: none; }
+    .ord-handle:active { cursor: grabbing; }
+    .ord-grade { font-size: .76rem; color: var(--muted); min-width: 6.5rem; white-space: nowrap; }
+    .ord-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .1rem; }
+    .ord-name { font-weight: 700; font-size: .9rem; }
+    .ord-region { font-size: .75rem; }
+    .ord-badge { font-size: .6rem; text-transform: uppercase; letter-spacing: .06em; color: var(--sky); border: 1px dashed rgba(56,189,248,.5); border-radius: 999px; padding: .1rem .4rem; white-space: nowrap; }
+    @media (max-width: 560px) { .ord-grade { display: none; } }
     .add-card { margin-bottom: 1.5rem; }
     .proposed-card { margin-bottom: 1.5rem; border-color: rgba(56,189,248,.35); background: linear-gradient(180deg, rgba(56,189,248,.07), var(--panel)); }
     .tag { font-size: .7rem; padding: .1rem .5rem; border-radius: 999px; }

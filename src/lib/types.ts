@@ -146,6 +146,7 @@ export interface Objective {
   severity: 'low' | 'med' | 'high';
   discipline?: string;   // trad / sport / scramble / alpine
   day_type?: 'crag' | 'alpine'; // crag = WFH-friendly near town/cell; alpine = weekend committing mission
+  sort?: number;         // manual trip-sequence order (lower = earlier on the route); drag-set in the CMS
   beta?: ObjectiveBeta;  // Shotgun-compiled dossier (jsonb)
   gpx_url?: string;      // downloadable GPX track
   gpx_verified?: boolean;// false = auto-found provisional (verify in Gaia); true = owner-uploaded/confirmed

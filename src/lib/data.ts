@@ -64,7 +64,8 @@ export async function getObjectives(tenantId?: string, opts: { includeProposed?:
   const sb = getSupabase();
   if (!sb) return mock.objectives;
   const tid = await resolveTid(tenantId);
-  let q = sb.from('objectives').select('*');
+  // Ordered by the manual trip-sequence `sort` (drag-set in the CMS), nulls last.
+  let q = sb.from('objectives').select('*').order('sort', { ascending: true, nullsFirst: false });
   if (tid) q = q.eq('tenant_id', tid);
   if (!opts.includeProposed) q = q.neq('status', 'proposed'); // hide scouted alternatives from public
   const { data, error } = await q;
