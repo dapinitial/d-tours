@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Shotgun local morning-brief — launchd agent.
+  Runs bin/shotgun-brief.mjs each morning at 7:00 local (clock travels with the laptop).
+  Setup (replace __WATCH_TOKEN__ with the real WATCH_TOKEN as you copy it OUT of the repo,
+  so the secret never lands in git):
+
+    sed 's/__WATCH_TOKEN__/wt_your_real_token/' bin/com.shotgun.brief.plist \
+      > ~/Library/LaunchAgents/com.shotgun.brief.plist
+    launchctl load ~/Library/LaunchAgents/com.shotgun.brief.plist
+
+  Test once, now:   WATCH_TOKEN=wt_… node bin/shotgun-brief.mjs
+  Watch the log:    tail -f /tmp/shotgun-brief.log
+  Add a midday run: duplicate the <dict> inside StartCalendarInterval as an <array> of dicts.
+  Unload:           launchctl unload ~/Library/LaunchAgents/com.shotgun.brief.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.shotgun.brief</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>cd /Users/dpuerto/Sites/d-tours &amp;&amp; WATCH_TOKEN=__WATCH_TOKEN__ node bin/shotgun-brief.mjs</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>7</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>/tmp/shotgun-brief.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/shotgun-brief.log</string>
+</dict>
+</plist>
