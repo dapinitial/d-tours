@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from '../../lib/supabase';
 import { getLivePosition, haversineMi, driveHours } from '../../lib/proximity';
 import { notify } from '../../lib/notifier';
 import { siteUrl } from '../../lib/site';
+import { smartBrief } from '../../lib/brief';
 
 export const prerender = false;
 
@@ -40,8 +41,10 @@ export const POST: APIRoute = async ({ request, url }) => {
 
   if (!candidates.length) return json({ ok: true, position: pos, alerted: 0 });
 
-  // One email listing them all (links to the dossiers). Use the PUBLIC site URL —
-  // behind DO's proxy `request.url` is the internal host, which gave localhost links.
+  const sb = getSupabaseAdmin();
+
+  // Dossier links. Use the PUBLIC site URL — behind DO's proxy `request.url` is the
+  // internal host, which used to give localhost links.
   const origin = siteUrl(request);
   const lines = candidates.map((c) => {
     const tag = c.o.status === 'proposed' ? ' (a swap we\'re weighing)' : '';
@@ -50,11 +53,37 @@ export const POST: APIRoute = async ({ request, url }) => {
   const subject = candidates.length === 1
     ? `🛰️ You're ~${candidates[0].hrs}h from ${candidates[0].o.name}`
     : `🛰️ ${candidates.length} awesome climbs within ${hours}h of you`;
-  const body = `Rolling near some good stuff${pos.when ? ` (last fix: ${pos.when})` : ''}:\n\n${lines.join('\n\n')}\n\nWant it? It's already in your dossiers.`;
+
+  // 🧠 Smart brief: turn the bare list into a real recommendation — weather window,
+  // crag-vs-alpine fit for the day, rest signal, drive/spice. Falls back to the plain
+  // list if ANTHROPIC_API_KEY is unset or the call errors, so the alert never blocks.
+  let recent: { title: string; when?: string | null }[] = [];
+  if (sb) {
+    try {
+      const { data } = await sb.from('posts').select('title, created_at').order('created_at', { ascending: false }).limit(4);
+      recent = (data ?? []).map((p: any) => ({ title: p.title, when: p.created_at ? String(p.created_at).slice(0, 10) : null }));
+    } catch {}
+  }
+  const WD = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const wdIdx = new Date(Date.now() - 7 * 3600 * 1000).getUTCDay(); // ≈ Mountain-local day
+  const brief = await smartBrief({
+    weekday: WD[wdIdx], isWeekend: wdIdx === 0 || wdIdx === 6, whenFix: pos.when ?? null, recent,
+    candidates: candidates.map((c) => ({
+      name: c.o.name, grade: c.o.grade, dayType: c.o.day_type ?? null, discipline: c.o.discipline ?? null,
+      hrs: c.hrs, miles: c.miles, hazard: c.o.hazard ?? null, severity: c.o.severity ?? null,
+      status: c.o.status ?? null, signal: c.o.beta?.signal ?? null,
+      forecast: (c.o.beta?.conditions?.forecast?.days ?? []).slice(0, 3).map((d: any) => ({
+        date: d.date, tmax: d.tmax, tmin: d.tmin, precipProb: d.precip_prob, wind: d.wind,
+      })),
+    })),
+  });
+
+  const body = brief
+    ? `${brief}\n\n— — —\n${lines.join('\n\n')}`
+    : `Rolling near some good stuff${pos.when ? ` (last fix: ${pos.when})` : ''}:\n\n${lines.join('\n\n')}\n\nWant it? It's already in your dossiers.`;
 
   try { await notify({ subject, body, short: subject }); } catch {}
 
-  const sb = getSupabaseAdmin();
   if (sb) {
     // 📍 Log to the rolled-past feed (reviewable + requeue-able in the CMS). Best-effort.
     try {
