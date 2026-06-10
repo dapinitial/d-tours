@@ -38,6 +38,24 @@ export interface Companion {
   sort?: number;
 }
 
+/** A caravan sign-up on a specific objective — two DISTINCT roles:
+ *  'climb' = JOIN CLIMB (roped up on the objective with the team)
+ *  'ride'  = RIDE ALONG (holds down the rig: guards the car + Starlink, runs the
+ *            solar to harvest power, welcome party when the team tops out).
+ *  Public signs up → 'pending'; owner vets + confirms (it's their rig). */
+export type SignupRole = 'climb' | 'ride';
+export interface Signup {
+  id: string;
+  tenant_id?: string;
+  objective_id: string;
+  name: string;
+  contact?: string | null;   // email/phone — owner-only, hidden from the public roster
+  role: SignupRole;
+  note?: string | null;
+  status: 'pending' | 'confirmed' | 'declined';
+  created_at?: string;
+}
+
 /** Where-to-X intel for a travel stop (van-life dossier). */
 export interface DossierItem { name: string; note?: string; url?: string; }
 export interface StopDossier {

@@ -1,6 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { getObjective, getSources, getObjectiveComments } from '../../lib/data';
+import { getObjective, getSources, getObjectiveComments, getSignups } from '../../lib/data';
 import type { ObjectiveBeta } from '../../lib/types';
 import { isSendDay, sendWindow, windowLabel } from '../../lib/weather';
 import { extImg } from '../../lib/packet';
@@ -15,6 +15,9 @@ const hasBeta = obj.beta && Object.keys(obj.beta as any).length > 0;
 // Seed links Shotgun is working from (pinned to this objective).
 const seeds = (await getSources((obj as any).tenant_id)).filter((s: any) => s.objective_id === obj.id);
 const comments = await getObjectiveComments(obj.id);
+const signups = await getSignups(obj.id);
+const climbers = signups.filter((s) => s.role === 'climb');
+const riders = signups.filter((s) => s.role === 'ride');
 const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
 const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chip red' };
 const fgEmoji: Record<string, string> = { edible: '🍃', poisonous: '☠️', medicinal: '⚕️', wildlife: '🦌', snake: '🐍', insect: '🦟', landmark: '🪨' };
@@ -69,6 +72,87 @@ const checklist = [
         </div>
         {obj.gpx_url && <a class="btn gpx" href={obj.gpx_url} target="_blank" rel="noopener">⬇ GPX / track{!obj.gpx_verified && <span class="gpx-prov" title="Auto-found track — verify against Gaia">⚠ unverified</span>}</a>}
       </header>
+
+      <!-- 🚐 CARAVAN SIGN-UP — two distinct roles: roped up, or holding down the rig -->
+      <section class="block caravan">
+        <h2>🚐 Join the caravan</h2>
+        {(climbers.length > 0 || riders.length > 0) && (
+          <div class="cv-roster">
+            {climbers.length > 0 && <p><span class="cv-rl">🧗 Climbing party:</span> {climbers.map((s) => s.name).join(', ')}</p>}
+            {riders.length > 0 && <p><span class="cv-rl">🚐 Rolling deep (rig crew):</span> {riders.map((s) => s.name).join(', ')}</p>}
+          </div>
+        )}
+        <div class="cv-btns">
+          <button class="btn cv-join" data-role="climb" type="button">🧗 Join climb</button>
+          <button class="btn ghost cv-join" data-role="ride" type="button">🚐 Ride along</button>
+        </div>
+        <form class="cv-form" id="cv-form" data-id={obj.id} hidden>
+          <p class="cv-prompt" id="cv-prompt"></p>
+          <input id="cv-name" placeholder="Your name" autocomplete="name" required />
+          <input id="cv-contact" placeholder="Email or phone (so we can coordinate)" />
+          <input id="cv-note" placeholder="Note — rope, gear, dog, solar skills… (optional)" />
+          <input type="hidden" id="cv-role" />
+          <div class="cv-foot">
+            <button class="btn" type="submit">Send sign-up</button>
+            <button class="btn ghost" type="button" id="cv-cancel">Cancel</button>
+          </div>
+          <p class="msg" id="cv-msg"></p>
+        </form>
+      </section>
+      <script>
+        (() => {
+          const form = document.getElementById('cv-form');
+          if (!form) return;
+          const oid = form.dataset.id;
+          const promptEl = document.getElementById('cv-prompt');
+          const roleInput = document.getElementById('cv-role');
+          const msg = document.getElementById('cv-msg');
+          const PROMPTS = {
+            climb: '🧗 Roped up on the objective with us — tell us what you climb and what you’ll bring.',
+            ride: '🚐 Hold down the rig: guard the car + Starlink, run the solar to harvest power, and be the welcome party when we top out. No climbing required.',
+          };
+          const val = (id) => document.getElementById(id).value;
+          document.querySelectorAll('.cv-join').forEach((b) => b.addEventListener('click', () => {
+            const role = b.dataset.role;
+            roleInput.value = role;
+            promptEl.textContent = PROMPTS[role] || '';
+            form.hidden = false;
+            document.getElementById('cv-name').focus();
+          }));
+          document.getElementById('cv-cancel')?.addEventListener('click', () => { form.hidden = true; });
+          form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            msg.className = 'msg'; msg.textContent = 'Sending…';
+            try {
+              const r = await fetch('/api/signup', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ objective_id: oid, role: roleInput.value, name: val('cv-name'), contact: val('cv-contact'), note: val('cv-note') }),
+              });
+              const j = await r.json();
+              if (j.ok) {
+                msg.className = 'msg ok';
+                msg.textContent = j.role === 'ride'
+                  ? '🚐 You’re on the rig crew — David will confirm. Thanks for holding it down!'
+                  : '🧗 You’re in — David will confirm. See you on the rock!';
+                form.reset();
+              } else { msg.className = 'msg err'; msg.textContent = j.error || 'Try again.'; }
+            } catch { msg.className = 'msg err'; msg.textContent = 'Network hiccup — try again.'; }
+          });
+        })();
+      </script>
+      <style>
+        .caravan { background: linear-gradient(180deg, rgba(52,211,153,.06), var(--panel-2)); }
+        .cv-roster { margin: 0 0 .8rem; font-size: .9rem; }
+        .cv-roster p { margin: .2rem 0; }
+        .cv-rl { font-weight: 700; }
+        .cv-btns { display: flex; gap: .6rem; flex-wrap: wrap; }
+        .cv-form { display: grid; gap: .55rem; margin-top: .9rem; max-width: 34rem; }
+        .cv-prompt { margin: 0; font-size: .85rem; color: var(--muted); }
+        .cv-form input { background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .65rem .8rem; font: inherit; }
+        .cv-foot { display: flex; gap: .6rem; }
+        .cv-form .msg { font-size: .85rem; margin: 0; min-height: 1.1em; }
+        .cv-form .msg.ok { color: var(--green); } .cv-form .msg.err { color: var(--red); }
+      </style>
 
       {b.at_a_glance && (
         <div class="glance">

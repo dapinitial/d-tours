@@ -1,0 +1,116 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getAllSignups, getObjectives } from '../../lib/data';
+
+const tid = Astro.locals.tenantId;
+const [signups, objectives] = await Promise.all([
+  getAllSignups(tid),
+  getObjectives(tid, { includeProposed: true }),
+]);
+const objName = new Map(objectives.map((o) => [o.id, o.name]));
+const fmt = (d?: string | null) => d ? new Date(d).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+const roleLabel = (r: string) => (r === 'ride' ? '🚐 Ride along' : '🧗 Join climb');
+const pending = signups.filter((s: any) => s.status === 'pending');
+const confirmed = signups.filter((s: any) => s.status === 'confirmed');
+---
+<Base title="D-Tours · Caravan sign-ups">
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">🚐 Caravan</p>
+        <h2>Who's joining the climbs</h2>
+        <p><strong>🧗 Join climb</strong> = roped up with you. <strong>🚐 Ride along</strong> = holds down the rig (car + Starlink + solar). You vet + confirm each one — confirmed names show on the climb's dossier.</p>
+        <a href="/cms" class="muted back">← back to CMS</a>
+      </div>
+
+      <h3 class="grp">⏳ Pending {pending.length > 0 && <span class="muted">({pending.length})</span>}</h3>
+      {pending.length === 0 ? <p class="muted tiny">Nothing waiting. Sign-ups land here from each objective's “Join the caravan” button.</p> : (
+        <div class="feed">
+          {pending.map((s: any) => (
+            <div class="su card" data-id={s.id} data-role={s.role}>
+              <div class="su-main">
+                <div class="su-top">
+                  <span class="su-name">{s.name}</span>
+                  <span class={`rolep ${s.role}`}>{roleLabel(s.role)}</span>
+                </div>
+                <div class="su-meta muted">
+                  <a href={`/objectives/${s.objective_id}`} target="_blank">{objName.get(s.objective_id) ?? s.objective_id}</a>
+                  <span>· {fmt(s.created_at)}</span>
+                </div>
+                {s.contact && <div class="su-c">✉️ {s.contact}</div>}
+                {s.note && <div class="su-note muted">“{s.note}”</div>}
+              </div>
+              <div class="su-acts">
+                <button class="btn sm confirm">✓ Confirm</button>
+                <button class="btn ghost sm decline">✕ Decline</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <h3 class="grp">✅ Confirmed {confirmed.length > 0 && <span class="muted">({confirmed.length})</span>}</h3>
+      {confirmed.length === 0 ? <p class="muted tiny">None yet.</p> : (
+        <div class="feed">
+          {confirmed.map((s: any) => (
+            <div class="su card done" data-id={s.id}>
+              <div class="su-main">
+                <div class="su-top">
+                  <span class="su-name">{s.name}</span>
+                  <span class={`rolep ${s.role}`}>{roleLabel(s.role)}</span>
+                </div>
+                <div class="su-meta muted">
+                  <a href={`/objectives/${s.objective_id}`} target="_blank">{objName.get(s.objective_id) ?? s.objective_id}</a>
+                  {s.contact && <span>· ✉️ {s.contact}</span>}
+                </div>
+                {s.note && <div class="su-note muted">“{s.note}”</div>}
+              </div>
+              <button class="btn ghost sm remove">Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div id="toast" class="toast"></div>
+    </div>
+  </section>
+
+  <script>
+    const toastEl = document.getElementById('toast');
+    const toast = (m: string, err = false) => { toastEl.textContent = m; toastEl.className = 'toast show' + (err ? ' err' : ''); setTimeout(() => toastEl.className = 'toast', 1600); };
+    const act = async (id: string, action: string) => {
+      const r = await fetch('/api/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, id }) });
+      return r.json();
+    };
+    document.querySelectorAll('.su').forEach((card) => {
+      const el = card as HTMLElement;
+      const id = el.dataset.id!;
+      el.querySelector('.confirm')?.addEventListener('click', async () => { const j = await act(id, 'confirm'); if (j.ok) { toast('✓ Confirmed'); el.remove(); } else toast(j.error || 'Failed', true); });
+      el.querySelector('.decline')?.addEventListener('click', async () => { const j = await act(id, 'decline'); if (j.ok) { toast('Declined'); el.remove(); } else toast(j.error || 'Failed', true); });
+      el.querySelector('.remove')?.addEventListener('click', async () => { const j = await act(id, 'remove'); if (j.ok) { toast('Removed'); el.remove(); } else toast(j.error || 'Failed', true); });
+    });
+  </script>
+
+  <style>
+    .container { width: min(100% - 2.5rem, 820px); }
+    .back { display: inline-block; margin-top: .5rem; font-size: .9rem; }
+    .grp { margin: 1.6rem 0 .7rem; }
+    .tiny { font-size: .78rem; }
+    .feed { display: grid; gap: .7rem; }
+    .su { display: flex; align-items: center; gap: 1rem; }
+    .su.done { opacity: .85; }
+    .su-main { flex: 1; min-width: 0; }
+    .su-top { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+    .su-name { font-weight: 700; }
+    .rolep { font-size: .72rem; padding: .12rem .5rem; border-radius: 999px; border: 1px solid var(--border-2); }
+    .rolep.climb { color: var(--green); border-color: rgba(52,211,153,.4); }
+    .rolep.ride { color: var(--sky); border-color: rgba(56,189,248,.4); }
+    .su-meta { display: flex; gap: .35rem; flex-wrap: wrap; font-size: .84rem; margin-top: .25rem; }
+    .su-meta a { color: var(--text); } .su-meta a:hover { color: var(--green); }
+    .su-c { font-size: .82rem; margin-top: .25rem; }
+    .su-note { font-size: .84rem; margin-top: .25rem; font-style: italic; }
+    .su-acts { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .toast { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--green); color: #06210f; padding: .6rem 1.1rem; border-radius: 999px; font-weight: 700; opacity: 0; pointer-events: none; transition: all .3s var(--ease); z-index: 300; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.err { background: var(--red); }
+  </style>
+</Base>

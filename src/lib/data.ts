@@ -245,6 +245,30 @@ export async function getRendezvous(tenantId?: string, status?: string) {
   return error ? [] : (data ?? []);
 }
 
+/** Caravan sign-ups for one objective — PUBLIC roster (RLS lets confirmed through).
+ *  Contact is omitted on purpose; it's owner-only. */
+export async function getSignups(objectiveId: string): Promise<import('./types').Signup[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const { data, error } = await sb.from('signups')
+    .select('id,objective_id,name,role,note,status,created_at')
+    .eq('objective_id', objectiveId).eq('status', 'confirmed')
+    .order('created_at', { ascending: true });
+  return error ? [] : (data as import('./types').Signup[]);
+}
+
+/** ALL sign-ups (owner CMS, service role) — optionally filtered by status. */
+export async function getAllSignups(tenantId?: string, status?: string): Promise<import('./types').Signup[]> {
+  const sb = getSupabaseAdmin();
+  if (!sb) return [];
+  const tid = await resolveTid(tenantId);
+  let q = sb.from('signups').select('*').order('created_at', { ascending: false });
+  if (tid) q = q.eq('tenant_id', tid);
+  if (status) q = q.eq('status', status);
+  const { data, error } = await q;
+  return error ? [] : (data as import('./types').Signup[]);
+}
+
 /** The skills video library (rope/rescue/alpine technique). Public read. */
 export async function getSkills(tenantId?: string): Promise<import('./types').Skill[]> {
   const sb = getSupabase();
