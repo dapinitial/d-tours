@@ -12,3 +12,9 @@ dist/
 .agents/
 skills-lock.json
 .claude/skills/
+
+# Supabase per-folder account token (direnv)
+.envrc
+
+# Supabase CLI scratch (link state, pooler urls)
+supabase/.temp
