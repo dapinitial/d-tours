@@ -4,12 +4,15 @@ import { getObjectives } from '../lib/data';
 import type { Objective, ObjectiveBeta } from '../lib/types';
 
 const objectives = (await getObjectives()) as Objective[];
-// Only objectives with researched conditions, in route order (by id).
+// Objectives with researched conditions, in TRIP order (the manual `sort`, nulls last).
 const withBeta = objectives
   .filter((o) => o.beta && (o.beta as ObjectiveBeta).conditions)
-  .sort((a, b) => a.id.localeCompare(b.id));
+  .sort((a, b) => (a.sort ?? 1e9) - (b.sort ?? 1e9));
 const c = (o: Objective) => (o.beta as ObjectiveBeta).conditions ?? {};
 const g = (o: Objective) => (o.beta as ObjectiveBeta).at_a_glance ?? {};
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const fday = (iso: string) => DOW[new Date(iso + 'T12:00:00Z').getUTCDay()];
+const dayBadge = (o: Objective) => (o.day_type === 'crag' ? '🪨' : o.day_type === 'alpine' ? '⛰️' : '');
 ---
 <Base title="Conditions · D-Tours" description="Weather, fire/smoke & avalanche across the whole route.">
   <section>
@@ -36,7 +39,20 @@ const g = (o: Objective) => (o.beta as ObjectiveBeta).at_a_glance ?? {};
             <div class="cc-head">
               <a href={`/objectives/${o.id}`} class="cc-name">{o.name}</a>
               <span class="muted cc-region">{o.region}</span>
+              {o.grade && <span class="cc-grade mono">{dayBadge(o)} {o.grade}</span>}
             </div>
+            {!!c(o).forecast?.days?.length && (
+              <div class="cc-fc">
+                {c(o).forecast!.days.slice(0, 4).map((d) => (
+                  <div class="fc-d">
+                    <span class="fc-dow">{fday(d.date)}</span>
+                    <span class="fc-t mono">{Math.round(d.tmax)}°<span class="fc-lo">{Math.round(d.tmin)}°</span></span>
+                    <span class={`fc-p${d.precip_prob >= 50 ? ' wet' : ''}`}>💧{d.precip_prob}%</span>
+                    <span class="fc-w">💨{Math.round(d.wind)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {g(o) && (
               <div class="cc-glance">
                 {g(o).snow && <span class="gc">❄️ {g(o).snow}</span>}
@@ -65,6 +81,15 @@ const g = (o: Objective) => (o.beta as ObjectiveBeta).at_a_glance ?? {};
     .cc-name { font-weight: 700; color: var(--text); text-decoration: none; }
     .cc-name:hover { color: var(--green); }
     .cc-region { font-size: .78rem; }
+    .cc-grade { font-size: .74rem; color: var(--muted); margin-top: .25rem; }
+    .cc-fc { display: flex; gap: .3rem; margin-bottom: .55rem; }
+    .fc-d { flex: 1; display: flex; flex-direction: column; align-items: center; gap: .12rem; padding: .35rem .2rem; background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 8px; }
+    .fc-dow { font-size: .66rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .fc-t { font-size: .8rem; font-weight: 700; }
+    .fc-lo { color: var(--muted); font-weight: 400; margin-left: .15rem; }
+    .fc-p { font-size: .64rem; color: var(--muted); }
+    .fc-p.wet { color: var(--sky); font-weight: 700; }
+    .fc-w { font-size: .64rem; color: var(--muted); }
     .cc-glance { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .5rem; }
     .gc { font-size: .74rem; padding: .2rem .5rem; border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid var(--border); }
     .cc-fire { font-size: .82rem; color: var(--amber); margin: .3rem 0; }
