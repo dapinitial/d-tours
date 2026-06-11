@@ -21,10 +21,10 @@ const geoPosts = posts
     </div>
   </div>
   <div class="legend">
-    <span class="chip" style="--c:#34d399">● David</span>
-    <span class="chip bro" style="--c:#fb923c" hidden>● Derek</span>
-    <span class="chip bro" style="--c:#fbbf24" hidden>◆ rendezvous</span>
-    <button id="bros-toggle" class="bros-btn" hidden>🚐🚐 See the brothers</button>
+    <button class="chip" type="button" data-layer="david" style="--c:#34d399">● David</button>
+    <button class="chip" type="button" data-layer="derek" style="--c:#fb923c">● Derek</button>
+    <button class="chip" type="button" data-layer="rdv" style="--c:#fbbf24">◆ rendezvous</button>
+    <span class="legend-hint muted">tap to toggle</span>
   </div>
 </div>
 
@@ -62,25 +62,23 @@ const geoPosts = posts
       return pts;
     };
 
-    // David (first trip) is always visible.
-    const davidPts = drawTrip(trips[0], map);
-    const davidBounds = L.latLngBounds(davidPts);
-    map.fitBounds(davidBounds.pad(0.15));
+    // Three toggleable layers, each tied to a clickable legend chip.
+    const layers = { david: L.layerGroup().addTo(map), derek: L.layerGroup().addTo(map), rdv: L.layerGroup().addTo(map) };
+    const allPts = [];
+    allPts.push(...drawTrip(trips[0], layers.david));
+    for (const trip of trips.slice(1)) allPts.push(...drawTrip(trip, layers.derek));
 
-    // 📷 Geotagged journal posts drop as pins (photo EXIF / live position).
+    // 📷 Geotagged journal posts (photo EXIF / live position) ride with David's layer.
     try {
       const posts = JSON.parse(document.getElementById('geo-posts')?.textContent || '[]');
       for (const p of posts) {
         const thumb = p.thumb ? `<img src="${p.thumb}" style="width:160px;border-radius:8px;display:block;margin-bottom:6px">` : '';
         L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'post-pin', html: '📷', iconSize: [24, 24] }) })
-          .addTo(map).bindPopup(`${thumb}<b>${p.title}</b><br><a href="/journal/${p.id}">read →</a>`);
+          .addTo(layers.david).bindPopup(`${thumb}<b>${p.title}</b><br><a href="/journal/${p.id}">read →</a>`);
       }
     } catch {}
 
-    // The brothers overlay (Derek + rendezvous) lives in a toggleable group.
-    const others = L.layerGroup();
-    const allPts = [...davidPts];
-    for (const trip of trips.slice(1)) allPts.push(...drawTrip(trip, others));
+    // 🤝 Rendezvous markers (with live per-rig ETAs) on their own layer.
     for (const r of (data.rendezvous || [])) {
       const etaRows = (r.etas || []).map((e) =>
         `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:${e.color}">●&nbsp;${e.name}</span><span>~${e.hours}h${e.live ? '' : ' <i style="opacity:.5">approx</i>'}</span></div>`).join('');
@@ -88,23 +86,23 @@ const geoPosts = posts
         ? `<div style="margin-top:5px;border-top:1px solid rgba(255,255,255,.15);padding-top:5px">🤝 together in <b>~${r.converge}h</b></div>` : '';
       const html = `<b>🤝 ${r.name}</b>${r.when_text ? `<br><span style="opacity:.6">${r.when_text}</span>` : ''}<div style="margin-top:6px;font-size:12px">${etaRows}${conv}</div>`;
       L.marker([r.lat, r.lng], { icon: L.divIcon({ className: 'rdv', html: '◆', iconSize: [22, 22] }) })
-        .addTo(others).bindPopup(html);
+        .addTo(layers.rdv).bindPopup(html);
     }
-    const allBounds = L.latLngBounds(allPts);
 
-    // Wire the toggle (only if there's actually a brother to show).
-    const btn = document.getElementById('bros-toggle');
-    const broChips = [...document.querySelectorAll('.legend .chip.bro')];
-    if (btn && trips.length > 1) {
-      btn.hidden = false;
-      let shown = false;
-      btn.addEventListener('click', () => {
-        shown = !shown;
-        if (shown) { others.addTo(map); map.fitBounds(allBounds.pad(0.15)); btn.textContent = '🚐 Just David'; }
-        else { map.removeLayer(others); map.fitBounds(davidBounds.pad(0.15)); btn.textContent = '🚐🚐 See the brothers'; }
-        broChips.forEach((c) => (c.hidden = !shown));
+    if (allPts.length) map.fitBounds(L.latLngBounds(allPts).pad(0.15));
+
+    // Each legend chip toggles its layer on/off (click to hide a rig or the rendezvous).
+    document.querySelectorAll('.legend .chip').forEach((chip) => {
+      const key = chip.dataset.layer; const layer = layers[key];
+      if (!layer) return;
+      // Hide a chip that has nothing behind it (no brother trip / no rendezvous).
+      const empty = (key === 'derek' && trips.length < 2) || (key === 'rdv' && !(data.rendezvous || []).length);
+      if (empty) { chip.hidden = true; map.removeLayer(layer); return; }
+      chip.addEventListener('click', () => {
+        if (map.hasLayer(layer)) { map.removeLayer(layer); chip.classList.add('off'); }
+        else { layer.addTo(map); chip.classList.remove('off'); }
       });
-    }
+    });
   }
   const s = document.createElement('script');
   s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
@@ -123,9 +121,10 @@ const geoPosts = posts
   .map-fallback .big { font-size: 3rem; }
   .map-fallback code { font-family: var(--font-mono); color: var(--green); }
   .legend { display: flex; align-items: center; gap: .8rem; padding: .8rem 1rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
-  .legend .chip { color: var(--c, var(--muted)); font-size: .82rem; font-weight: 600; }
-  .bros-btn { margin-left: auto; background: rgba(251,146,60,.12); border: 1px solid rgba(251,146,60,.4); color: #fb923c; font-weight: 700; font-size: .82rem; padding: .4rem .8rem; border-radius: 999px; cursor: pointer; }
-  .bros-btn:hover { background: rgba(251,146,60,.2); }
+  .legend .chip { color: var(--c, var(--muted)); font-size: .82rem; font-weight: 600; background: none; border: 0; padding: .15rem .25rem; cursor: pointer; font-family: inherit; transition: opacity .15s; }
+  .legend .chip:hover { opacity: .8; }
+  .legend .chip.off { opacity: .3; text-decoration: line-through; }
+  .legend-hint { margin-left: auto; font-size: .72rem; }
   :global(.rdv) { color: #fbbf24; font-size: 18px; line-height: 22px; text-align: center; text-shadow: 0 0 6px rgba(251,191,36,.8); }
   :global(.post-pin) { font-size: 18px; line-height: 24px; text-align: center; filter: drop-shadow(0 0 4px rgba(0,0,0,.6)); }
   :global(.leaflet-popup-content) { font-family: inherit; }
