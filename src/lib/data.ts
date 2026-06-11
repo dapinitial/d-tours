@@ -9,7 +9,7 @@ import type { Stop, Objective, Resource, Post, Detour, GearItem, Source } from '
 
 export const isMock = !supabaseConfigured;
 
-export interface Tenant { id: string; slug: string; name: string; tagline?: string; owner_email?: string; interests?: string[]; }
+export interface Tenant { id: string; slug: string; name: string; tagline?: string; owner_email?: string; interests?: string[]; is_default?: boolean; }
 
 let _defaultTid: string | null | undefined;
 

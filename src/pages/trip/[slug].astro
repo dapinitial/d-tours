@@ -1,0 +1,91 @@
+---
+import Base from '../../layouts/Base.astro';
+import ObjectivesTable from '../../components/ObjectivesTable.astro';
+import { getTenantBySlug, getStops, getObjectives, tripLens } from '../../lib/data';
+
+export const prerender = false;
+
+// A simultaneous trip, rendered through ITS lens. The homepage stays David's climbing
+// brand; /trip/derek shows Derek his road trip. Any trip with a slug gets its own page.
+const { slug } = Astro.params;
+const tenant = slug ? await getTenantBySlug(slug) : null;
+if (!tenant) return Astro.redirect('/');
+
+const lens = tripLens(tenant);
+const climbing = lens.includes('climbing');
+const LENS_LABEL: Record<string, string> = {
+  climbing: '🧗 Climbing', scenic: '🏞️ Scenic', 'hot-springs': '♨️ Hot springs',
+  breweries: '🍺 Breweries', nps: '🏔️ National parks', 'national-parks': '🏔️ National parks',
+  food: '🍔 Food', family: '👨‍👩‍👧 Family', music: '🎶 Music', roadtrip: '🚐 Road trip',
+  fishing: '🎣 Fishing', history: '🏛️ History', weird: '🛸 Roadside weird',
+};
+const lensChip = (k: string) => LENS_LABEL[k] ?? `· ${k}`;
+
+const stops = (await getStops(tenant.id))
+  .filter((s) => (s.status ?? 'confirmed') !== 'declined')
+  .sort((a, b) => (a.order ?? 1e9) - (b.order ?? 1e9));
+const objectives = climbing ? await getObjectives(tenant.id) : [];
+---
+<Base title={`${tenant.name}'s trip · D-Tours`} description={`Follow ${tenant.name}'s trip — the route${climbing ? ', the climbs,' : ''} and where we converge.`}>
+  <section>
+    <div class="container narrow">
+      <a href="/#live" class="muted back">← the convergence map</a>
+      <div class="trip-head">
+        <p class="eyebrow">{tenant.is_default ? '🚐 The mega-loop' : '🚐🚐 A simultaneous trip'}</p>
+        <h1>{tenant.name}'s trip</h1>
+        {tenant.tagline && <p class="lede">{tenant.tagline}</p>}
+        <div class="lens">
+          {lens.length
+            ? lens.map((k) => <span class="lens-chip">{lensChip(k)}</span>)
+            : <span class="lens-chip empty">lens not set yet — pick interests in the CMS</span>}
+        </div>
+      </div>
+
+      <section class="block">
+        <h2>🗺️ The route</h2>
+        {stops.length === 0
+          ? <p class="muted">No stops dropped yet.</p>
+          : (
+            <ol class="route">
+              {stops.map((s) => (
+                <li>
+                  <span class="r-emoji">{s.emoji ?? '📍'}</span>
+                  <span class="r-body"><strong>{s.name}</strong>{s.sub && <span class="muted"> · {s.sub}</span>}</span>
+                  {s.date && <span class="r-date mono">{s.date}</span>}
+                </li>
+              ))}
+            </ol>
+          )}
+      </section>
+
+      {climbing && objectives.length > 0 && (
+        <section class="block">
+          <h2>🧗 The climbs</h2>
+          <ObjectivesTable objectives={objectives} />
+        </section>
+      )}
+
+      {!climbing && (
+        <section class="block note">
+          <p>🏞️ This is a road trip — not a climbing trip. Points of interest along the route ({lens.map(lensChip).join(' · ') || 'pick a lens'}) surface here as the lens fills in.</p>
+        </section>
+      )}
+    </div>
+  </section>
+
+  <style>
+    .container.narrow { width: min(100% - 2.5rem, 820px); }
+    .back { display: inline-block; margin: .5rem 0 1.1rem; font-size: .9rem; }
+    .trip-head { margin-bottom: 1.6rem; }
+    .lens { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .9rem; }
+    .lens-chip { font-size: .82rem; font-weight: 600; padding: .3rem .75rem; border-radius: 999px; border: 1px solid var(--border-2); background: rgba(255,255,255,.04); }
+    .lens-chip.empty { color: var(--muted); font-weight: 400; border-style: dashed; }
+    .block { margin: 1.6rem 0; }
+    .route { list-style: none; padding: 0; display: grid; gap: .5rem; }
+    .route li { display: flex; align-items: baseline; gap: .7rem; padding: .6rem .85rem; background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 10px; }
+    .r-emoji { font-size: 1.1rem; }
+    .r-body { flex: 1; min-width: 0; }
+    .r-date { font-size: .8rem; color: var(--muted); white-space: nowrap; }
+    .note { padding: 1rem 1.1rem; border: 1px dashed var(--border-2); border-radius: 12px; color: var(--muted); }
+  </style>
+</Base>
