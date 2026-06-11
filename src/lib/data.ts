@@ -9,7 +9,7 @@ import type { Stop, Objective, Resource, Post, Detour, GearItem, Source } from '
 
 export const isMock = !supabaseConfigured;
 
-export interface Tenant { id: string; slug: string; name: string; tagline?: string; owner_email?: string; }
+export interface Tenant { id: string; slug: string; name: string; tagline?: string; owner_email?: string; interests?: string[]; }
 
 let _defaultTid: string | null | undefined;
 
@@ -19,6 +19,19 @@ export async function getDefaultTenant(): Promise<Tenant | null> {
   const { data } = await sb.from('tenants').select('*').eq('is_default', true).maybeSingle();
   return (data as Tenant) ?? null;
 }
+
+/** A tenant by id (the default trip when omitted). Carries `interests` — the trip's LENS
+ *  (e.g. ['climbing'] vs a road-trip's POI tags) for lens-aware per-trip views. */
+export async function getTenant(id?: string): Promise<Tenant | null> {
+  if (!id) return getDefaultTenant();
+  const sb = getSupabase();
+  if (!sb) return null;
+  const { data } = await sb.from('tenants').select('*').eq('id', id).maybeSingle();
+  return (data as Tenant) ?? null;
+}
+
+/** A trip's lens (interest tags). David's trip = ['climbing']; a road trip = its own tags. */
+export const tripLens = (t: Tenant | null): string[] => t?.interests ?? [];
 
 export async function getTenantBySlug(slug: string): Promise<Tenant | null> {
   const sb = getSupabase();
