@@ -63,8 +63,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         if (error) throw error;
         return json({ ok: true, action, id });
       }
-      case 'promote': { // a scouted alternative → confirmed (shows on the public site)
+      case 'promote': { // a scouted alternative / deferred climb → confirmed (back on the trip)
         const { error } = await scoped(sb.from('objectives').update({ status: 'confirmed' }).eq('id', id));
+        if (error) throw error;
+        return json({ ok: true, action, id });
+      }
+      case 'defer': { // park a climb in the possible-climbs queue — out of plan/beta, NOT deleted
+        const { error } = await scoped(sb.from('objectives').update({ status: 'deferred' }).eq('id', id));
         if (error) throw error;
         return json({ ok: true, action, id });
       }

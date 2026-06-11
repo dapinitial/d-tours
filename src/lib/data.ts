@@ -80,7 +80,20 @@ export async function getObjectives(tenantId?: string, opts: { includeProposed?:
   // Ordered by the manual trip-sequence `sort` (drag-set in the CMS), nulls last.
   let q = sb.from('objectives').select('*').order('sort', { ascending: true, nullsFirst: false });
   if (tid) q = q.eq('tenant_id', tid);
+  q = q.neq('status', 'deferred'); // parked "possible climbs" never surface on plan / beta / proximity
   if (!opts.includeProposed) q = q.neq('status', 'proposed'); // hide scouted alternatives from public
+  const { data, error } = await q;
+  return error ? [] : (data as Objective[]);
+}
+
+/** The "possible climbs" queue — deferred objectives, parked out of the active plan
+ *  (too hard, season/weather risk, or just maybes). Owner-only, via the CMS. */
+export async function getDeferredObjectives(tenantId?: string): Promise<Objective[]> {
+  const sb = getSupabaseAdmin();
+  if (!sb) return [];
+  const tid = await resolveTid(tenantId);
+  let q = sb.from('objectives').select('*').eq('status', 'deferred').order('sort', { ascending: true, nullsFirst: false });
+  if (tid) q = q.eq('tenant_id', tid);
   const { data, error } = await q;
   return error ? [] : (data as Objective[]);
 }

@@ -1,8 +1,8 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { getObjectives, getSources } from '../../lib/data';
+import { getObjectives, getSources, getDeferredObjectives } from '../../lib/data';
 const tid = Astro.locals.tenantId;
-const [objectives, sources] = await Promise.all([getObjectives(tid, { includeProposed: true }), getSources(tid)]);
+const [objectives, sources, deferred] = await Promise.all([getObjectives(tid, { includeProposed: true }), getSources(tid), getDeferredObjectives(tid)]);
 const seedsFor = (oid: string) => sources.filter((s: any) => s.objective_id === oid);
 const sevs = ['low', 'med', 'high'];
 const days: [string, string][] = [['', '—'], ['crag', '🪨 Crag · WFH'], ['alpine', '⛰️ Weekend alpine']];
@@ -63,6 +63,28 @@ const proposed = objectives.filter((o) => o.status === 'proposed');
         </div>
       )}
 
+      {deferred.length > 0 && (
+        <div class="card deferred-card">
+          <h3>💤 Possible climbs <span class="tag muted">{deferred.length}</span></h3>
+          <p class="muted tiny">Parked out of the active plan — too hard, off-season, or just maybes. Promote back when it fits, or cull. Not deleted, not on the public site.</p>
+          <div class="prop-list">
+            {deferred.map((o) => (
+              <div class="prop" data-prop={o.id}>
+                <span class="p-emoji">💤</span>
+                <div class="p-meta">
+                  <div class="p-name"><a href={`/objectives/${o.id}`} target="_blank">{o.name}</a> <span class="muted tiny">{o.grade} · {o.region}</span></div>
+                  {o.note && <div class="muted p-sub">{o.note}</div>}
+                </div>
+                <div class="p-actions">
+                  <button class="btn sm defer-promote" data-id={o.id}>↑ Back to trip</button>
+                  <button class="btn ghost sm defer-cull" data-id={o.id}>✕</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <!-- add objective -->
       <div class="card add-card">
         <h3>＋ Add an objective</h3>
@@ -96,6 +118,7 @@ const proposed = objectives.filter((o) => o.status === 'proposed');
               <div class="obj-top">
                 <input class="o-name" data-field="name" value={o.name} placeholder="Name" />
                 <span class="status">{o.beta ? <a href={`/objectives/${o.id}`} target="_blank" class="ready">📋 dossier</a> : <span class="pending">🔍 needs research</span>}</span>
+                <button class="defer" title="Defer to the possible-climbs queue" aria-label="defer">💤</button>
                 <button class="del" title="Delete" aria-label="delete">🗑️</button>
               </div>
               <div class="meta-row">
@@ -225,6 +248,22 @@ const proposed = objectives.filter((o) => o.status === 'proposed');
       const j = await post('/api/objectives', { action: 'remove', id: card.dataset.id });
       if (j.ok) { card.remove(); toast('Deleted'); }
     }));
+    // 💤 defer a climb → the possible-climbs queue (out of plan/beta, not deleted)
+    document.querySelectorAll('.obj .defer').forEach((b) => b.addEventListener('click', async () => {
+      const card = b.closest('.obj');
+      const j = await post('/api/objectives', { action: 'defer', id: card.dataset.id });
+      if (j.ok) { card.remove(); toast('💤 Deferred to possible climbs'); } else toast(j.error || 'Failed', true);
+    }));
+    // possible-climbs queue: promote back to the trip, or cull
+    document.querySelectorAll('.deferred-card .defer-promote').forEach((b) => b.addEventListener('click', async () => {
+      const j = await post('/api/objectives', { action: 'promote', id: b.dataset.id });
+      if (j.ok) { b.closest('.prop').remove(); toast('↑ Back on the trip'); } else toast(j.error || 'Failed', true);
+    }));
+    document.querySelectorAll('.deferred-card .defer-cull').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm('Remove this climb permanently?')) return;
+      const j = await post('/api/objectives', { action: 'remove', id: b.dataset.id });
+      if (j.ok) { b.closest('.prop').remove(); toast('Removed'); } else toast(j.error || 'Failed', true);
+    }));
     // seed a link → pins to this objective, feeds Shotgun
     document.querySelectorAll('.obj .seed-btn').forEach((b) => b.addEventListener('click', async () => {
       const card = b.closest('.obj');
@@ -336,6 +375,8 @@ const proposed = objectives.filter((o) => o.status === 'proposed');
     .status .pending { color: var(--amber); }
     .del { background: transparent; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; padding: .35rem .5rem; }
     .del:hover { border-color: var(--red); }
+    .defer { background: transparent; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; padding: .35rem .5rem; }
+    .defer:hover { border-color: var(--amber); }
     .obj input, .obj select { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: .5rem .6rem; font: inherit; }
     .meta-row { display: flex; gap: .5rem; flex-wrap: wrap; }
     .meta-row .sm { flex: 1; min-width: 7rem; font-size: .85rem; }
