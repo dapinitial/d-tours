@@ -12,7 +12,13 @@ const logistics = resources.filter((r) => r.layer === 'logistics' || r.layer ===
 // dossier; plus coords + a one-tap Google Maps directions link.
 const objFor = (s: any) => {
   const hay = `${s.name} ${s.sub ?? ''}`.toLowerCase();
-  return objectives.find((o) => { const key = o.name.toLowerCase().split(/[\s(/]/)[0]; return key.length > 3 && hay.includes(key); }) ?? null;
+  return objectives.find((o) => {
+    const key = o.name.toLowerCase().split(/[\s(/]/)[0];
+    if (key.length <= 3) return false;
+    // WORD-BOUNDARY match, not substring — else "south" (South Early Winter Spire)
+    // false-matches "Southern" Rado. \b keeps whole-word matches only.
+    return new RegExp(`\\b${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(hay);
+  }) ?? null;
 };
 const mapsUrl = (s: any) => (s.lat != null && s.lng != null) ? `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}` : null;
 

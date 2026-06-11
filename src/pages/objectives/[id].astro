@@ -141,7 +141,10 @@ const checklist = [
         })();
       </script>
       <style>
-        .caravan { background: linear-gradient(180deg, rgba(52,211,153,.06), var(--panel-2)); }
+        /* .block has no style of its own → it was inheriting the global section{padding:7rem}.
+           Reset it so the ~20 dossier sections stack tight; caravan keeps its own card padding. */
+        .block { padding-block: 0; margin-block: 1.5rem; }
+        section.caravan { background: linear-gradient(180deg, rgba(52,211,153,.06), var(--panel-2)); padding: 1.1rem 1.2rem; border: 1px solid var(--border); border-radius: var(--radius); }
         .cv-roster { margin: 0 0 .8rem; font-size: .9rem; }
         .cv-roster p { margin: .2rem 0; }
         .cv-rl { font-weight: 700; }

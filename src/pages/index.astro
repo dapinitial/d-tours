@@ -199,6 +199,13 @@ const venmoUrl = import.meta.env.PUBLIC_VENMO_URL ?? '';
   .ha { font-size: .85rem; font-weight: 600; padding: .4rem .8rem; border-radius: 999px; border: 1px solid var(--border-2); color: var(--text); text-decoration: none; transition: all .15s; }
   .ha:hover { border-color: var(--green); color: var(--green); }
   .ha.venmo:hover { border-color: var(--sky); color: var(--sky); }
+  /* Unify the utility row into ONE small-pill language. ShareButton renders a big .btn
+     and ReachUs ships its own label — in the hero we flatten both to match the .ha pills,
+     so it reads as a clean secondary row, not a jumble of competing button styles. */
+  .hero-actions .share-btn { font: inherit; font-weight: 600; font-size: .85rem; padding: .4rem .8rem; border-radius: 999px; background: transparent; border: 1px solid var(--border-2); color: var(--text); }
+  .hero-actions .share-btn:hover { border-color: var(--green); color: var(--green); }
+  .hero-actions .reach-label { display: none; }
+  .hero-actions .reach { gap: .7rem; }
   section.alt { background: linear-gradient(180deg, transparent, rgba(255,255,255,.012), transparent); }
   .container.narrow { width: min(100% - 2.5rem, 760px); }
   .considering { margin-top: 1.6rem; padding: 1.2rem; border: 1px solid rgba(56,189,248,.3); border-radius: var(--radius); background: linear-gradient(180deg, rgba(56,189,248,.07), transparent); }
