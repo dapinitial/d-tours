@@ -4,6 +4,7 @@ import { getObjective, getSources, getObjectiveComments, getSignups } from '../.
 import type { ObjectiveBeta } from '../../lib/types';
 import { isSendDay, sendWindow, windowLabel } from '../../lib/weather';
 import { extImg } from '../../lib/packet';
+import { supabaseServer, authConfigured } from '../../lib/supabaseServer';
 
 export const prerender = false;
 
@@ -12,6 +13,26 @@ const obj = id ? await getObjective(id) : null;
 if (!obj) return Astro.redirect('/plan');
 const b: ObjectiveBeta = (obj.beta as any) ?? {};
 const hasBeta = obj.beta && Object.keys(obj.beta as any).length > 0;
+// Owner-only Smart Commit. Wrapped so a failed/blocked auth check NEVER blanks this
+// public page — on any error we just fall through to not-owner (no button).
+let isOwner = !authConfigured; // local/mock dev → treat as owner
+if (authConfigured) {
+  try {
+    const sbU = supabaseServer(Astro.cookies, Astro.request.headers);
+    const { data: { user } } = await sbU.auth.getUser();
+    if (user?.email) {
+      const { data: crew } = await sbU.from('crew').select('tenant_id').eq('email', user.email).eq('is_owner', true).maybeSingle();
+      isOwner = !!crew;
+    }
+  } catch { isOwner = false; }
+}
+const commitDayTypes = [
+  { v: 'alpine', label: '🏔️ Alpine' },
+  { v: 'crag', label: '🪨 Crag' },
+  { v: 'travel', label: '🚐 Travel' },
+  { v: 'recovery', label: '🧖 Recovery' },
+  { v: 'remote-work', label: '💻 Remote' },
+];
 // Seed links Shotgun is working from (pinned to this objective).
 const seeds = (await getSources((obj as any).tenant_id)).filter((s: any) => s.objective_id === obj.id);
 const comments = await getObjectiveComments(obj.id);
@@ -72,6 +93,25 @@ const checklist = [
         </div>
         {obj.gpx_url && <a class="btn gpx" href={obj.gpx_url} target="_blank" rel="noopener">⬇ GPX / track{!obj.gpx_verified && <span class="gpx-prov" title="Auto-found track — verify against Gaia">⚠ unverified</span>}</a>}
       </header>
+
+      {isOwner && (
+        <div class="smart-commit" data-oid={obj.id} data-name={obj.name} data-grade={obj.grade ?? ''} data-region={obj.region ?? ''} data-lat={obj.lat ?? ''} data-lng={obj.lng ?? ''}>
+          <button class="btn sc-open" type="button">📅 Add to a day</button>
+          <div class="sc-panel" hidden>
+            <p class="sc-head">🛰️ Shotgun suggests<span class="sc-rough" hidden> · rough — confirm the date</span></p>
+            <div class="sc-list" aria-live="polite"></div>
+            <div class="sc-manual">
+              <span class="muted tiny">or pick:</span>
+              <input class="sc-date" type="date" aria-label="commit date" />
+              <select class="sc-type" aria-label="day type">
+                {commitDayTypes.map((d) => <option value={d.v} selected={d.v === (obj.day_type ?? '')}>{d.label}</option>)}
+              </select>
+              <button class="btn sm sc-commit-manual" type="button">Commit</button>
+            </div>
+            <p class="sc-status" hidden></p>
+          </div>
+        </div>
+      )}
 
       <!-- 🚐 CARAVAN SIGN-UP — two distinct roles: roped up, or holding down the rig -->
       <section class="block caravan">
@@ -426,6 +466,76 @@ const checklist = [
     });
   </script>
 
+  <script>
+    // 📅 Smart Commit — fetch Shotgun's date suggestions, commit one (or a manual pick)
+    // to the calendar via the existing /api/itinerary add path. Owner-only widget.
+    (() => {
+      const root = document.querySelector('.smart-commit');
+      if (!root) return;
+      const oid = root.dataset.oid;
+      const panel = root.querySelector('.sc-panel');
+      const list = root.querySelector('.sc-list');
+      const roughTag = root.querySelector('.sc-rough');
+      const status = root.querySelector('.sc-status');
+      const manual = root.querySelector('.sc-manual');
+      const DAY_EMOJI = { alpine: '🏔️', crag: '🪨', travel: '🚐', recovery: '🧖', 'remote-work': '💻' };
+      const pretty = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const shortDate = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+      async function commit(date, dayType) {
+        const m = new Date(date + 'T12:00:00');
+        const order = (m.getMonth() + 1) * 100 + m.getDate(); // rough date-sequence in the itinerary
+        const stop = {
+          id: 'stop-' + oid,
+          name: root.dataset.name, emoji: DAY_EMOJI[dayType] || '🧗', sub: root.dataset.grade,
+          region: root.dataset.region, flex: 'soft', status: 'confirmed', kind: 'sidequest', order,
+          objective_id: oid, start_date: date, date: shortDate(date), day_type: dayType,
+          ...(root.dataset.lat ? { lat: parseFloat(root.dataset.lat) } : {}),
+          ...(root.dataset.lng ? { lng: parseFloat(root.dataset.lng) } : {}),
+        };
+        try {
+          const r = await fetch('/api/itinerary', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add', stop }) });
+          const j = await r.json().catch(() => ({}));
+          if (j.ok) {
+            list.innerHTML = ''; manual.hidden = true; roughTag.hidden = true; status.hidden = false;
+            status.innerHTML = '✓ Committed to <b>' + pretty(date) + '</b> — <a href="/calendar">see it on the calendar →</a>';
+          } else { status.hidden = false; status.textContent = j.error || 'Commit failed.'; }
+        } catch { status.hidden = false; status.textContent = 'Network hiccup — try again.'; }
+      }
+
+      let loaded = false;
+      root.querySelector('.sc-open').addEventListener('click', async () => {
+        panel.hidden = !panel.hidden;
+        if (loaded || panel.hidden) return;
+        loaded = true;
+        list.innerHTML = '<p class="muted tiny">thinking…</p>';
+        try {
+          const r = await fetch('/api/commit-suggestions?objective=' + encodeURIComponent(oid));
+          const j = await r.json();
+          list.innerHTML = '';
+          if (!j.ok || !(j.suggestions || []).length) { list.innerHTML = '<p class="muted tiny">No smart pick yet — choose a date below.</p>'; return; }
+          if (j.suggestions[0].rough) roughTag.hidden = false;
+          for (const s of j.suggestions) {
+            const row = document.createElement('div'); row.className = 'sc-row';
+            const info = document.createElement('div'); info.className = 'sc-info';
+            info.innerHTML = '<span class="sc-when">' + (DAY_EMOJI[s.dayType] || '🧗') + ' ' + pretty(s.date) + ' · ' + s.chapterEmoji + ' ' + s.chapterName + '</span><span class="sc-why muted tiny">' + s.reasons.join(' · ') + '</span>';
+            const pick = document.createElement('button'); pick.className = 'btn sm sc-pick'; pick.type = 'button'; pick.textContent = 'Commit';
+            pick.addEventListener('click', () => commit(s.date, s.dayType));
+            row.append(info, pick);
+            list.appendChild(row);
+          }
+        } catch { list.innerHTML = '<p class="muted tiny">Could not load suggestions — choose a date below.</p>'; }
+      });
+
+      root.querySelector('.sc-commit-manual').addEventListener('click', () => {
+        const date = root.querySelector('.sc-date').value;
+        const type = root.querySelector('.sc-type').value || 'alpine';
+        if (!date) { status.hidden = false; status.textContent = 'Pick a date first.'; return; }
+        commit(date, type);
+      });
+    })();
+  </script>
+
   <style>
     .comments .cmt { padding: .7rem .9rem; background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 10px; margin-bottom: .6rem; }
     .comments .c-author { font-weight: 700; } .comments .c-when { font-size: .75rem; margin-left: .4rem; }
@@ -444,6 +554,21 @@ const checklist = [
     .obj-head .mono { font-family: var(--font-mono); font-size: .8rem; color: var(--muted); }
     .btn.gpx { display: inline-block; }
     .gpx-prov { margin-left: .4rem; font-size: .72rem; font-weight: 600; color: #1a1205; background: var(--amber, #fbbf24); padding: .05rem .35rem; border-radius: 6px; }
+    /* 📅 Smart Commit widget (owner-only) */
+    .smart-commit { margin: 0 0 1.4rem; }
+    .sc-open { background: rgba(52,211,153,.12); border: 1px solid rgba(52,211,153,.4); }
+    .sc-open:hover { border-color: var(--green); }
+    .sc-panel { margin-top: .7rem; padding: 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: linear-gradient(180deg, rgba(52,211,153,.06), var(--panel)); }
+    .sc-head { margin: 0 0 .7rem; font-weight: 700; font-size: .9rem; }
+    .sc-rough { color: var(--amber, #fbbf24); font-weight: 600; }
+    .sc-list { display: grid; gap: .5rem; }
+    .sc-row { display: flex; align-items: center; gap: .8rem; justify-content: space-between; padding: .55rem .7rem; background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; }
+    .sc-info { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+    .sc-when { font-weight: 600; font-size: .9rem; }
+    .sc-manual { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; margin-top: .8rem; padding-top: .8rem; border-top: 1px solid var(--border); }
+    .sc-date, .sc-type { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: .35rem .5rem; font: inherit; font-size: .82rem; }
+    .sc-status { margin: .8rem 0 0; font-size: .88rem; color: var(--green); }
+    .sc-status a { color: var(--green); font-weight: 600; }
     .pending { text-align: center; display: grid; gap: .3rem; padding: 2rem; }
     .pending .big { font-size: 2.5rem; }
     .summary { font-size: 1.05rem; line-height: 1.6; margin: 1.2rem 0; }
