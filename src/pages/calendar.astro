@@ -1,0 +1,176 @@
+---
+// The day-level calendar lens: the trip as a spine of dated chapters, each holding the
+// days you've committed climbs / crags / towns / people onto. Read-only — editing happens
+// in the itinerary CMS; committing fills these days in (Slice 4). A committed climb
+// deep-links its dossier via objective_id and carries a day_type icon.
+//
+// NB: all logic lives here in the frontmatter and the template just renders a plain
+// view-model — the Astro compiler misparses `<`/`<=` comparisons inside `{ }` template
+// expressions as JSX tag-opens, so we keep comparisons out of the markup.
+import Base from '../layouts/Base.astro';
+import { getChapters, getStops, getObjectives } from '../lib/data';
+import type { Stop, DayType } from '../lib/types';
+
+const [chapters, stops, objectives] = await Promise.all([getChapters(), getStops(), getObjectives()]);
+const objById = new Map(objectives.map((o) => [o.id, o]));
+
+const DAY: Record<DayType, { icon: string; label: string }> = {
+  'remote-work': { icon: '💻', label: 'Remote work' },
+  'recovery':    { icon: '🧖', label: 'Recovery / rehab' },
+  'travel':      { icon: '🚐', label: 'Travel' },
+  'crag':        { icon: '🪨', label: 'Cragging' },
+  'alpine':      { icon: '🏔️', label: 'Alpine' },
+};
+
+// Resolve a stop's effective ISO day key — structured start_date first, else parse the
+// free-text label ("Aug 1") with the trip year. Unparseable → null → stays off the grid.
+const YEAR = new Date().getFullYear();
+const dayKey = (s: Stop): string | null => {
+  if (s.start_date) return s.start_date.slice(0, 10);
+  if (s.date) { const d = new Date(`${s.date} ${YEAR}`); return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10); }
+  return null;
+};
+
+// Group committed (dated, non-declined) stops by their day.
+const byDay = new Map<string, Stop[]>();
+for (const s of stops) {
+  if ((s.status ?? 'confirmed') === 'declined') continue;
+  const k = dayKey(s); if (!k) continue;
+  const arr = byDay.get(k) ?? []; arr.push(s); byDay.set(k, arr);
+}
+
+const todayKey = new Date().toISOString().slice(0, 10);
+
+function daysBetween(start: string, end: string): string[] {
+  const out: string[] = [];
+  const e = new Date(`${end}T12:00:00`);
+  for (let d = new Date(`${start}T12:00:00`); d <= e; d.setDate(d.getDate() + 1)) out.push(d.toISOString().slice(0, 10));
+  return out;
+}
+const fmtRange = (a?: string | null, b?: string | null) => {
+  if (!a) return '';
+  const opt: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  const A = new Date(`${a}T12:00:00`).toLocaleDateString('en-US', opt);
+  if (!b) return `${A} → open`;
+  const B = new Date(`${b}T12:00:00`).toLocaleDateString('en-US', opt);
+  return A === B ? A : `${A} – ${B}`;
+};
+const weekday = (k: string) => new Date(`${k}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short' });
+const dayNum = (k: string) => new Date(`${k}T12:00:00`).getDate();
+
+// Build the full view-model so the template carries zero comparison logic.
+const view = chapters.map((c) => {
+  const open = !c.end_date;
+  const days = (c.start_date && c.end_date) ? daysBetween(c.start_date, c.end_date) : [];
+  const cells = days.map((k) => ({
+    today: k === todayKey,
+    dow: weekday(k),
+    dnum: dayNum(k),
+    items: (byDay.get(k) ?? []).map((s) => {
+      const dt = s.day_type ? DAY[s.day_type] : null;
+      const obj = s.objective_id ? objById.get(s.objective_id) : null;
+      return {
+        name: s.name,
+        emoji: s.emoji ? `${s.emoji} ` : '',
+        dtIcon: dt?.icon ?? null,
+        dtLabel: dt?.label ?? null,
+        href: obj ? `/objectives/${obj.id}` : null,
+        title: obj ? `${obj.name}${obj.grade ? ` · ${obj.grade}` : ''}` : s.name,
+      };
+    }),
+  }));
+  const committed = cells.reduce((n, cell) => n + cell.items.length, 0);
+  const isLive = !!(c.start_date && c.end_date && c.start_date <= todayKey && todayKey <= c.end_date);
+  return { id: c.id, name: c.name, emoji: c.emoji ?? '📍', blurb: c.blurb ?? null, range: fmtRange(c.start_date, c.end_date), open, cells, committed, isLive };
+});
+---
+<Base title="Calendar · D-Tours" description="The trip, chapter by chapter, day by day.">
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">📅 Calendar</p>
+        <h2>The trip, day by day</h2>
+        <p class="lede">A spine of chapters. Commit climbs, crags, towns and people onto real days — they fill in here, draw the live map, and self-archive as the trip is lived.</p>
+      </div>
+
+      {view.length === 0 && <p class="empty-all">No chapters yet — seed them in the itinerary editor.</p>}
+
+      <div class="chapters">
+        {view.map((v) => (
+          <article class:list={['chapter', { live: v.isLive }]}>
+            <header class="ch-head">
+              <span class="ch-emoji">{v.emoji}</span>
+              <div class="ch-title">
+                <h3>{v.name}{v.isLive && <span class="now">● now</span>}</h3>
+                <p class="ch-range">{v.range}{v.committed > 0 && <span class="ch-count"> · {v.committed} committed</span>}</p>
+              </div>
+            </header>
+            {v.blurb && <p class="ch-blurb">{v.blurb}</p>}
+
+            {v.open && (
+              <p class="ch-open">Open-ended — the back half. <a href="/cms/itinerary">plan it →</a></p>
+            )}
+
+            {!v.open && (
+              <div class="days">
+                {v.cells.map((cell) => (
+                  <div class:list={['day', { today: cell.today, filled: cell.items.length > 0 }]}>
+                    <div class="day-h"><span class="dow">{cell.dow}</span><span class="dnum">{cell.dnum}</span></div>
+                    {cell.items.length === 0 && <span class="day-open" aria-hidden="true">·</span>}
+                    {cell.items.map((it) => (
+                      <a class="commit" class:list={[{ plain: !it.href }]} href={it.href ?? undefined} title={it.title}>
+                        {it.dtIcon && <span class="dt" title={it.dtLabel}>{it.dtIcon}</span>}
+                        <span class="cn">{it.emoji}{it.name}</span>
+                      </a>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!v.open && v.committed === 0 && (
+              <p class="ch-empty">Nothing committed yet — <a href="/cms/itinerary">pull options from the pool →</a></p>
+            )}
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  section { padding: 2rem 0 4rem; }
+  .section-head { margin-bottom: 1.6rem; }
+  .eyebrow { color: var(--green); font-weight: 700; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 .3rem; }
+  .lede { color: var(--muted); max-width: 52ch; }
+  .empty-all { color: var(--muted); }
+
+  .chapters { display: flex; flex-direction: column; gap: 1rem; }
+  .chapter { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.2rem; }
+  .chapter.live { border-color: rgba(52,211,153,.5); box-shadow: 0 0 0 1px rgba(52,211,153,.15), 0 0 24px rgba(52,211,153,.08); }
+
+  .ch-head { display: flex; align-items: center; gap: .8rem; }
+  .ch-emoji { font-size: 1.7rem; line-height: 1; }
+  .ch-title h3 { margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: .5rem; }
+  .now { color: var(--green); font-size: .7rem; font-weight: 700; letter-spacing: .04em; }
+  .ch-range { margin: .15rem 0 0; color: var(--muted); font-size: .85rem; }
+  .ch-count { color: var(--green); }
+  .ch-blurb { margin: .7rem 0 .9rem; color: var(--muted); font-size: .9rem; }
+  .ch-open, .ch-empty { margin: .8rem 0 0; color: var(--muted); font-size: .85rem; }
+  .ch-open a, .ch-empty a { color: var(--green); }
+
+  .days { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.2rem, 1fr)); gap: .5rem; margin-top: .9rem; }
+  .day { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: .5rem .55rem; min-height: 4.4rem; display: flex; flex-direction: column; gap: .35rem; }
+  .day.filled { border-color: var(--border-2); }
+  .day.today { border-color: var(--green); box-shadow: 0 0 0 1px rgba(52,211,153,.3) inset; }
+  .day-h { display: flex; align-items: baseline; justify-content: space-between; }
+  .dow { color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; }
+  .dnum { font-weight: 700; font-size: .95rem; }
+  .day-open { color: var(--faint); }
+
+  .commit { display: flex; align-items: center; gap: .3rem; background: rgba(52,211,153,.08); border: 1px solid rgba(52,211,153,.25); border-radius: 7px; padding: .25rem .4rem; font-size: .76rem; color: var(--text); text-decoration: none; }
+  a.commit:hover { border-color: var(--green); }
+  .commit.plain { cursor: default; }
+  .dt { flex: none; }
+  .cn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>

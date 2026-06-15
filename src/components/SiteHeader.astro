@@ -3,6 +3,7 @@ const links = [
   { href: '/', label: 'Home', icon: '🏠' },
   { href: '/drive', label: 'Drive', icon: '📡' },
   { href: '/journal', label: 'Journal', icon: '📓' },
+  { href: '/calendar', label: 'Calendar', icon: '📅' },
   { href: '/plan', label: 'Plan', icon: '🗺️' },
   { href: '/rig', label: 'Rig', icon: '🚙' },
   { href: '/gear', label: 'Gear', icon: '🎒' },
@@ -35,7 +36,7 @@ const isActive = (href: string) => href === '/' ? path === '/' : path.startsWith
 <!-- Mobile: app-style bottom tab bar (thumb-reachable). Drop Home (brand logo goes
      home) and Drive (moved to the header) so the 6 tabs fit without wrapping. -->
 <nav class="tabbar">
-  {links.filter((l) => l.href !== '/' && l.href !== '/drive').map((l) => (
+  {links.filter((l) => l.href !== '/' && l.href !== '/drive' && l.href !== '/calendar').map((l) => (
     <a href={l.href} class:list={['tab', { active: isActive(l.href) }]}>
       <span class="tab-icon">{l.icon}</span>
       <span class="tab-label">{l.label}</span>
