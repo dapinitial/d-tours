@@ -9,6 +9,7 @@
     "start": "node ./dist/server/entry.mjs",
     "build": "astro build",
     "test": "node --test 'src/**/*.test.ts'",
+    "audit:tenants": "node scripts/audit-tenant-isolation.mjs",
     "preview": "astro preview",
     "astro": "astro",
     "digest": "node scripts/daily-digest.mjs",
