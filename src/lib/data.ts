@@ -3,9 +3,17 @@
 // configured, queries are scoped to a tenant and return that tenant's real data
 // (even if empty) — never mock — so tenants stay isolated.
 import { getSupabase, getSupabaseAdmin, supabaseConfigured } from './supabase';
+import { requestSb } from './requestContext';
 import { haversineMi } from './proximity';
 import * as mock from './mock';
 import type { Stop, Objective, Resource, Post, Detour, GearItem, Source, Chapter } from './types';
+
+// Reads go through the request's RLS-bound client when there is one (so a signed-in
+// owner sees their own private trip and an anon visitor sees only public trips),
+// falling back to the session-less anon singleton outside a request (build/cron).
+function readClient() {
+  return requestSb() ?? getSupabase();
+}
 
 export const isMock = !supabaseConfigured;
 
@@ -14,7 +22,7 @@ export interface Tenant { id: string; slug: string; name: string; tagline?: stri
 let _defaultTid: string | null | undefined;
 
 export async function getDefaultTenant(): Promise<Tenant | null> {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return null;
   const { data } = await sb.from('tenants').select('*').eq('is_default', true).maybeSingle();
   return (data as Tenant) ?? null;
@@ -24,7 +32,7 @@ export async function getDefaultTenant(): Promise<Tenant | null> {
  *  (e.g. ['climbing'] vs a road-trip's POI tags) for lens-aware per-trip views. */
 export async function getTenant(id?: string): Promise<Tenant | null> {
   if (!id) return getDefaultTenant();
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return null;
   const { data } = await sb.from('tenants').select('*').eq('id', id).maybeSingle();
   return (data as Tenant) ?? null;
@@ -34,14 +42,14 @@ export async function getTenant(id?: string): Promise<Tenant | null> {
 export const tripLens = (t: Tenant | null): string[] => t?.interests ?? [];
 
 export async function getTenantBySlug(slug: string): Promise<Tenant | null> {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return null;
   const { data } = await sb.from('tenants').select('*').eq('slug', slug).maybeSingle();
   return (data as Tenant) ?? null;
 }
 
 export async function listTenants(): Promise<Tenant[]> {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return [];
   const { data } = await sb.from('tenants').select('*').order('is_default', { ascending: false });
   return (data as Tenant[]) ?? [];
@@ -56,7 +64,7 @@ async function resolveTid(tenantId?: string): Promise<string | null> {
 }
 
 export async function getStops(tenantId?: string): Promise<Stop[]> {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return mock.stops;
   const tid = await resolveTid(tenantId);
   let q = sb.from('stops').select('*').order('order', { ascending: true });
@@ -67,7 +75,7 @@ export async function getStops(tenantId?: string): Promise<Stop[]> {
 
 /** The trip's named, dated chapters — the spine the calendar + map group by. */
 export async function getChapters(tenantId?: string): Promise<Chapter[]> {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return [];
   const tid = await resolveTid(tenantId);
   let q = sb.from('chapters').select('*').order('sort', { ascending: true });
@@ -78,14 +86,14 @@ export async function getChapters(tenantId?: string): Promise<Chapter[]> {
 
 /** A single stop (for its town dossier page). */
 export async function getStop(id: string): Promise<Stop | null> {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return (mock.stops as Stop[]).find((s) => s.id === id) ?? null;
   const { data, error } = await sb.from('stops').select('*').eq('id', id).maybeSingle();
   return error ? null : (data as Stop | null);
 }
 
 export async function getObjectives(tenantId?: string, opts: { includeProposed?: boolean } = {}): Promise<Objective[]> {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return mock.objectives;
   const tid = await resolveTid(tenantId);
   // Ordered by the manual trip-sequence `sort` (drag-set in the CMS), nulls last.
@@ -111,7 +119,7 @@ export async function getDeferredObjectives(tenantId?: string): Promise<Objectiv
 
 /** Approved comments on an objective dossier (public — RLS allows reading approved). */
 export async function getObjectiveComments(objectiveId: string) {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return [];
   const { data, error } = await sb.from('comments').select('author, body, created_at')
     .eq('objective_id', objectiveId).eq('approved', true).order('created_at', { ascending: true });
@@ -131,7 +139,7 @@ export async function getPendingComments(tenantId?: string) {
 
 /** Scouted alternatives David is weighing — shown publicly so friends can react/comment. */
 export async function getProposedObjectives(tenantId?: string): Promise<Objective[]> {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return [];
   const tid = await resolveTid(tenantId);
   let q = sb.from('objectives').select('*').eq('status', 'proposed');
@@ -188,7 +196,7 @@ export async function findDuplicateObjectives(
 
 /** A single objective by id (for the /objectives/[id] dossier page). */
 export async function getObjective(id: string): Promise<Objective | null> {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return mock.objectives.find((o) => o.id === id) ?? null;
   const { data } = await sb.from('objectives').select('*').eq('id', id).maybeSingle();
   return (data as Objective) ?? null;
@@ -196,7 +204,7 @@ export async function getObjective(id: string): Promise<Objective | null> {
 
 /** The rig build-page + maintenance log (one row per tenant, public read). */
 export async function getRig(tenantId?: string) {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return null;
   const tid = await resolveTid(tenantId);
   let q = sb.from('rig').select('*');
@@ -206,7 +214,7 @@ export async function getRig(tenantId?: string) {
 }
 
 export async function getResources(tenantId?: string): Promise<Resource[]> {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return mock.resources;
   const tid = await resolveTid(tenantId);
   let q = sb.from('resources').select('*');
@@ -216,7 +224,7 @@ export async function getResources(tenantId?: string): Promise<Resource[]> {
 }
 
 export async function getPosts(opts: { publishedOnly?: boolean; tenantId?: string } = {}): Promise<Post[]> {
-  const sb = getSupabase();
+  const sb = readClient();
   let posts: Post[];
   if (!sb) {
     posts = mock.posts;
@@ -233,14 +241,14 @@ export async function getPosts(opts: { publishedOnly?: boolean; tenantId?: strin
 
 /** A single published post by id (for /journal/[id] permalinks). */
 export async function getPost(id: string): Promise<Post | null> {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return mock.posts.find((p) => p.id === id) ?? null;
   const { data } = await sb.from('posts').select('*').eq('id', id).maybeSingle();
   return (data as Post) ?? null;
 }
 
 export async function getGear(tenantId?: string): Promise<GearItem[]> {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return mock.gear;
   const tid = await resolveTid(tenantId);
   let q = sb.from('gear').select('*');
@@ -250,7 +258,7 @@ export async function getGear(tenantId?: string): Promise<GearItem[]> {
 }
 
 export async function getPlaylists(tenantId?: string) {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return mock.playlists;
   const tid = await resolveTid(tenantId);
   let q = sb.from('playlist_suggestions').select('*').eq('status', 'approved').order('created_at', { ascending: false });
@@ -260,7 +268,7 @@ export async function getPlaylists(tenantId?: string) {
 }
 
 export async function getSources(tenantId?: string): Promise<Source[]> {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return mock.sources;
   const tid = await resolveTid(tenantId);
   let q = sb.from('sources').select('*').order('created_at', { ascending: false });
@@ -285,7 +293,7 @@ export async function getRendezvous(tenantId?: string, status?: string) {
 /** Caravan sign-ups for one objective — PUBLIC roster (RLS lets confirmed through).
  *  Contact is omitted on purpose; it's owner-only. */
 export async function getSignups(objectiveId: string): Promise<import('./types').Signup[]> {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return [];
   const { data, error } = await sb.from('signups')
     .select('id,objective_id,name,role,note,status,created_at')
@@ -308,7 +316,7 @@ export async function getAllSignups(tenantId?: string, status?: string): Promise
 
 /** The skills video library (rope/rescue/alpine technique). Public read. */
 export async function getSkills(tenantId?: string): Promise<import('./types').Skill[]> {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return [];
   const tid = await resolveTid(tenantId);
   let q = sb.from('skills').select('*').order('sort', { ascending: true });
@@ -319,7 +327,7 @@ export async function getSkills(tenantId?: string): Promise<import('./types').Sk
 
 /** The squad — trip companions (who's riding which leg). Public read. */
 export async function getCompanions(tenantId?: string): Promise<import('./types').Companion[]> {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return [];
   const tid = await resolveTid(tenantId);
   let q = sb.from('companions')
@@ -382,7 +390,7 @@ export async function getPlaylistSuggestions(tenantId?: string, status = 'pendin
 
 /** The most recently spun track = "now playing". */
 export async function getNowPlaying(tenantId?: string) {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return (mock.playlists as any[])[0] ?? null;
   const tid = await resolveTid(tenantId);
   let q = sb.from('playlist_suggestions').select('*').not('played_at', 'is', null)
@@ -394,7 +402,7 @@ export async function getNowPlaying(tenantId?: string) {
 
 /** The soundtrack so far — everything actually played, newest first. */
 export async function getSoundtrack(tenantId?: string) {
-  const sb = getSupabase();
+  const sb = readClient();
   if (!sb) return mock.playlists as any[];
   const tid = await resolveTid(tenantId);
   let q = sb.from('playlist_suggestions').select('*').not('played_at', 'is', null)
