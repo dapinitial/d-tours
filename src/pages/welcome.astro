@@ -1,0 +1,73 @@
+---
+import Base from '../layouts/Base.astro';
+import { currentCrew } from '../lib/auth';
+import { authConfigured } from '../lib/supabaseServer';
+
+export const prerender = false;
+
+// Onboarding: signed-in users with no trip yet name + describe one, then provision_trip
+// clones the template into their new private trip. Owners are bounced straight to /cms.
+let needsAuth = false;
+if (authConfigured) {
+  const crew = await currentCrew(Astro.cookies, Astro.request.headers);
+  if (!crew) needsAuth = true;
+  else if (crew.tenantId) return Astro.redirect('/cms');
+}
+if (needsAuth) return Astro.redirect('/login?next=/welcome');
+---
+<Base title="D-Tours · Name your trip">
+  <section>
+    <div class="container narrow">
+      <div class="section-head">
+        <p class="eyebrow">🎒 One last step</p>
+        <h2>Name your trip</h2>
+        <p>Tell us what you're planning and we'll set up your private trip from a starter template. You can change anything later — the dossier sections shape themselves to what you're doing.</p>
+      </div>
+      <form id="welcome-form" class="card login-card">
+        <label>Trip name
+          <input type="text" id="name" name="name" placeholder="My World Cup Trip" required maxlength="80" />
+        </label>
+        <label>What's the trip? <span class="hint">(climbing, road trip, World Cup, SCUBA… one line)</span>
+          <textarea id="intent" name="intent" rows="3" maxlength="400" placeholder="Catching World Cup matches in Seattle, then a Pacific Northwest road trip with some easy hikes."></textarea>
+        </label>
+        <button class="btn" type="submit">Create my trip →</button>
+        <p class="msg" id="msg"></p>
+      </form>
+    </div>
+  </section>
+
+  <script>
+    const form = document.getElementById('welcome-form');
+    const msg = document.getElementById('msg');
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = (document.getElementById('name')).value.trim();
+      const intent = (document.getElementById('intent')).value.trim();
+      if (!name) { msg.textContent = 'Give your trip a name.'; msg.className = 'msg err'; return; }
+      msg.textContent = 'Setting up your trip…'; msg.className = 'msg';
+      const btn = form.querySelector('button'); if (btn) btn.disabled = true;
+      try {
+        const res = await fetch('/api/provision', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, intent }),
+        });
+        const data = await res.json();
+        if (data.ok) { msg.textContent = '✅ Trip created! Taking you in…'; msg.className = 'msg ok'; location.href = '/cms'; }
+        else { msg.textContent = data.error || 'Something went wrong.'; msg.className = 'msg err'; if (btn) btn.disabled = false; }
+      } catch {
+        msg.textContent = 'Network error — try again.'; msg.className = 'msg err'; if (btn) btn.disabled = false;
+      }
+    });
+  </script>
+
+  <style>
+    .container.narrow { width: min(100% - 2.5rem, 520px); }
+    .login-card { display: grid; gap: 1rem; }
+    .login-card label { display: grid; gap: .35rem; font-size: .9rem; color: var(--muted); }
+    .login-card .hint { color: var(--muted); font-weight: 400; }
+    .login-card input, .login-card textarea { width: 100%; background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .8rem .9rem; font: inherit; }
+    .login-card input { min-height: 46px; }
+    .msg { margin: 0; min-height: 1.2em; font-size: .9rem; }
+    .msg.ok { color: var(--green); } .msg.err { color: var(--red); }
+  </style>
+</Base>

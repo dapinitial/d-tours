@@ -30,7 +30,8 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     const { data: crew } = await sb!
       .from('crew').select('tenant_id, display_name')
       .eq('email', user.email).eq('is_owner', true).maybeSingle();
-    if (!crew) return ctx.redirect('/login?denied=1');
+    // Signed in but no trip yet → send to onboarding to create one (multi-user front door).
+    if (!crew) return ctx.redirect('/welcome');
 
     ctx.locals.user = { email: user.email, name: crew.display_name };
     ctx.locals.tenantId = crew.tenant_id;
