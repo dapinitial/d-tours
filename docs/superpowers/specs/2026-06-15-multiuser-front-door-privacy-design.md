@@ -84,6 +84,35 @@ are simply opted-in to public.
 
 ---
 
+## Part 0 — Client/auth architecture (DECIDED: Full RLS)
+
+Verified 2026-06-15 against the live DB, this corrects a blind spot in the original draft:
+
+- **Public pages read through a *session-less* anon client** (`getSupabase()` — no cookies,
+  so `auth.uid()` is always NULL). RLS governs these reads.
+- **All writes (and CMS reads) currently go through the service-role admin client**
+  (`getSupabaseAdmin()`), which **bypasses RLS** — confirmed because the live DB has **zero
+  insert/update/delete policies** yet the CMS writes succeed. RLS is purely a read-gate today.
+
+**Decision — Full RLS:** route **every** owner read and write through the per-request,
+cookie-bound client (`supabaseServer(cookies, headers)`), so `auth.uid()` is real and RLS
+enforces membership on reads *and* writes. The `can_write` write policies then actually bite,
+and an app-scoping bug is still caught by the database. This is the strongest posture for a
+multi-tenant pivot; the cost is a data-layer refactor (threading the request client) — slice 4.
+
+**Client responsibilities after the pivot:**
+| Client | Used for | RLS |
+|---|---|---|
+| per-request session client (`supabaseServer`) | all page reads (public *and* CMS) + all owner writes | enforced; `auth.uid()` = visitor (null) or owner |
+| session-less anon client (`getSupabase`) | retired from the data path (or kept only as the no-session fallback) | enforced, anon |
+| service-role admin (`getSupabaseAdmin`) | **only** server automation with no user session (crons: watcher/weather/digest) + inside the `provision_trip` SECURITY DEFINER RPC | bypasses RLS — never reached from a user request path |
+
+Genuine **public inserts** (subscribe, suggest-detour, suggest-track, comment, caravan
+signup) move to the anon session client and therefore need **explicit anon-insert RLS
+policies** (they have none today because they went through admin). These are added in slice 2.
+
+---
+
 ## Part 1 — Data model + privacy (the keystone)
 
 ### A. Visibility on the tenant
@@ -255,20 +284,28 @@ visibility flips.
 
 ## Commit slicing (chapters / Smart Commit pattern)
 
-1. **Migration: schema + RLS core** — `tenants.visibility` / `intent_text` /
-   `section_schema` / `is_template`; `crew.auth_user_id` / `can_write` + PK relax;
-   `current_tenant_ids()`; backfill missing `tenant_id`s; flip flagship tenants `public`.
-2. **RLS rewrite** — replace every `using(true)` with membership-or-public; add write
-   policies; `crew` self-read policy; preserve anon-insert policies.
-3. **Cross-tenant write audit** — two-JWT + anon integration script (proves 1–2 before
-   anything builds on them).
-4. **`provision_trip` RPC + template tenant seed** — atomic create + clone + fallback schema.
-5. **Signup front door** — `/signup` page, ungate auth, onboarding (name + describe), call RPC.
-6. **section_schema rendering** — dossier pages read `section_schema`; backfill David=climbing /
+1. **Migration: schema core** — `tenants.visibility` / `intent_text` / `section_schema` /
+   `is_template`; `crew.auth_user_id` / `can_write` + PK relax; `current_tenant_ids()` helper;
+   backfill missing `tenant_id`s; **flag flagship tenants `public` but do NOT change RLS yet**
+   (kept inert so nothing goes dark before the read path is ready).
+2. **RLS rewrite** — replace every `using(true)`/status-only read policy with
+   membership-or-public; add `can_write` write policies; `crew` self-read; gate `tenants`
+   read (public-or-member); add explicit **anon-insert** policies for the genuine
+   public-write tables (subscribers, suggestions, playlist_suggestions, comments, signups).
+   *Applied to a Supabase branch first, not prod.*
+3. **Data-layer + endpoint refactor to the session client (Full RLS)** — thread the
+   per-request `supabaseServer` client through `data.ts` reads and every owner write endpoint
+   so `auth.uid()` is real; reserve the admin client for crons + the provision RPC only. This
+   is what keeps the CMS from going dark once slice 2's policies are live.
+4. **Cross-tenant write audit** — two-JWT + anon integration script proving isolation across
+   every tenant-scoped table (proves 1–3 before anything builds on them).
+5. **`provision_trip` RPC + template tenant seed** — atomic create + clone + fallback schema.
+6. **Signup front door** — `/signup` page, ungate auth, onboarding (name + describe), call RPC.
+7. **section_schema rendering** — dossier pages read `section_schema`; backfill David=climbing /
    Derek=roadtrip schemas.
-7. **Sonnet schema generation** — async intent→schema, in-place upgrade over fallback + CMS edit.
-8. **Rate limits** — `ratelimit.ts` + apply to public-write endpoints + chat daily cap.
-9. **Home-page showcase** — framing copy + CTA.
+8. **Sonnet schema generation** — async intent→schema, in-place upgrade over fallback + CMS edit.
+9. **Rate limits** — `ratelimit.ts` + apply to public-write endpoints + chat daily cap.
+10. **Home-page showcase** — framing copy + CTA.
 
-Slices 1–3 are the safety spine and land first. **Nothing user-facing ships until the audit
-(3) passes.**
+Slices 1–4 are the safety spine and land first, on a Supabase **branch**. **Nothing
+user-facing ships until the audit (4) passes** and the branch is verified, then merged.
