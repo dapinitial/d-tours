@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '../../lib/supabase';
 import { supabaseServer, authConfigured } from '../../lib/supabaseServer';
 import { getDefaultTenant } from '../../lib/data';
 import { notify } from '../../lib/notifier';
+import { guard } from '../../lib/ratelimit';
 
 export const prerender = false;
 
@@ -10,6 +11,8 @@ export const prerender = false;
 // unapproved AND pings David on his channels (iMessage→email→SMS gateway). OWNER
 // moderates (approve/decline/remove). Shows publicly once approved.
 export const POST: APIRoute = async ({ request, cookies }) => {
+  const limited = guard(request, 'comment', { capacity: 6, refillPerSec: 1 / 20 });
+  if (limited) return limited;
   let p: any = {};
   try { p = await request.json(); } catch {}
   const sb = getSupabaseAdmin();

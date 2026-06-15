@@ -2,12 +2,15 @@ import type { APIRoute } from 'astro';
 import { getSupabaseAdmin } from '../../lib/supabase';
 import { getDefaultTenant } from '../../lib/data';
 import { sendRaw } from '../../lib/notifier/email';
+import { guard } from '../../lib/ratelimit';
 
 export const prerender = false;
 
 // Follower subscribes to Shotgun's recap (daily or weekly). Stored in Supabase;
 // the home-iMac digest job emails the list at Tier 2. Mock-safe (echoes success).
 export const POST: APIRoute = async ({ request }) => {
+  const limited = guard(request, 'subscribe', { capacity: 4, refillPerSec: 1 / 30 });
+  if (limited) return limited;
   let email = '', cadence = 'weekly';
   try { ({ email, cadence = 'weekly' } = await request.json()); } catch {}
   if (!email || !/^.+@.+\..+$/.test(email)) return json({ ok: false, error: 'A valid email, please.' }, 400);

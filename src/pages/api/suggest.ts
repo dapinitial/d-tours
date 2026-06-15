@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { getSupabaseAdmin } from '../../lib/supabase';
 import { supabaseServer, authConfigured } from '../../lib/supabaseServer';
 import { getDefaultTenant } from '../../lib/data';
+import { guard } from '../../lib/ratelimit';
 
 export const prerender = false;
 
@@ -10,6 +11,8 @@ export const prerender = false;
 // Approve stages it onto the itinerary as a proposed stop, the same lane as a
 // D-Tours pick — so the suggester's idea actually reaches the trip.
 export const POST: APIRoute = async ({ request, cookies }) => {
+  const limited = guard(request, 'suggest', { capacity: 6, refillPerSec: 1 / 20 });
+  if (limited) return limited;
   let p: any = {};
   try { p = await request.json(); } catch {}
   const sb = getSupabaseAdmin();

@@ -2,8 +2,13 @@ import type { APIRoute } from 'astro';
 import Anthropic from '@anthropic-ai/sdk';
 import { getStops, getObjectives, getProposedObjectives, getDefaultTenant } from '../../lib/data';
 import { getSupabaseAdmin } from '../../lib/supabase';
+import { guard, dailyCap } from '../../lib/ratelimit';
 
 export const prerender = false;
+
+// Hard daily ceiling on LLM calls — the guard that MUST exist before ANTHROPIC_API_KEY
+// is ever set, so chat can't run up an unbounded bill. Override via CHAT_DAILY_CAP.
+const CHAT_DAILY_CAP = Number(process.env.CHAT_DAILY_CAP || 500);
 
 // Tool: stage a climbing alternative as 'proposed' for David to review (it does NOT
 // touch the confirmed plan — proposed objectives are hidden from the public list and
@@ -53,9 +58,16 @@ const MODELS: Record<string, string> = {
 const DEFAULT_MODEL = process.env.SHOTGUN_MODEL || 'claude-haiku-4-5';
 
 export const POST: APIRoute = async ({ request }) => {
+  const limited = guard(request, 'chat', { capacity: 6, refillPerSec: 1 / 12 });
+  if (limited) return limited;
+
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) {
     return json({ ok: false, reply: "Shotgun's voice isn't wired up yet — the owner needs to set ANTHROPIC_API_KEY." });
+  }
+  // Global daily cap across all callers — the bill ceiling.
+  if (!dailyCap('chat:global', CHAT_DAILY_CAP).ok) {
+    return json({ ok: false, reply: "Shotgun's taken a lot of calls today — try again tomorrow." }, 429);
   }
 
   let body: any = {};

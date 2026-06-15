@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { supabaseServer, authConfigured } from '../../lib/supabaseServer';
 import { generateSectionSchema } from '../../lib/intentSchema';
+import { guard } from '../../lib/ratelimit';
 
 export const prerender = false;
 
@@ -8,6 +9,8 @@ export const prerender = false;
 // tenant + owner crew row and clones the Seattle/PNW template. Idempotent at the DB
 // level — a user who already owns a trip just gets it back.
 export const POST: APIRoute = async ({ request, cookies }) => {
+  const limited = guard(request, 'provision', { capacity: 4, refillPerSec: 1 / 30 });
+  if (limited) return limited;
   if (!authConfigured) return json({ ok: false, error: 'auth not configured' }, 503);
   const sb = supabaseServer(cookies, request.headers);
   const { data: { user } } = await sb.auth.getUser();

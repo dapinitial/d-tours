@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { getSupabaseAdmin } from '../../lib/supabase';
 import { supabaseServer, authConfigured } from '../../lib/supabaseServer';
 import { getDefaultTenant } from '../../lib/data';
+import { guard } from '../../lib/ratelimit';
 
 export const prerender = false;
 
@@ -10,6 +11,8 @@ export const prerender = false;
 // Lands as 'pending'. OWNER: moderate (action confirm|decline|remove|add).
 // Mirrors /api/rendezvous — same gate, same shape.
 export const POST: APIRoute = async ({ request, cookies }) => {
+  const limited = guard(request, 'signup', { capacity: 6, refillPerSec: 1 / 20 });
+  if (limited) return limited;
   let p: any = {};
   try { p = await request.json(); } catch {}
   const sb = getSupabaseAdmin();
