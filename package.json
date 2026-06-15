@@ -8,6 +8,7 @@
     "dev": "astro dev",
     "start": "node ./dist/server/entry.mjs",
     "build": "astro build",
+    "test": "node --test 'src/**/*.test.ts'",
     "preview": "astro preview",
     "astro": "astro",
     "digest": "node scripts/daily-digest.mjs",
