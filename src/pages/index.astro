@@ -36,7 +36,8 @@ const venmoUrl = import.meta.env.PUBLIC_VENMO_URL ?? '';
         detours that fit the time you have, and getting you to every rendezvous on schedule.
       </p>
       <div class="cta" data-reveal>
-        <a href="/journal" class="btn">Follow the journey</a>
+        <a href="/signup" class="btn">🚪 Start your own trip</a>
+        <a href="/journal" class="btn ghost">Follow the journey</a>
         <a href="#live" class="btn ghost">🛰️ Where's David?</a>
         <a href="/plan" class="btn ghost">📄 Trip plan</a>
       </div>
@@ -58,6 +59,21 @@ const venmoUrl = import.meta.env.PUBLIC_VENMO_URL ?? '';
         <p>Ricardo's wedding (Aug 1) is the fixed wall everything bends around. Everything in green has slack — that's where the detours live.</p>
       </div>
       <Timeline stops={stops} objectives={objectives} />
+    </div>
+  </section>
+
+  <!-- BE WHATEVER YOU WANT -->
+  <section>
+    <div class="container">
+      <div class="own-trip" data-reveal>
+        <p class="eyebrow">🌎 Your trip, your way</p>
+        <h2>We're a climbing trip — but you can be whatever you want</h2>
+        <p>Same engine, any adventure. Look at Derek: his is just a road trip. Whether you're
+          chasing World Cup matches in Seattle, crawling breweries, or sending alpine objectives,
+          your dossier shapes itself to what you're doing — a climber gets <em>Gear &amp; Skills</em>,
+          a road-tripper gets a <em>Packing List</em>.</p>
+        <a href="/signup" class="btn">🚪 Start your own trip</a>
+      </div>
     </div>
   </section>
 
@@ -135,6 +151,10 @@ const venmoUrl = import.meta.env.PUBLIC_VENMO_URL ?? '';
 </Base>
 
 <style>
+  .own-trip { text-align: center; max-width: 640px; margin: 0 auto; padding: 2rem 1.2rem; border: 1px solid var(--border); border-radius: 16px; background: var(--bg-2); }
+  .own-trip h2 { margin: .3rem 0 .8rem; }
+  .own-trip p { margin: 0 auto 1.2rem; color: var(--muted); }
+  .own-trip em { color: var(--text); font-style: normal; font-weight: 600; }
   .hero { padding: clamp(4rem, 12vw, 9rem) 0 clamp(3rem, 7vw, 6rem); }
   .hero h1 { margin: 0 0 1.3rem; }
   .hero .accent { color: var(--green); }
