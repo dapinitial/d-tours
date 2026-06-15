@@ -8,10 +8,11 @@
 // view-model — the Astro compiler misparses `<`/`<=` comparisons inside `{ }` template
 // expressions as JSX tag-opens, so we keep comparisons out of the markup.
 import Base from '../layouts/Base.astro';
-import { getChapters, getStops, getObjectives } from '../lib/data';
+import ConsideringClimbs from '../components/ConsideringClimbs.astro';
+import { getChapters, getStops, getObjectives, getProposedObjectives } from '../lib/data';
 import type { Stop, DayType } from '../lib/types';
 
-const [chapters, stops, objectives] = await Promise.all([getChapters(), getStops(), getObjectives()]);
+const [chapters, stops, objectives, proposedObjectives] = await Promise.all([getChapters(), getStops(), getObjectives(), getProposedObjectives()]);
 const objById = new Map(objectives.map((o) => [o.id, o]));
 
 const DAY: Record<DayType, { icon: string; label: string }> = {
@@ -134,6 +135,8 @@ const view = chapters.map((c) => {
           </article>
         ))}
       </div>
+
+      <ConsideringClimbs objectives={proposedObjectives} />
     </div>
   </section>
 </Base>

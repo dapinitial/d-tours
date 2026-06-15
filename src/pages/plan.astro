@@ -1,9 +1,10 @@
 ---
 import Base from '../layouts/Base.astro';
 import ShareButton from '../components/ShareButton.astro';
-import { getStops, getObjectives, getResources, getRendezvous } from '../lib/data';
-const [stops, objectives, resources, confirmedRdv] = await Promise.all([
-  getStops(), getObjectives(), getResources(), getRendezvous(undefined, 'confirmed'),
+import ConsideringClimbs from '../components/ConsideringClimbs.astro';
+import { getStops, getObjectives, getProposedObjectives, getResources, getRendezvous } from '../lib/data';
+const [stops, objectives, proposedObjectives, resources, confirmedRdv] = await Promise.all([
+  getStops(), getObjectives(), getProposedObjectives(), getResources(), getRendezvous(undefined, 'confirmed'),
 ]);
 const sev: Record<string, string> = { low: 'chip', med: 'chip amber', high: 'chip red' };
 const logistics = resources.filter((r) => r.layer === 'logistics' || r.layer === 'life');
@@ -141,6 +142,8 @@ for (const o of objectives) {
         </div>
       ))}
     </div>
+
+    <ConsideringClimbs objectives={proposedObjectives} />
 
     <!-- LOGISTICS -->
     <h2>🏕️ Logistics, friends &amp; basecamps</h2>
