@@ -5,7 +5,7 @@
 import { getSupabase, getSupabaseAdmin, supabaseConfigured } from './supabase';
 import { haversineMi } from './proximity';
 import * as mock from './mock';
-import type { Stop, Objective, Resource, Post, Detour, GearItem, Source } from './types';
+import type { Stop, Objective, Resource, Post, Detour, GearItem, Source, Chapter } from './types';
 
 export const isMock = !supabaseConfigured;
 
@@ -63,6 +63,17 @@ export async function getStops(tenantId?: string): Promise<Stop[]> {
   if (tid) q = q.eq('tenant_id', tid);
   const { data, error } = await q;
   return error ? [] : (data as Stop[]);
+}
+
+/** The trip's named, dated chapters — the spine the calendar + map group by. */
+export async function getChapters(tenantId?: string): Promise<Chapter[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const tid = await resolveTid(tenantId);
+  let q = sb.from('chapters').select('*').order('sort', { ascending: true });
+  if (tid) q = q.eq('tenant_id', tid);
+  const { data, error } = await q;
+  return error ? [] : (data as Chapter[]);
 }
 
 /** A single stop (for its town dossier page). */

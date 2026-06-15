@@ -74,6 +74,23 @@ export interface StopDossier {
   note?: string;
 }
 
+/** The character of a committed day — drives the calendar icon + the rhythm logic
+ *  (remote-work near connectivity, recovery, travel, crag vs. committing alpine). */
+export type DayType = 'remote-work' | 'recovery' | 'travel' | 'crag' | 'alpine';
+
+/** A named, dated trip chapter ("The Winds"). The spine the calendar + map group by.
+ *  `end_date` null = open-ended (the back half). */
+export interface Chapter {
+  id: string;
+  tenant_id?: string;
+  name: string;
+  emoji?: string | null;
+  blurb?: string | null;
+  start_date?: string | null;  // ISO date
+  end_date?: string | null;    // ISO date, null = open-ended
+  sort: number;
+}
+
 /** A stop on the route timeline / a travel day. `flex` drives the detour engine. */
 export interface Stop {
   id: string;
@@ -82,7 +99,12 @@ export interface Stop {
   name: string;
   sub?: string;          // "Refuel & Whitley", "Chels, Jillian & Fam"
   emoji?: string;
-  date?: string;         // ISO or human ("Mid-July", "Aug 1")
+  date?: string;         // free-text display label ("Mid-July", "Aug 1")
+  start_date?: string | null;  // structured ISO date — what the calendar + map clip use
+  end_date?: string | null;    // structured ISO date (multi-day stops)
+  chapter_id?: string | null;  // which chapter this day belongs to (auto-filed by date)
+  objective_id?: string | null;// set when committed from a climb — deep-links its dossier
+  day_type?: DayType | null;   // the day's character (see DayType)
   flex: Flex;            // hard = fixed deadline, soft = some slack, open = whenever
   region?: string;
   rendezvous?: string;   // e.g. "Derek (solar camper) from Grand Rapids"
