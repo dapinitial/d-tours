@@ -1,12 +1,28 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { getStops, getProposedObjectives } from '../../lib/data';
+import { getStops, getProposedObjectives, getChapters } from '../../lib/data';
 const tid = Astro.locals.tenantId;
 const stops = (await getStops(tid)).sort((a, b) => a.order - b.order);
-// 📥 The suggestion box: scouted climbs (status='proposed') waiting for a spot on
-// the route. Adding one drops it onto the timeline + promotes it out of the queue.
+// 📥 The suggestion box: scouted climbs (status='proposed') waiting for a DAY. Picking
+// a date + type commits one: it files into its chapter, fills the calendar, drops on
+// the timeline, and gets promoted out of the queue.
 const proposed = await getProposedObjectives(tid);
+const chapters = await getChapters(tid);
 const flexes = ['hard', 'soft', 'open'];
+const dayTypes = [
+  { v: 'alpine', label: '🏔️ Alpine' },
+  { v: 'crag', label: '🪨 Crag' },
+  { v: 'travel', label: '🚐 Travel' },
+  { v: 'recovery', label: '🧖 Recovery' },
+  { v: 'remote-work', label: '💻 Remote' },
+];
+const firstStart = chapters.find((c) => c.start_date)?.start_date ?? undefined;
+const chipFor = (c: typeof chapters[number]) => {
+  const o: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  const a = c.start_date ? new Date(`${c.start_date}T12:00:00`).toLocaleDateString('en-US', o) : '';
+  const b = c.end_date ? new Date(`${c.end_date}T12:00:00`).toLocaleDateString('en-US', o) : 'open';
+  return `${c.emoji ?? ''} ${c.name} · ${a}${b && b !== a ? `–${b}` : ''}`;
+};
 ---
 <Base title="D-Tours · Edit Itinerary">
   <section>
@@ -21,7 +37,12 @@ const flexes = ['hard', 'soft', 'open'];
       {proposed.length > 0 && (
         <div class="suggestion-box">
           <h3>📥 Suggestion box <span class="sb-count">{proposed.length}</span></h3>
-          <p class="muted tiny">Scouted climbs awaiting a spot on the route. <strong>Add one</strong> → it drops onto the timeline below, then drag ⠿ it into place.</p>
+          <p class="muted tiny">Scouted climbs awaiting a day. Pick a <strong>date</strong> + <strong>type</strong> and <strong>Commit</strong> → it files into its chapter, fills the calendar, and drops on the timeline. (Leave the date blank to just park it on the route.)</p>
+          {chapters.length > 0 && (
+            <div class="ch-hints">
+              {chapters.map((c) => <span class="ch-hint">{chipFor(c)}</span>)}
+            </div>
+          )}
           <div class="sb-list">
             {proposed.map((o) => (
               <div class="sb-item" data-oid={o.id} data-name={o.name} data-grade={o.grade ?? ''} data-region={o.region ?? ''} data-lat={o.lat ?? ''} data-lng={o.lng ?? ''}>
@@ -30,7 +51,14 @@ const flexes = ['hard', 'soft', 'open'];
                   <a href={`/objectives/${o.id}`} target="_blank" class="sb-name">{o.name}</a>
                   <span class="muted tiny">{o.grade}{o.region ? ` · ${o.region}` : ''}</span>
                 </div>
-                <button class="btn sm sb-add">＋ Add to route</button>
+                <div class="sb-commit">
+                  <input class="sb-date" type="date" min={firstStart} aria-label="commit date" />
+                  <select class="sb-daytype" aria-label="day type">
+                    <option value="">type…</option>
+                    {dayTypes.map((d) => <option value={d.v}>{d.label}</option>)}
+                  </select>
+                  <button class="btn sm sb-add">＋ Commit</button>
+                </div>
               </div>
             ))}
           </div>
@@ -135,14 +163,21 @@ const flexes = ['hard', 'soft', 'open'];
       if (j.ok) location.reload();
     });
 
-    // ── suggestion box → drop a scouted climb onto the route (as a stop) + promote it ──
+    // ── suggestion box → commit a scouted climb to a DAY (as a stop) + promote it ──
+    const DAY_EMOJI = { alpine: '🏔️', crag: '🪨', travel: '🚐', recovery: '🧖', 'remote-work': '💻' };
     document.querySelectorAll('.sb-add').forEach((btn) => btn.addEventListener('click', async () => {
       const item = btn.closest('.sb-item');
       const order = list.querySelectorAll('.row').length + 1;
+      const date = item.querySelector('.sb-date')?.value || '';          // YYYY-MM-DD or ''
+      const dayType = item.querySelector('.sb-daytype')?.value || '';
+      const pretty = date ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
       const stop = {
         id: 'stop-' + (item.dataset.oid || Math.random().toString(36).slice(2)),
-        name: item.dataset.name, emoji: '🧗', sub: item.dataset.grade,
+        name: item.dataset.name, emoji: DAY_EMOJI[dayType] || '🧗', sub: item.dataset.grade,
         region: item.dataset.region, flex: 'soft', status: 'confirmed', kind: 'sidequest', order,
+        objective_id: item.dataset.oid || null,                          // dossier back-link
+        ...(date ? { start_date: date, date: pretty } : {}),            // commit to a day (chapter auto-filed server-side)
+        ...(dayType ? { day_type: dayType } : {}),
         ...(item.dataset.lat ? { lat: parseFloat(item.dataset.lat) } : {}),
         ...(item.dataset.lng ? { lng: parseFloat(item.dataset.lng) } : {}),
       };
@@ -150,7 +185,7 @@ const flexes = ['hard', 'soft', 'open'];
       if (!j.ok) return;
       // promote the objective out of the proposed queue so it's confirmed + public
       await fetch('/api/objectives', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'promote', id: item.dataset.oid }) });
-      toast('Added to route ✓'); location.reload();
+      toast(date ? `Committed to ${pretty} ✓` : 'Added to route ✓'); location.reload();
     }));
 
     wireFields(list); wireDelete(list); wireDrag(list);
@@ -162,12 +197,18 @@ const flexes = ['hard', 'soft', 'open'];
     .suggestion-box h3 { margin: 0 0 .15rem; }
     .sb-count { font-size: .72rem; background: rgba(56,189,248,.2); color: var(--sky); padding: .1rem .5rem; border-radius: 999px; vertical-align: middle; }
     .sb-list { display: grid; gap: .5rem; margin-top: .7rem; }
-    .sb-item { display: flex; align-items: center; gap: .7rem; background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: .5rem .7rem; }
+    .sb-item { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: .5rem .7rem; }
     .sb-emoji { font-size: 1.2rem; }
-    .sb-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .1rem; }
+    .sb-meta { flex: 1; min-width: 8rem; display: flex; flex-direction: column; gap: .1rem; }
     .sb-name { color: var(--text); font-weight: 700; }
     .sb-name:hover { color: var(--green); }
+    .sb-commit { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+    .sb-date, .sb-daytype { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: .35rem .5rem; font: inherit; font-size: .82rem; }
+    .sb-date:focus, .sb-daytype:focus { border-color: var(--green); outline: none; }
     .sb-add { white-space: nowrap; }
+    /* chapter date-range hints above the suggestion list */
+    .ch-hints { display: flex; flex-wrap: wrap; gap: .35rem; margin: .6rem 0 .2rem; }
+    .ch-hint { font-size: .72rem; color: var(--muted); background: var(--bg-2); border: 1px solid var(--border); border-radius: 999px; padding: .18rem .55rem; white-space: nowrap; }
     .rows { display: grid; gap: .6rem; }
     .row { display: flex; align-items: flex-start; gap: .7rem; padding: .8rem; background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 12px; }
     .row.dragging { opacity: .5; border-color: var(--green); }

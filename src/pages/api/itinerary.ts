@@ -35,18 +35,33 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   // tenant guard applied to every row-targeting write
   const scoped = (q: any) => (tid ? q.eq('tenant_id', tid) : q);
 
+  // Auto-file a committed stop into the chapter whose date range contains its
+  // start_date (so the client never has to know chapter boundaries). The chapter
+  // starting on-or-before the date, whose end is on-or-after it (or open-ended), wins.
+  const fileChapter = async (row: any) => {
+    if (!row?.start_date || row.chapter_id) return row;
+    let q = sb.from('chapters').select('id,end_date').lte('start_date', row.start_date)
+      .order('start_date', { ascending: false }).limit(1);
+    if (tid) q = q.eq('tenant_id', tid);
+    const { data } = await q;
+    const c = (data ?? [])[0];
+    if (c && (!c.end_date || c.end_date >= row.start_date)) row.chapter_id = c.id;
+    return row;
+  };
+
   try {
     switch (action) {
       case 'add': {
-        const row = tid ? { ...stop, tenant_id: tid } : stop;
+        const row = await fileChapter(tid ? { ...stop, tenant_id: tid } : { ...stop });
         const { error } = await sb.from('stops').upsert(row);
         if (error) throw error;
-        return json({ ok: true, action, id: stop?.id });
+        return json({ ok: true, action, id: stop?.id, chapter_id: row.chapter_id ?? null });
       }
       case 'update': {
-        const { error } = await scoped(sb.from('stops').update(stop).eq('id', id ?? stop?.id));
+        const row = await fileChapter({ ...stop });
+        const { error } = await scoped(sb.from('stops').update(row).eq('id', id ?? stop?.id));
         if (error) throw error;
-        return json({ ok: true, action, id: id ?? stop?.id });
+        return json({ ok: true, action, id: id ?? stop?.id, chapter_id: row.chapter_id ?? null });
       }
       case 'stage': {
         // Drive Mode dropped a live detour onto the plan. Stage it (proposed/

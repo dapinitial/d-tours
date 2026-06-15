@@ -48,7 +48,13 @@ const geoPosts = posts
     // Draw one trip's route + stops + current position onto a target layer.
     const drawTrip = (trip, target) => {
       const pts = [];
-      L.polyline(trip.route, { color: trip.color, weight: 3, opacity: .75, dashArray: '6 7' }).addTo(target);
+      // Ghost the road ahead (future + undated) faintly, so the trip's shape is visible
+      // without claiming it's travelled; the reached breadcrumb draws solid on top.
+      if (trip.ahead && trip.ahead.length) {
+        L.polyline(trip.ahead, { color: trip.color, weight: 2, opacity: .2, dashArray: '2 9' }).addTo(target);
+        trip.ahead.forEach((c) => pts.push(c));
+      }
+      L.polyline(trip.route, { color: trip.color, weight: 3, opacity: .8, dashArray: '6 7' }).addTo(target);
       for (const s of (trip.stops || [])) {
         L.circleMarker([s.lat, s.lng], { radius: 4, color: trip.color, fillColor: trip.color, fillOpacity: .9, weight: 1 })
           .addTo(target).bindPopup(`${s.emoji} ${s.name} <span style="opacity:.6">· ${trip.name}</span>`);

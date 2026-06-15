@@ -46,10 +46,14 @@ export const GET: APIRoute = async () => {
       .filter((s) => (s.status ?? 'confirmed') !== 'declined' && s.lat != null && s.lng != null)
       .sort((a, b) => a.order - b.order);
     if (!stops.length) continue;
-    // Only the reached portion of the route draws (the breadcrumb so far). The full
-    // `stops` list is still used below to approximate a position when no feed exists.
-    const reached = stops.filter((s) => { const d = effDate(s); return d != null && d <= today; });
+    // The route is a breadcrumb: the REACHED portion draws solid; everything ahead
+    // (future or undated) draws as a faint ghost so the shape of the trip is visible
+    // without pretending it's happened. Reached = effective date <= today.
+    const isReached = (s: any) => { const d = effDate(s); return d != null && d <= today; };
+    const reached = stops.filter(isReached);
     const route = reached.map((s) => [s.lat, s.lng]);
+    const ahead = stops.filter((s) => !isReached(s)).map((s) => [s.lat, s.lng]);
+    if (route.length && ahead.length) ahead.unshift(route[route.length - 1]); // bridge solid→ghost
     // Current position. For the default trip use the live MapShare feed when set;
     // otherwise approximate at a mid-route stop (clearly labelled, until a feed exists).
     let position = null as any;
@@ -68,6 +72,7 @@ export const GET: APIRoute = async () => {
     out.push({
       slug: tenant.slug, name: t.name, color: t.color,
       route,
+      ahead,
       stops: reached.map((s) => ({ name: s.name, lat: s.lat, lng: s.lng, emoji: s.emoji ?? '📍' })),
       position,
     });
