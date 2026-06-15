@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { supabaseServer, authConfigured } from '../../lib/supabaseServer';
+import { generateSectionSchema } from '../../lib/intentSchema';
 
 export const prerender = false;
 
@@ -24,6 +25,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return json({ ok: false, error: 'Could not create your trip — try again.' }, 500);
   }
   const row = Array.isArray(data) ? data[0] : data;
+
+  // Upgrade the generic fallback schema to one tailored to the declared intent. No-op
+  // when ANTHROPIC_API_KEY is unset (generateSectionSchema returns null) → fallback kept.
+  if (intent && row?.tenant_id) {
+    const tailored = await generateSectionSchema(intent);
+    if (tailored) await sb.from('tenants').update({ section_schema: tailored }).eq('id', row.tenant_id);
+  }
+
   return json({ ok: true, slug: row?.slug ?? null });
 };
 
