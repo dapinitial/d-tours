@@ -1,6 +1,8 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { getObjective, getSources, getObjectiveComments, getSignups } from '../../lib/data';
+import { getObjective, getSources, getObjectiveComments, getSignups, getTenant } from '../../lib/data';
+import DossierSections from '../../components/DossierSections.astro';
+import { resolveSchema, isClimbingTrip } from '../../lib/sectionSchema';
 import type { ObjectiveBeta } from '../../lib/types';
 import { isSendDay, sendWindow, windowLabel } from '../../lib/weather';
 import { extImg } from '../../lib/packet';
@@ -13,6 +15,11 @@ const obj = id ? await getObjective(id) : null;
 if (!obj) return Astro.redirect('/plan');
 const b: ObjectiveBeta = (obj.beta as any) ?? {};
 const hasBeta = obj.beta && Object.keys(obj.beta as any).length > 0;
+// Trip-tailored dossier: climbing trips keep the bespoke renderer below; every other
+// trip type (road trip, World Cup, …) renders from its editable section schema instead.
+const tenant = await getTenant((obj as any).tenant_id);
+const schema = resolveSchema(tenant);
+const climbing = isClimbingTrip(tenant);
 // Owner-only Smart Commit. Wrapped so a failed/blocked auth check NEVER blanks this
 // public page — on any error we just fall through to not-owner (no button).
 let isOwner = !authConfigured; // local/mock dev → treat as owner
@@ -237,7 +244,9 @@ const checklist = [
         </div>
       )}
 
-      {b.routes && b.routes.length > 0 && (
+      {!climbing && <DossierSections schema={schema} data={b} />}
+
+      {climbing && b.routes && b.routes.length > 0 && (
         <section class="block">
           <h2>🧗 Routes</h2>
           <div class="routes">
@@ -251,7 +260,7 @@ const checklist = [
         </section>
       )}
 
-      {(b.approach || b.descent || b.season) && (
+      {climbing && (b.approach || b.descent || b.season) && (
         <section class="block">
           <h2>🥾 Approach · descent · season</h2>
           {b.approach && <p><strong>Approach:</strong> {b.approach}</p>}
@@ -261,7 +270,7 @@ const checklist = [
       )}
 
       <div class="cols">
-        {(b.rack || b.ropes || b.footwear || b.mountaineering || b.food) && (
+        {climbing && (b.rack || b.ropes || b.footwear || b.mountaineering || b.food) && (
           <section class="block">
             <h2>🎒 Gear & food</h2>
             {b.rack && <p><strong>Rack:</strong> {b.rack}</p>}
@@ -273,7 +282,7 @@ const checklist = [
             {b.med_kit && b.med_kit.length > 0 && <p><strong>🩹 Med/repair kit:</strong> {b.med_kit.join(' · ')}</p>}
           </section>
         )}
-        {b.skills && b.skills.length > 0 && (
+        {climbing && b.skills && b.skills.length > 0 && (
           <section class="block">
             <h2>🪢 Skills needed</h2>
             <ul>{b.skills.map((s) => <li>{s}</li>)}</ul>

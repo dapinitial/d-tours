@@ -17,7 +17,7 @@ function readClient() {
 
 export const isMock = !supabaseConfigured;
 
-export interface Tenant { id: string; slug: string; name: string; tagline?: string; owner_email?: string; interests?: string[]; is_default?: boolean; }
+export interface Tenant { id: string; slug: string; name: string; tagline?: string; owner_email?: string; interests?: string[]; is_default?: boolean; visibility?: string; intent_text?: string | null; section_schema?: import('./sectionSchema').SectionSchema | null; }
 
 let _defaultTid: string | null | undefined;
 

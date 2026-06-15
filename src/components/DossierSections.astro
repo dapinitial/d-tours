@@ -1,0 +1,55 @@
+---
+// Renders a trip's day-dossier from its section schema + the objective's `beta` data.
+// Used for non-climbing trips (climbing keeps its bespoke renderer). Each schema section
+// shows only the fields that have data, so an owner fills it in over time. String fields
+// render as text; array fields render as lists (of strings or {name,note,url} objects).
+import type { SectionSchema } from '../lib/sectionSchema';
+const { schema, data } = Astro.props as { schema: SectionSchema; data: Record<string, any> };
+
+const has = (v: any) => v != null && !(typeof v === 'string' && v.trim() === '') && !(Array.isArray(v) && v.length === 0);
+const visibleSections = schema.sections
+  .map((s) => ({ ...s, present: s.fields.filter((f) => has(data?.[f])) }))
+  .filter((s) => s.present.length > 0);
+const labelize = (f: string) => f.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+---
+{visibleSections.map((s) => (
+  <section class="dsec">
+    <h2>{s.icon} {s.label}</h2>
+    {s.present.map((f) => {
+      const v = data[f];
+      return (
+        <div class="dfield">
+          {s.present.length > 1 && <span class="dfield-label">{labelize(f)}</span>}
+          {Array.isArray(v) ? (
+            <ul>
+              {v.map((item: any) => (
+                <li>
+                  {typeof item === 'string' ? item : (
+                    <>
+                      <strong>{item.name ?? item.label ?? ''}</strong>
+                      {item.grade && <span class="muted"> · {item.grade}</span>}
+                      {item.note && <span> — {item.note}</span>}
+                      {item.url && <> · <a href={item.url} target="_blank" rel="noopener">link</a></>}
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>{v}</p>
+          )}
+        </div>
+      );
+    })}
+  </section>
+))}
+
+<style>
+  .dsec { margin: 1.2rem 0; }
+  .dsec h2 { font-size: 1.05rem; margin: 0 0 .5rem; }
+  .dfield { margin: .4rem 0; }
+  .dfield-label { display: block; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: .15rem; }
+  .dfield p { margin: 0; }
+  .dfield ul { margin: .2rem 0; padding-left: 1.1rem; }
+  .dfield .muted { color: var(--muted); }
+</style>
