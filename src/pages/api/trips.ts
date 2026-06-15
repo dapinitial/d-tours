@@ -25,6 +25,17 @@ const TRIPS = [
 
 export const GET: APIRoute = async () => {
   const out: any[] = [];
+  // Date-clip horizon: the route GROWS as the trip is lived. A stop draws only once
+  // its effective date is at-or-before today; future legs stay dark until reached.
+  const today = new Date(); today.setHours(23, 59, 59, 999);
+  const YEAR = today.getFullYear();
+  const effDate = (s: any): Date | null => {
+    if (!s.start_date && !s.date) return null;
+    // structured ISO date is the truth; else parse the free-text label ("Aug 1") with
+    // the trip year. Unparseable ("Mid-July") → null → stays in the planner, off the map.
+    const d = s.start_date ? new Date(`${s.start_date}T12:00:00`) : new Date(`${s.date} ${YEAR}`);
+    return isNaN(d.getTime()) ? null : d;
+  };
   // Companions can carry a phone-GPS check-in position (for folks without an inReach).
   const companions = await getCompanions();
   const byName: Record<string, any> = Object.fromEntries(companions.map((c) => [c.name, c]));
@@ -35,7 +46,10 @@ export const GET: APIRoute = async () => {
       .filter((s) => (s.status ?? 'confirmed') !== 'declined' && s.lat != null && s.lng != null)
       .sort((a, b) => a.order - b.order);
     if (!stops.length) continue;
-    const route = stops.map((s) => [s.lat, s.lng]);
+    // Only the reached portion of the route draws (the breadcrumb so far). The full
+    // `stops` list is still used below to approximate a position when no feed exists.
+    const reached = stops.filter((s) => { const d = effDate(s); return d != null && d <= today; });
+    const route = reached.map((s) => [s.lat, s.lng]);
     // Current position. For the default trip use the live MapShare feed when set;
     // otherwise approximate at a mid-route stop (clearly labelled, until a feed exists).
     let position = null as any;
@@ -54,7 +68,7 @@ export const GET: APIRoute = async () => {
     out.push({
       slug: tenant.slug, name: t.name, color: t.color,
       route,
-      stops: stops.map((s) => ({ name: s.name, lat: s.lat, lng: s.lng, emoji: s.emoji ?? '📍' })),
+      stops: reached.map((s) => ({ name: s.name, lat: s.lat, lng: s.lng, emoji: s.emoji ?? '📍' })),
       position,
     });
   }

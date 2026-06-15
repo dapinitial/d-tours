@@ -55,8 +55,11 @@ const geoPosts = posts
       }
       if (trip.position) {
         const p = trip.position;
-        L.circleMarker([p.lat, p.lng], { radius: 9, color: '#fff', weight: 2, fillColor: trip.color, fillOpacity: 1 })
+        // Radar "you are here" ping — pulsing ring + solid dot, in the trip's color.
+        const icon = L.divIcon({ className: 'live-pulse-wrap', html: `<span class="live-pulse" style="color:${trip.color}"><i></i><b></b></span>`, iconSize: [0, 0], iconAnchor: [0, 0] });
+        L.marker([p.lat, p.lng], { icon, zIndexOffset: 1000 })
           .addTo(target).bindPopup(`<b>${trip.name}</b> · ${p.when}${p.live ? '' : ' <span style="opacity:.6">(approx)</span>'}`);
+        pts.push([p.lat, p.lng]); // frame the live dot even when the route hasn't drawn yet
       }
       (trip.route || []).forEach((c) => pts.push(c));
       return pts;
@@ -127,5 +130,12 @@ const geoPosts = posts
   .legend-hint { margin-left: auto; font-size: .72rem; }
   :global(.rdv) { color: #fbbf24; font-size: 18px; line-height: 22px; text-align: center; text-shadow: 0 0 6px rgba(251,191,36,.8); }
   :global(.post-pin) { font-size: 18px; line-height: 24px; text-align: center; filter: drop-shadow(0 0 4px rgba(0,0,0,.6)); }
+  /* Radar "you are here" ping. .live-pulse sits at the marker point (0×0 anchor);
+     <i> expands + fades outward, <b> is the solid centre dot. */
+  :global(.live-pulse) { position: relative; display: block; color: #34d399; }
+  :global(.live-pulse i) { position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; border-radius: 50%; background: currentColor; opacity: .5; animation: live-ping 2.2s ease-out infinite; }
+  :global(.live-pulse b) { position: absolute; left: -6px; top: -6px; width: 12px; height: 12px; border-radius: 50%; background: currentColor; border: 2px solid #fff; box-sizing: border-box; box-shadow: 0 0 6px rgba(0,0,0,.55); }
+  @keyframes live-ping { 0% { transform: scale(1); opacity: .5; } 70% { transform: scale(4); opacity: 0; } 100% { transform: scale(4); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { :global(.live-pulse i) { animation: none; opacity: .22; } }
   :global(.leaflet-popup-content) { font-family: inherit; }
 </style>
