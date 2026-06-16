@@ -1,7 +1,8 @@
 ---
 // Share the trip to people along the way. On phones this opens the native share
 // sheet (iMessage / WhatsApp / everything) — the link arrives as a rich OG card.
-// On desktop (no Web Share API) it falls back to copy + email.
+// On desktop (no Web Share API) it copies the link and shows a brief "✓ copied"
+// confirmation. One action — no menu, no separate email button.
 interface Props { path?: string; text?: string; label?: string; }
 const {
   path = Astro.url.pathname,
@@ -10,41 +11,28 @@ const {
 } = Astro.props;
 const url = new URL(path, Astro.site).href;
 ---
-<div class="share" data-url={url} data-text={text}>
+<span class="share" data-url={url} data-text={text}>
   <button class="btn share-btn" type="button">{label}</button>
-  <div class="share-menu" hidden>
-    <button class="sm copy" type="button">🔗 Copy link</button>
-    <a class="sm" data-email>✉️ Email</a>
-    <span class="sm-msg muted"></span>
-  </div>
-</div>
+  <span class="sm-msg" hidden></span>
+</span>
 
 <script>
   document.querySelectorAll('.share').forEach((root) => {
     const url = root.dataset.url, text = root.dataset.text;
-    const full = `${text} ${url}`;
-    const menu = root.querySelector('.share-menu');
     const msg = root.querySelector('.sm-msg');
-    root.querySelector('[data-email]').href = `mailto:?subject=${encodeURIComponent('Our road trip 🚐')}&body=${encodeURIComponent(full)}`;
-
-    root.querySelector('.share-btn').addEventListener('click', async () => {
+    const toast = (t) => { if (!msg) return; msg.textContent = t; msg.hidden = false; setTimeout(() => { msg.hidden = true; }, 2200); };
+    root.querySelector('.share-btn')?.addEventListener('click', async () => {
       if (navigator.share) {
         try { await navigator.share({ title: 'D-Tours', text, url }); return; }
-        catch (e) { if (e?.name === 'AbortError') return; } // user cancelled — don't pop the menu
+        catch (e) { if (e?.name === 'AbortError') return; } // user cancelled — do nothing
       }
-      menu.hidden = !menu.hidden;
-    });
-    root.querySelector('.copy').addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText(url); if (msg) msg.textContent = '✓ copied'; }
-      catch { if (msg) msg.textContent = url; }
+      try { await navigator.clipboard.writeText(url); toast('✓ link copied'); }
+      catch { toast(url); }
     });
   });
 </script>
 
 <style>
-  .share { display: inline-flex; flex-direction: column; gap: .5rem; align-items: flex-start; }
-  .share-menu { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
-  .sm { font-size: .82rem; padding: .4rem .7rem; border-radius: 999px; border: 1px solid var(--border-2); background: rgba(255,255,255,.04); color: var(--text); cursor: pointer; text-decoration: none; }
-  .sm:hover { border-color: var(--green); color: var(--green); }
-  .sm-msg { font-size: .8rem; }
+  .share { display: inline-flex; align-items: center; gap: .5rem; }
+  .sm-msg { font-size: .8rem; color: var(--green); }
 </style>

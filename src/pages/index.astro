@@ -37,12 +37,14 @@ const venmoUrl = import.meta.env.PUBLIC_VENMO_URL ?? '';
       </p>
       <div class="cta" data-reveal>
         <a href="/signup" class="btn">🚪 Start your own trip</a>
-        {venmoUrl && <a href={venmoUrl} class="btn" target="_blank" rel="noopener">💸 Fuel the trip</a>}
-        <a href="#live" class="btn ghost">🛰️ Where's David?</a>
       </div>
-      <div class="hero-actions" data-reveal>
+      <div class="cta-2" data-reveal>
+        <a href="#live" class="btn ghost">🛰️ Where's David?</a>
+        {venmoUrl && <a href={venmoUrl} class="btn ghost" target="_blank" rel="noopener">💸 Fuel the trip</a>}
+      </div>
+      <div class="hero-links" data-reveal>
         <ShareButton path="/" label="📲 Share" text="Follow our Austin → Squamish climbing road trip 🚐🧗 — track where we are and meet up along the way:" />
-        <a class="ha" href="#cheer">📬 Dispatch</a>
+        <span class="sep">·</span>
         <ReachUs compact />
       </div>
     </div>
@@ -157,18 +159,20 @@ const venmoUrl = import.meta.env.PUBLIC_VENMO_URL ?? '';
   .hero h1 { margin: 0 0 1.3rem; }
   .hero .accent { color: var(--green); }
   .lede { max-width: 620px; font-size: clamp(1.05rem, 2vw, 1.3rem); color: var(--muted); }
-  .cta { display: flex; gap: .8rem; margin-top: 2rem; flex-wrap: wrap; }
-  .hero-actions { display: flex; gap: .7rem; margin-top: 1.1rem; flex-wrap: wrap; align-items: center; }
-  .ha { font-size: .85rem; font-weight: 600; padding: .4rem .8rem; border-radius: 999px; border: 1px solid var(--border-2); color: var(--text); text-decoration: none; transition: all .15s; }
-  .ha:hover { border-color: var(--green); color: var(--green); }
-  .ha.venmo:hover { border-color: var(--sky); color: var(--sky); }
-  /* Unify the utility row into ONE small-pill language. ShareButton renders a big .btn
-     and ReachUs ships its own label — in the hero we flatten both to match the .ha pills,
-     so it reads as a clean secondary row, not a jumble of competing button styles. */
-  .hero-actions .share-btn { font: inherit; font-weight: 600; font-size: .85rem; padding: .4rem .8rem; border-radius: 999px; background: transparent; border: 1px solid var(--border-2); color: var(--text); }
-  .hero-actions .share-btn:hover { border-color: var(--green); color: var(--green); }
-  .hero-actions .reach-label { display: none; }
-  .hero-actions .reach { gap: .7rem; }
+  /* Hero action hierarchy: ONE bold primary, two light ghost buttons, then
+     share/contact demoted to tiny muted text-links so nothing competes with
+     "Start your own trip". */
+  .cta { display: flex; margin-top: 2rem; }
+  .cta .btn { font-size: 1.05rem; padding: .9rem 1.6rem; }
+  .cta-2 { display: flex; gap: .7rem; margin-top: .9rem; flex-wrap: wrap; align-items: center; }
+  .hero-links { display: flex; align-items: center; gap: .85rem; margin-top: 1.5rem; flex-wrap: wrap; font-size: .82rem; }
+  .hero-links .sep { color: var(--border-2); }
+  .hero-links .share-btn { font: inherit; font-size: .82rem; font-weight: 500; padding: 0; background: none; border: 0; color: var(--muted); cursor: pointer; }
+  .hero-links .share-btn:hover { color: var(--green); background: none; }
+  .hero-links .reach { gap: .85rem; }
+  .hero-links .reach-label { display: none; }
+  .hero-links .rb { font-size: .82rem; font-weight: 500; padding: 0; border: 0; color: var(--muted); }
+  .hero-links .rb:hover { color: var(--green); border: 0; }
   section.alt { background: linear-gradient(180deg, transparent, rgba(255,255,255,.012), transparent); }
   .container.narrow { width: min(100% - 2.5rem, 760px); }
 </style>
