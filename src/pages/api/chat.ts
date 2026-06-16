@@ -101,6 +101,12 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   // Compact trip context for the system prompt.
+  if (body?.diag === 'context') {
+    try {
+      const [s, o, p] = await Promise.all([getStops(), getObjectives(), getProposedObjectives()]);
+      return json({ ok: true, step: 'context', stops: s.length, objectives: o.length, proposed: p.length });
+    } catch (e: any) { return json({ ok: false, step: 'context', err: String(e?.message ?? e), name: e?.name }, 200); }
+  }
   const [stops, objectives, proposed] = await Promise.all([getStops(), getObjectives(), getProposedObjectives()]);
   const routeLine = stops.sort((a, b) => a.order - b.order).map((s) => s.name).join(' → ');
   const climbLine = objectives.map((o) => `${o.name} (${o.grade}, ${o.region})`).join('; ');
