@@ -72,24 +72,6 @@ export const POST: APIRoute = async ({ request }) => {
 
   let body: any = {};
   try { body = await request.json(); } catch {}
-
-  // TEMP diagnostic (remove after debugging the prod 504): report how far we get
-  // without calling Anthropic, so we can see it via curl instead of needing logs.
-  if (body?.diag === 'handler') {
-    return json({ ok: true, step: 'handler', node: process.version, keyLen: (key || '').length, keyHead: (key || '').slice(0, 8) });
-  }
-  if (body?.diag === 'construct') {
-    try { const c = new Anthropic({ apiKey: key }); return json({ ok: true, step: 'construct', built: !!c }); }
-    catch (e: any) { return json({ ok: false, step: 'construct', err: String(e?.message ?? e) }, 200); }
-  }
-  if (body?.diag === 'call') {
-    try {
-      const c = new Anthropic({ apiKey: key });
-      const r: any = await c.messages.create({ model: DEFAULT_MODEL, max_tokens: 20, messages: [{ role: 'user', content: 'say hi' }] });
-      return json({ ok: true, step: 'call', reply: r.content?.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('') });
-    } catch (e: any) { return json({ ok: false, step: 'call', err: String(e?.message ?? e), name: e?.name, status: e?.status }, 200); }
-  }
-
   const incoming: { role: string; content: string }[] = Array.isArray(body.messages) ? body.messages : [];
   // Sanitize + cap history (cost/abuse guard).
   const messages = incoming
@@ -101,12 +83,6 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   // Compact trip context for the system prompt.
-  if (body?.diag === 'context') {
-    try {
-      const [s, o, p] = await Promise.all([getStops(), getObjectives(), getProposedObjectives()]);
-      return json({ ok: true, step: 'context', stops: s.length, objectives: o.length, proposed: p.length });
-    } catch (e: any) { return json({ ok: false, step: 'context', err: String(e?.message ?? e), name: e?.name }, 200); }
-  }
   const [stops, objectives, proposed] = await Promise.all([getStops(), getObjectives(), getProposedObjectives()]);
   const routeLine = stops.sort((a, b) => a.order - b.order).map((s) => s.name).join(' → ');
   const climbLine = objectives.map((o) => `${o.name} (${o.grade}, ${o.region})`).join('; ');
