@@ -37,14 +37,12 @@ const venmoUrl = import.meta.env.PUBLIC_VENMO_URL ?? '';
       </p>
       <div class="cta" data-reveal>
         <a href="/signup" class="btn">🚪 Start your own trip</a>
-        <a href="/journal" class="btn ghost">Follow the journey</a>
+        {venmoUrl && <a href={venmoUrl} class="btn" target="_blank" rel="noopener">💸 Fuel the trip</a>}
         <a href="#live" class="btn ghost">🛰️ Where's David?</a>
-        <a href="/plan" class="btn ghost">📄 Trip plan</a>
       </div>
       <div class="hero-actions" data-reveal>
         <ShareButton path="/" label="📲 Share" text="Follow our Austin → Squamish climbing road trip 🚐🧗 — track where we are and meet up along the way:" />
         <a class="ha" href="#cheer">📬 Dispatch</a>
-        {venmoUrl && <a class="ha venmo" href={venmoUrl} target="_blank" rel="noopener">💸 Fuel the trip</a>}
         <ReachUs compact />
       </div>
     </div>

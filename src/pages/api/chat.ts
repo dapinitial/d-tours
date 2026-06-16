@@ -72,6 +72,24 @@ export const POST: APIRoute = async ({ request }) => {
 
   let body: any = {};
   try { body = await request.json(); } catch {}
+
+  // TEMP diagnostic (remove after debugging the prod 504): report how far we get
+  // without calling Anthropic, so we can see it via curl instead of needing logs.
+  if (body?.diag === 'handler') {
+    return json({ ok: true, step: 'handler', node: process.version, keyLen: (key || '').length, keyHead: (key || '').slice(0, 8) });
+  }
+  if (body?.diag === 'construct') {
+    try { const c = new Anthropic({ apiKey: key }); return json({ ok: true, step: 'construct', built: !!c }); }
+    catch (e: any) { return json({ ok: false, step: 'construct', err: String(e?.message ?? e) }, 200); }
+  }
+  if (body?.diag === 'call') {
+    try {
+      const c = new Anthropic({ apiKey: key });
+      const r: any = await c.messages.create({ model: DEFAULT_MODEL, max_tokens: 20, messages: [{ role: 'user', content: 'say hi' }] });
+      return json({ ok: true, step: 'call', reply: r.content?.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('') });
+    } catch (e: any) { return json({ ok: false, step: 'call', err: String(e?.message ?? e), name: e?.name, status: e?.status }, 200); }
+  }
+
   const incoming: { role: string; content: string }[] = Array.isArray(body.messages) ? body.messages : [];
   // Sanitize + cap history (cost/abuse guard).
   const messages = incoming
