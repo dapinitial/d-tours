@@ -9,23 +9,14 @@ const denied = Astro.url.searchParams.get('denied');
       <div class="section-head">
         <p class="eyebrow">🔐 Sign in</p>
         <h2>Welcome back</h2>
-        <p>Enter your email and we'll send a 6-digit code — no passwords.</p>
+        <p>Enter your email and we'll send a magic link — no passwords.</p>
       </div>
       {denied && <p class="denied">⚠️ That account isn't set up here yet. Use the email your trip is registered to, or <a href="/signup">start a new trip</a>.</p>}
-
-      <form id="email-form" class="card login-card" data-next={next}>
+      <form id="login-form" data-next={next} class="card login-card">
         <input type="email" id="email" placeholder="you@email.com" required autocomplete="email" inputmode="email" />
-        <button class="btn" type="submit">Send code</button>
+        <button class="btn" type="submit">Send magic link</button>
         <p class="msg" id="msg"></p>
         <p class="alt">New here? <a href="/signup">Start your own trip</a></p>
-      </form>
-
-      <form id="code-form" class="card login-card" hidden>
-        <p class="sent">Enter the code we emailed to <strong id="sent-to"></strong>.</p>
-        <input type="text" id="code" placeholder="Code from your email" inputmode="numeric" autocomplete="one-time-code" maxlength="12" />
-        <button class="btn" type="submit">Verify &amp; sign in →</button>
-        <p class="msg" id="msg2"></p>
-        <p class="alt"><a href="#" id="resend">Resend code</a> · <a href="#" id="change">Use a different email</a></p>
       </form>
     </div>
   </section>
@@ -34,46 +25,22 @@ const denied = Astro.url.searchParams.get('denied');
     import { createBrowserClient } from '@supabase/ssr';
     const url = import.meta.env.PUBLIC_SUPABASE_URL;
     const key = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
-    const emailForm = document.getElementById('email-form');
-    const codeForm = document.getElementById('code-form');
+    const form = document.getElementById('login-form');
     const msg = document.getElementById('msg');
-    const msg2 = document.getElementById('msg2');
-    const next = emailForm?.dataset.next || '/cms';
-    let email = '';
-
-    if (url && key && emailForm) {
+    if (url && key && form) {
       const cookieOpts = location.hostname.endsWith('shotgundetour.com') ? { cookieOptions: { domain: '.shotgundetour.com' } } : undefined;
       const sb = createBrowserClient(url, key, cookieOpts);
-      const sendCode = async () => (await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })).error;
-
-      emailForm.addEventListener('submit', async (e) => {
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        email = (document.getElementById('email')).value.trim();
+        const email = (document.getElementById('email')).value.trim();
         msg.textContent = 'Sending…'; msg.className = 'msg';
-        await sb.auth.signOut().catch(() => {}); // clear any prior session so it can't collide
-        const err = await sendCode();
-        if (err) { msg.textContent = err.message; msg.className = 'msg err'; return; }
-        document.getElementById('sent-to').textContent = email;
-        emailForm.hidden = true; codeForm.hidden = false;
-        document.getElementById('code').focus();
-      });
-      codeForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const token = (document.getElementById('code')).value.trim();
-        msg2.textContent = 'Verifying…'; msg2.className = 'msg';
-        const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
-        if (error) { msg2.textContent = 'That code didn’t work — double-check it or resend.'; msg2.className = 'msg err'; return; }
-        await sb.rpc('link_my_crew').catch(() => {}); // links a pre-existing crew row (returning co-owner) to this login; no-op for new users
-        msg2.textContent = '✅ Signed in!'; msg2.className = 'msg ok';
-        window.location.href = next;
-      });
-      document.getElementById('resend').addEventListener('click', async (e) => {
-        e.preventDefault(); msg2.textContent = 'Sending a new code…'; msg2.className = 'msg';
-        const err = await sendCode();
-        msg2.textContent = err ? err.message : '📧 New code sent.'; msg2.className = err ? 'msg err' : 'msg ok';
-      });
-      document.getElementById('change').addEventListener('click', (e) => {
-        e.preventDefault(); codeForm.hidden = true; emailForm.hidden = false; msg.textContent = ''; msg2.textContent = '';
+        await sb.auth.signOut().catch(() => {}); // clear any prior session so accounts can't collide
+        const { error } = await sb.auth.signInWithOtp({
+          email,
+          options: { emailRedirectTo: location.origin + '/auth/callback', shouldCreateUser: true },
+        });
+        if (error) { msg.textContent = error.message; msg.className = 'msg err'; }
+        else { msg.textContent = '✅ Check your email for the magic link!'; msg.className = 'msg ok'; }
       });
     } else if (msg) {
       msg.textContent = 'Auth not configured yet (no Supabase keys).'; msg.className = 'msg err';
@@ -84,8 +51,6 @@ const denied = Astro.url.searchParams.get('denied');
     .container.narrow { width: min(100% - 2.5rem, 520px); }
     .login-card { display: grid; gap: .8rem; }
     .login-card input { width: 100%; background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .8rem .9rem; font: inherit; min-height: 46px; }
-    #code { letter-spacing: .12em; font-size: 1.15rem; text-align: center; font-weight: 600; }
-    .sent { margin: 0; font-size: .92rem; color: var(--muted); }
     .denied { background: rgba(251,113,133,.1); border: 1px solid rgba(251,113,133,.3); color: var(--red); padding: .8rem 1rem; border-radius: 10px; margin-bottom: 1rem; }
     .msg { margin: 0; min-height: 1.2em; font-size: .9rem; }
     .msg.ok { color: var(--green); } .msg.err { color: var(--red); }
