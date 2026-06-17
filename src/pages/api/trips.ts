@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getStops, getTenantBySlug, getDefaultTenant, getCompanions, getRendezvous } from '../../lib/data';
 import { haversineMi, driveHours } from '../../lib/proximity';
+import { publicPosition } from '../../lib/location';
 
 export const prerender = false;
 
@@ -54,13 +55,11 @@ export const GET: APIRoute = async () => {
     const route = reached.map((s) => [s.lat, s.lng]);
     const ahead = stops.filter((s) => !isReached(s)).map((s) => [s.lat, s.lng]);
     if (route.length && ahead.length) ahead.unshift(route[route.length - 1]); // bridge solid→ghost
-    // Current position. For the default trip use the live MapShare feed when set;
-    // otherwise approximate at a mid-route stop (clearly labelled, until a feed exists).
-    let position = null as any;
-    if (t.isDefault) {
-      position = await mapsharePosition();                 // David → inReach MapShare
-    } else {
-      const comp = byName[t.name];                          // Derek → phone-GPS check-in
+    // Current position: the trip's own inReach MapShare feed when set, else a
+    // companion's phone-GPS check-in, else approximate at a mid-route stop.
+    let position = await mapsharePosition(tenant);          // any trip with an inReach feed
+    if (!position) {
+      const comp = byName[t.name];                          // phone-GPS check-in (e.g. Derek)
       if (comp && typeof comp.last_lat === 'number' && typeof comp.last_lng === 'number') {
         position = { lat: comp.last_lat, lng: comp.last_lng, when: relTime(comp.last_seen), live: true };
       }
@@ -69,6 +68,9 @@ export const GET: APIRoute = async () => {
       const mid = stops[Math.floor((stops.length - 1) * (t.isDefault ? 0.5 : 0.65))];
       position = { lat: mid.lat, lng: mid.lng, when: `near ${mid.name}`, live: false };
     }
+    // This is the PUBLIC feed — respect the owner's location-privacy choice (the owner's
+    // own watcher/CMS uses the precise position elsewhere). off → no dot; approximate → fuzz.
+    position = publicPosition(position, tenant.location_sharing);
     out.push({
       slug: tenant.slug, name: t.name, color: t.color,
       route,
@@ -98,9 +100,10 @@ export const GET: APIRoute = async () => {
   return json({ trips: out, rendezvous });
 };
 
-// Latest inReach MapShare point, or null when no feed is configured.
-async function mapsharePosition() {
-  const feed = process.env.MAPSHARE_FEED_URL;
+// Latest inReach MapShare point for a tenant's own feed, or null when none. Falls back
+// to the env feed only for David's default trip (backward-compat until his row is read).
+async function mapsharePosition(tenant: any) {
+  const feed = tenant?.mapshare_feed_url || (tenant?.is_default ? process.env.MAPSHARE_FEED_URL : null);
   if (!feed) return null;
   try {
     const res = await fetch(feed);
