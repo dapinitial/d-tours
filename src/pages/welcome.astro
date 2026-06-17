@@ -1,19 +1,21 @@
 ---
 import Base from '../layouts/Base.astro';
-import { currentCrew } from '../lib/auth';
-import { authConfigured } from '../lib/supabaseServer';
+import { supabaseServer, authConfigured } from '../lib/supabaseServer';
 
 export const prerender = false;
 
-// Onboarding: signed-in users with no trip yet name + describe one, then provision_trip
-// clones the template into their new private trip. Owners are bounced straight to /cms.
-let needsAuth = false;
+// Onboarding: a SIGNED-IN user with no trip yet names + describes one, then
+// provision_trip clones the template into their new private trip. Gate on
+// AUTHENTICATION (getUser) — NOT crew membership — because a brand-new user has
+// no crew row yet, and that's exactly who this page exists to onboard.
 if (authConfigured) {
-  const crew = await currentCrew(Astro.cookies, Astro.request.headers);
-  if (!crew) needsAuth = true;
-  else if (crew.tenantId) return Astro.redirect('/cms');
+  const sb = supabaseServer(Astro.cookies, Astro.request.headers);
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return Astro.redirect('/login?next=/welcome');
+  // Already owns a trip? Skip straight to the CMS.
+  const { data: crew } = await sb.from('crew').select('tenant_id').eq('email', user.email).maybeSingle();
+  if (crew?.tenant_id) return Astro.redirect('/cms');
 }
-if (needsAuth) return Astro.redirect('/login?next=/welcome');
 ---
 <Base title="D-Tours · Name your trip">
   <section>
