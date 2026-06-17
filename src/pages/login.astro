@@ -28,7 +28,8 @@ const denied = Astro.url.searchParams.get('denied');
     const form = document.getElementById('login-form');
     const msg = document.getElementById('msg');
     if (url && key && form) {
-      const sb = createBrowserClient(url, key);
+      const cookieOpts = location.hostname.endsWith('shotgundetour.com') ? { cookieOptions: { domain: '.shotgundetour.com' } } : undefined;
+      const sb = createBrowserClient(url, key, cookieOpts);
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = (document.getElementById('email')).value.trim();

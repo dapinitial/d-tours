@@ -11,7 +11,13 @@ const key =
 export const authConfigured = Boolean(url && key);
 
 export function supabaseServer(cookies: AstroCookies, headers: Headers) {
+  // Share the auth cookie across the apex + www so the magic-link flow survives a host
+  // hop (sign up on shotgundetour.com, callback on www.shotgundetour.com, or vice versa).
+  // On the DO proxy the real public host is in x-forwarded-host (host is "localhost").
+  const host = (headers.get('x-forwarded-host') || headers.get('host') || '').split(',')[0].split(':')[0].trim();
+  const domain = host.endsWith('shotgundetour.com') ? '.shotgundetour.com' : undefined;
   return createServerClient(url!, key!, {
+    cookieOptions: domain ? { domain } : undefined,
     cookies: {
       // Use @supabase/ssr's own parser so the encoding matches the browser client
       // exactly. A hand-rolled decodeURIComponent parser corrupted the chunked
