@@ -1,4 +1,4 @@
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, parseCookieHeader } from '@supabase/ssr';
 import type { AstroCookies } from 'astro';
 
 // Per-request Supabase client backed by cookies, so middleware/pages can read the
@@ -10,21 +10,20 @@ const key =
 
 export const authConfigured = Boolean(url && key);
 
-function parseCookies(header: string) {
-  return header.split(';').map((p) => p.trim()).filter(Boolean).map((p) => {
-    const i = p.indexOf('=');
-    return { name: p.slice(0, i), value: decodeURIComponent(p.slice(i + 1)) };
-  });
-}
-
 export function supabaseServer(cookies: AstroCookies, headers: Headers) {
   return createServerClient(url!, key!, {
     cookies: {
+      // Use @supabase/ssr's own parser so the encoding matches the browser client
+      // exactly. A hand-rolled decodeURIComponent parser corrupted the chunked
+      // base64 auth cookie, so the session was unreadable on the request AFTER login
+      // — that was the post-login "bounce back to sign-in" bug.
       getAll() {
-        return parseCookies(headers.get('cookie') ?? '');
+        return parseCookieHeader(headers.get('cookie') ?? '').map((c) => ({ name: c.name, value: c.value ?? '' }));
       },
       setAll(toSet) {
-        toSet.forEach(({ name, value, options }) => cookies.set(name, value, options as any));
+        toSet.forEach(({ name, value, options }) => {
+          try { cookies.set(name, value, options as any); } catch { /* headers already sent */ }
+        });
       },
     },
   });
