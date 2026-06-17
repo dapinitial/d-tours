@@ -17,7 +17,17 @@ function readClient() {
 
 export const isMock = !supabaseConfigured;
 
-export interface Tenant { id: string; slug: string; name: string; tagline?: string; owner_email?: string; interests?: string[]; is_default?: boolean; visibility?: string; intent_text?: string | null; section_schema?: import('./sectionSchema').SectionSchema | null; }
+export interface SupportLink { label: string; url: string; }
+export interface Tenant {
+  id: string; slug: string; name: string; tagline?: string; owner_email?: string; interests?: string[]; is_default?: boolean;
+  visibility?: string; intent_text?: string | null; section_schema?: import('./sectionSchema').SectionSchema | null;
+  // Per-trip settings (slice 0037). Components read these instead of David's env vars.
+  mapshare_feed_url?: string | null;
+  location_sharing?: 'precise' | 'approximate' | 'off' | string;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  support_links?: SupportLink[] | null;
+}
 
 let _defaultTid: string | null | undefined;
 
