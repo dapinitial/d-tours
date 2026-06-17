@@ -78,6 +78,15 @@ const objectives = climbing ? await getObjectives(tenant.id) : [];
           <ReachUs email={tenant.contact_email} phone={tenant.contact_phone} />
         </section>
       )}
+
+      {tenant.support_links && tenant.support_links.length > 0 && (
+        <section class="block">
+          <h2>💸 Fuel {tenant.name}'s trip</h2>
+          <div class="fuel-links">
+            {tenant.support_links.map((l) => <a class="btn" href={l.url} target="_blank" rel="noopener">💸 {l.label}</a>)}
+          </div>
+        </section>
+      )}
     </div>
   </section>
 
@@ -95,5 +104,6 @@ const objectives = climbing ? await getObjectives(tenant.id) : [];
     .r-body { flex: 1; min-width: 0; }
     .r-date { font-size: .8rem; color: var(--muted); white-space: nowrap; }
     .note { padding: 1rem 1.1rem; border: 1px dashed var(--border-2); border-radius: 12px; color: var(--muted); }
+    .fuel-links { display: flex; flex-wrap: wrap; gap: .5rem; }
   </style>
 </Base>

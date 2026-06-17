@@ -11,15 +11,19 @@ import ShotgunChat from '../components/ShotgunChat.astro';
 import ShareButton from '../components/ShareButton.astro';
 import ReachUs from '../components/ReachUs.astro';
 import SquadStrip from '../components/SquadStrip.astro';
-import { getStops, getObjectives, getResources, getPosts, getDetours, getPlaylists, getCompanions } from '../lib/data';
+import { getStops, getObjectives, getResources, getPosts, getDetours, getPlaylists, getCompanions, getDefaultTenant } from '../lib/data';
 
-const [stops, objectives, resources, posts, detours, playlists, companions] = await Promise.all([
-  getStops(), getObjectives(), getResources(), getPosts({ publishedOnly: true }), getDetours(), getPlaylists(), getCompanions(),
+const [stops, objectives, resources, posts, detours, playlists, companions, homeTenant] = await Promise.all([
+  getStops(), getObjectives(), getResources(), getPosts({ publishedOnly: true }), getDetours(), getPlaylists(), getCompanions(), getDefaultTenant(),
 ]);
 // Share card uses the latest real trip photo when one exists (storage URLs are absolute).
 const shareImg = posts.flatMap((p) => p.media ?? [])
   .find((m) => /\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(m) || m.includes('/storage/v1/object/public/media/'));
-const venmoUrl = import.meta.env.PUBLIC_VENMO_URL ?? '';
+// Per-trip fuel/support links (David's tenant, backfilled). Fall back to env Venmo.
+const supportLinks = (homeTenant?.support_links && homeTenant.support_links.length)
+  ? homeTenant.support_links
+  : (import.meta.env.PUBLIC_VENMO_URL ? [{ label: 'Venmo David a tank / a cone', url: import.meta.env.PUBLIC_VENMO_URL }] : []);
+const fuelUrl = supportLinks[0]?.url ?? '';
 ---
 <Base
   title="D-Tours · Austin → Squamish, Summer 2026"
@@ -40,7 +44,7 @@ const venmoUrl = import.meta.env.PUBLIC_VENMO_URL ?? '';
       </div>
       <div class="cta-2" data-reveal>
         <a href="#live" class="btn ghost">🛰️ Where's David?</a>
-        {venmoUrl && <a href={venmoUrl} class="btn ghost" target="_blank" rel="noopener">💸 Fuel the trip</a>}
+        {fuelUrl && <a href={fuelUrl} class="btn ghost" target="_blank" rel="noopener">💸 Fuel the trip</a>}
       </div>
       <div class="hero-links" data-reveal>
         <ShareButton path="/" label="📲 Share" text="Follow our Austin → Squamish climbing road trip 🚐🧗 — track where we are and meet up along the way:" />
@@ -145,7 +149,7 @@ const venmoUrl = import.meta.env.PUBLIC_VENMO_URL ?? '';
         <h2>Roll with us</h2>
         <p>Fuel the trip, get the dispatch, send me a detour, or pick the soundtrack. The road's better with a crew.</p>
       </div>
-      <CheerSquad playlists={playlists} />
+      <CheerSquad playlists={playlists} supportLinks={supportLinks} />
     </div>
   </section>
 </Base>
