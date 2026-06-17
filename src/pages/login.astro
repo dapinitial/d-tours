@@ -63,6 +63,7 @@ const denied = Astro.url.searchParams.get('denied');
         msg2.textContent = 'Verifying…'; msg2.className = 'msg';
         const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
         if (error) { msg2.textContent = 'That code didn’t work — double-check it or resend.'; msg2.className = 'msg err'; return; }
+        await sb.rpc('link_my_crew').catch(() => {}); // links a pre-existing crew row (returning co-owner) to this login; no-op for new users
         msg2.textContent = '✅ Signed in!'; msg2.className = 'msg ok';
         window.location.href = next;
       });

@@ -60,6 +60,7 @@ import Base from '../layouts/Base.astro';
         msg2.textContent = 'Verifying…'; msg2.className = 'msg';
         const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
         if (error) { msg2.textContent = 'That code didn’t work — double-check it or resend.'; msg2.className = 'msg err'; return; }
+        await sb.rpc('link_my_crew').catch(() => {}); // links a pre-existing crew row (returning co-owner) to this login; no-op for new users
         msg2.textContent = '✅ You’re in! Setting up your trip…'; msg2.className = 'msg ok';
         window.location.href = '/cms'; // middleware routes a brand-new user to onboarding
       });
