@@ -1,38 +1,44 @@
 ---
-// "Reach the crew" — iMessage or email, nothing else.
-//   • Apple devices (iPhone/iPad/Mac) → 💬 iMessage (imessage:// opens Messages)
-//   • Everyone else                   → 📧 Email
-// Email always shows (works for everyone); JS reveals iMessage only on Apple, so
-// non-Apple visitors never see a dead button. Number/email assembled client-side
-// so the raw HTML carries no plaintext contact for scrapers.
-interface Props { compact?: boolean }
-const { compact = false } = Astro.props;
+// "Reach the crew" — iMessage (Apple) or email. Per-trip contact when the caller passes
+// email/phone; with NO props it falls back to David's split-assembled contact (kept out
+// of static HTML for scrapers) — that's the global footer + home showcase. A trip that
+// passed props but set no contact renders nothing (we never show David's on their page).
+interface Props { compact?: boolean; email?: string | null; phone?: string | null }
+const { compact = false, email, phone } = Astro.props;
+const noProps = email === undefined && phone === undefined;     // caller = footer/home → David fallback
+const e = (email ?? '').trim();
+const p = (phone ?? '').replace(/[^\d]/g, '');
+const showAtAll = noProps || !!e || !!p;
 ---
-<div class:list={['reach', { compact }]}>
-  <span class="reach-label">📲 Reach the crew</span>
-  <div class="reach-btns">
-    <a class="rb apple-only" data-kind="imessage" href="#" aria-label="iMessage David">💬 iMessage</a>
-    <a class="rb" data-kind="email" href="#" aria-label="Email David">📧 Email</a>
+{showAtAll && (
+  <div class:list={['reach', { compact }]} data-email={e} data-phone={p} data-fallback={noProps ? '1' : ''}>
+    <span class="reach-label">📲 Reach the crew</span>
+    <div class="reach-btns">
+      <a class="rb apple-only" data-kind="imessage" href="#" aria-label="iMessage">💬 iMessage</a>
+      <a class="rb" data-kind="email" href="#" aria-label="Email">📧 Email</a>
+    </div>
   </div>
-</div>
+)}
 
 <script>
-  // Assemble from parts → no plaintext number/email in the served HTML.
-  const num = ['1', '206', '397', '9040'].join('');
-  const mail = ['me', 'davidpuerto.com'].join('@');
-  const hrefs: Record<string, string> = {
-    imessage: `imessage://+${num}`,
-    email: `mailto:${mail}`,
-  };
-  document.querySelectorAll<HTMLAnchorElement>('.reach .rb').forEach((a) => {
-    const k = a.dataset.kind; if (k && hrefs[k]) a.href = hrefs[k];
+  document.querySelectorAll('.reach').forEach((root) => {
+    const fb = root.dataset.fallback === '1';
+    // Per-tenant contact from data-attrs; else (footer/home) David's parts, assembled here.
+    const mail = root.dataset.email || (fb ? ['me', 'davidpuerto.com'].join('@') : '');
+    const num = (root.dataset.phone || (fb ? ['1', '206', '397', '9040'].join('') : '')).replace(/[^\d]/g, '');
+    const hrefs: Record<string, string> = {
+      imessage: num ? `imessage://+${num}` : '',
+      email: mail ? `mailto:${mail}` : '',
+    };
+    root.querySelectorAll<HTMLAnchorElement>('.rb').forEach((a) => {
+      const k = a.dataset.kind; const href = k ? hrefs[k] : '';
+      if (href) a.href = href; else a.remove();
+    });
+    const ua = navigator.userAgent;
+    const isApple = /iPhone|iPad|iPod|Macintosh/i.test(ua)
+      || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints ?? 0) > 1);
+    if (isApple) root.classList.add('is-apple');
   });
-  // Apple (iMessage-capable)? Reveal the iMessage button. iPadOS 13+ poses as
-  // desktop Safari, so also check MacIntel + touch.
-  const ua = navigator.userAgent;
-  const isApple = /iPhone|iPad|iPod|Macintosh/i.test(ua)
-    || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints ?? 0) > 1);
-  if (isApple) document.querySelectorAll('.reach').forEach((el) => el.classList.add('is-apple'));
 </script>
 
 <style>

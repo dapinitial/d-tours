@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import ObjectivesTable from '../../components/ObjectivesTable.astro';
+import ReachUs from '../../components/ReachUs.astro';
 import { getTenantBySlug, getStops, getObjectives, tripLens } from '../../lib/data';
 
 export const prerender = false;
@@ -68,6 +69,13 @@ const objectives = climbing ? await getObjectives(tenant.id) : [];
       {!climbing && (
         <section class="block note">
           <p>🏞️ This is a road trip — not a climbing trip. Points of interest along the route ({lens.map(lensChip).join(' · ') || 'pick a lens'}) surface here as the lens fills in.</p>
+        </section>
+      )}
+
+      {(tenant.contact_email || tenant.contact_phone) && (
+        <section class="block">
+          <h2>📇 Reach {tenant.name}</h2>
+          <ReachUs email={tenant.contact_email} phone={tenant.contact_phone} />
         </section>
       )}
     </div>
