@@ -50,6 +50,7 @@ const denied = Astro.url.searchParams.get('denied');
         e.preventDefault();
         email = (document.getElementById('email')).value.trim();
         msg.textContent = 'Sending…'; msg.className = 'msg';
+        await sb.auth.signOut().catch(() => {}); // clear any prior session so it can't collide
         const err = await sendCode();
         if (err) { msg.textContent = err.message; msg.className = 'msg err'; return; }
         document.getElementById('sent-to').textContent = email;
