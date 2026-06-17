@@ -23,7 +23,7 @@ if (authConfigured) {
       <div class="section-head">
         <p class="eyebrow">🎒 One last step</p>
         <h2>Name your trip</h2>
-        <p>Tell us what you're planning and we'll set up your private trip from a starter template. You can change anything later — the dossier sections shape themselves to what you're doing.</p>
+        <p>Tell us what you're planning and we'll build your private trip, tailored to it. You can change everything later — the dossier sections even shape themselves to what you're doing.</p>
       </div>
       <form id="welcome-form" class="card login-card">
         <label>Trip name
@@ -32,6 +32,11 @@ if (authConfigured) {
         <label>What's the trip? <span class="hint">(climbing, road trip, World Cup, SCUBA… one line)</span>
           <textarea id="intent" name="intent" rows="3" maxlength="400" placeholder="Catching World Cup matches in Seattle, then a Pacific Northwest road trip with some easy hikes."></textarea>
         </label>
+        <fieldset class="start-choice">
+          <legend>Start from</legend>
+          <label class="radio"><input type="radio" name="start" value="blank" checked /> <span><strong>Blank</strong> — build it your way (recommended)</span></label>
+          <label class="radio"><input type="radio" name="start" value="template" /> <span>The <strong>Seattle / PNW example</strong> — chapters &amp; stops to edit down</span></label>
+        </fieldset>
         <button class="btn" type="submit">Create my trip →</button>
         <p class="msg" id="msg"></p>
       </form>
@@ -45,13 +50,14 @@ if (authConfigured) {
       e.preventDefault();
       const name = (document.getElementById('name')).value.trim();
       const intent = (document.getElementById('intent')).value.trim();
+      const from_template = (form.querySelector('input[name="start"]:checked'))?.value === 'template';
       if (!name) { msg.textContent = 'Give your trip a name.'; msg.className = 'msg err'; return; }
       msg.textContent = 'Setting up your trip…'; msg.className = 'msg';
       const btn = form.querySelector('button'); if (btn) btn.disabled = true;
       try {
         const res = await fetch('/api/provision', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, intent }),
+          body: JSON.stringify({ name, intent, from_template }),
         });
         const data = await res.json();
         if (data.ok) { msg.textContent = '✅ Trip created! Taking you in…'; msg.className = 'msg ok'; location.href = '/cms'; }
@@ -69,6 +75,10 @@ if (authConfigured) {
     .login-card .hint { color: var(--muted); font-weight: 400; }
     .login-card input, .login-card textarea { width: 100%; background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .8rem .9rem; font: inherit; }
     .login-card input { min-height: 46px; }
+    .start-choice { display: grid; gap: .5rem; border: 1px solid var(--border); border-radius: 10px; padding: .8rem .9rem; margin: 0; }
+    .start-choice legend { font-size: .8rem; color: var(--muted); padding: 0 .3rem; }
+    .start-choice .radio { display: flex; align-items: flex-start; gap: .6rem; font-size: .9rem; color: var(--text); cursor: pointer; }
+    .start-choice .radio input { width: auto; min-height: 0; margin-top: .2rem; }
     .msg { margin: 0; min-height: 1.2em; font-size: .9rem; }
     .msg.ok { color: var(--green); } .msg.err { color: var(--red); }
   </style>

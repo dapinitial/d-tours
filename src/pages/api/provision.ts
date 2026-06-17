@@ -20,9 +20,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   try { body = await request.json(); } catch {}
   const name = String(body.name ?? '').slice(0, 80).trim();
   const intent = String(body.intent ?? '').slice(0, 400).trim();
+  const fromTemplate = body.from_template === true; // opt-in: clone the Seattle/PNW example
   if (!name) return json({ ok: false, error: 'Give your trip a name.' }, 400);
 
-  const { data, error } = await sb.rpc('provision_trip', { p_intent: intent || null, p_name: name });
+  const { data, error } = await sb.rpc('provision_trip', { p_intent: intent || null, p_name: name, p_from_template: fromTemplate });
   if (error) {
     console.error('[provision]', error.message);
     return json({ ok: false, error: 'Could not create your trip — try again.' }, 500);

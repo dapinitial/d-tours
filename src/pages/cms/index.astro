@@ -1,11 +1,13 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { getPosts, getStops, getSuggestions, getRendezvous, getPendingComments, isMock } from '../../lib/data';
+import { getPosts, getStops, getSuggestions, getRendezvous, getPendingComments, getTenant, isMock } from '../../lib/data';
 const user = Astro.locals.user;
 const tid = Astro.locals.tenantId;
-const [posts, stops, fanSuggestions, rdvProposed, pendingComments] = await Promise.all([
-  getPosts({ tenantId: tid }), getStops(tid), getSuggestions(tid, 'pending'), getRendezvous(tid, 'proposed'), getPendingComments(tid),
+const [posts, stops, fanSuggestions, rdvProposed, pendingComments, tenant] = await Promise.all([
+  getPosts({ tenantId: tid }), getStops(tid), getSuggestions(tid, 'pending'), getRendezvous(tid, 'proposed'), getPendingComments(tid), getTenant(tid),
 ]);
+// Fresh trip that hasn't configured its tracker yet → nudge them to Settings.
+const needsSetup = !!tenant && !tenant.mapshare_feed_url;
 const queued = posts.filter((p) => !p.published_at).length;
 const proposals = stops
   .filter((s) => s.status === 'proposed' || s.status === 'suggested')
@@ -25,6 +27,10 @@ const proposals = stops
           <span class="muted">🔐 Signed in as <strong>{user.name ?? user.email}</strong></span>
           <form method="POST" action="/auth/signout"><button class="btn ghost sm" type="submit">Sign out</button></form>
         </div>
+      )}
+
+      {needsSetup && (
+        <a class="setup-nudge" href="/cms/settings">👋 Finish setting up your trip — add your tracker, location privacy, contact & fuel links in <strong>Settings →</strong></a>
       )}
 
       <div class="stats grid cols-4">
@@ -344,6 +350,8 @@ const proposals = stops
 
 <style>
   .user-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem 1rem; background: rgba(52,211,153,.07); border: 1px solid rgba(52,211,153,.25); border-radius: 10px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .setup-nudge { display: block; padding: .8rem 1rem; margin-bottom: 1.5rem; background: linear-gradient(180deg, rgba(251,191,36,.12), transparent); border: 1px solid rgba(251,191,36,.3); border-radius: 10px; color: var(--text); text-decoration: none; font-size: .9rem; }
+  .setup-nudge:hover { border-color: rgba(251,191,36,.6); }
   .user-bar form { margin: 0; }
   .stats { margin-bottom: 1.5rem; }
   .quick-links { margin-bottom: 1.5rem; display: flex; gap: .5rem; flex-wrap: wrap; }
