@@ -11,7 +11,10 @@ dist/
 # installed agent skills (tooling, not app code)
 .agents/
 skills-lock.json
-.claude/skills/
+# synced external skills only — project-authored skills in .claude/skills/ ARE tracked
+.claude/skills/brainstorming/
+.claude/skills/supabase/
+.claude/skills/supabase-postgres-best-practices/
 
 # Supabase per-folder account token (direnv)
 .envrc
