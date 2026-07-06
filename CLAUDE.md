@@ -2,7 +2,7 @@
 
 Multi-tenant road-trip platform at **shotgundetour.com**: visitor site + CMS + live location + the Shotgun trip co-pilot. Astro SSR (`output: 'server'`, `@astrojs/node` standalone) + Supabase (auth, Postgres w/ RLS, project ref `pucyvfwrosinnbgkremb`).
 
-Naming drift: the repo/package/DO app are still named `d-tours` (`dapinitial/d-tours`); the product is shotgundetour.com. Don't "fix" this in passing — deploy config depends on it.
+Naming drift: the repo/package are still named `d-tours` (`dapinitial/d-tours`), the live DO app is `shotgundetour-app`, and `.do/app.yaml` stale-ly says `d-tours`; the product is shotgundetour.com. Don't "fix" this in passing — deploy config depends on it (details in the deployment-status skill).
 
 ## Commands
 
@@ -33,4 +33,4 @@ Naming drift: the repo/package/DO app are still named `d-tours` (`dapinitial/d-t
 
 ## Deploy
 
-Push to `main` → auto-deploy to DigitalOcean App Platform (app `d-tours`, spec `.do/app.yaml`, single basic-xxs, port 8080). Use the **deployment-status** skill to answer "is commit X live?". Secrets are set as encrypted envs in the DO dashboard, not in the spec.
+Push to `main` → auto-deploy to DigitalOcean App Platform (app `shotgundetour-app`; `.do/app.yaml` is a stale spec, single basic-xxs, port 8080). Use the **deployment-status** skill to answer "is commit X live?". Secrets are set as encrypted envs in the DO dashboard, not in the spec.
