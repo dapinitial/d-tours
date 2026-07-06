@@ -1,12 +1,14 @@
 import type { APIRoute } from 'astro';
 import { getObjectives } from '../../lib/data';
 import { haversineMi, driveHours } from '../../lib/proximity';
+import { landStatus } from '../../lib/landstatus';
 
 export const prerender = false;
 
 // "What awesome climbs am I near?" Given a position, returns objectives ranked by
 // distance with a rough drive-time + a within-N-hours flag. Powers the location-
 // aware "Help us decide" strip AND the proactive watcher (email when you roll near one).
+// Also answers "whose land is this / can we camp here?" for the query point (PAD-US).
 //   GET /api/nearby?lat=40.3&lng=-105.6&hours=3
 
 export const GET: APIRoute = async ({ url }) => {
@@ -15,7 +17,10 @@ export const GET: APIRoute = async ({ url }) => {
   const hours = Number(url.searchParams.get('hours') ?? 3);
   if (!isFinite(lat) || !isFinite(lng)) return json({ error: 'lat/lng required' }, 400);
 
-  const objectives = await getObjectives(undefined, { includeProposed: true });
+  const [objectives, land] = await Promise.all([
+    getObjectives(undefined, { includeProposed: true }),
+    landStatus(lat, lng), // null on lookup failure → field omitted
+  ]);
   const ranked = objectives
     .filter((o) => typeof o.lat === 'number' && typeof o.lng === 'number')
     .map((o) => {
@@ -30,7 +35,7 @@ export const GET: APIRoute = async ({ url }) => {
     })
     .sort((a, b) => a.miles - b.miles);
 
-  return json({ from: { lat, lng }, hours, count: ranked.length, nearby: ranked.filter((r) => r.within), all: ranked });
+  return json({ from: { lat, lng }, ...(land ? { land } : {}), hours, count: ranked.length, nearby: ranked.filter((r) => r.within), all: ranked });
 };
 
 function json(d: unknown, status = 200) {

@@ -54,8 +54,8 @@ Generated 2026-07-06 by reading each route; re-verify against the code when a ro
 - **Methods:** GET
 - **Auth:** none
 - **Params:** query: `lat` (number, required), `lng` (number, required), `hours` (number, optional, default 3)
-- **Does:** Ranks `objectives` (incl. proposed) by distance from a position with rough drive-time + within-N-hours flag. Reads `objectives`.
-- **Returns:** `{ from, hours, count, nearby[], all[] }` or `{ error }`
+- **Does:** Ranks `objectives` (incl. proposed) by distance from a position with rough drive-time + within-N-hours flag; also annotates the query point with PAD-US land status (`src/lib/landstatus.ts` — owner/manager, access, dispersed-camping hint). Reads `objectives`; external: PAD-US ArcGIS.
+- **Returns:** `{ from, land?, hours, count, nearby[], all[] }` or `{ error }` (`land` omitted when the PAD-US lookup fails)
 
 ### /api/trips
 - **Methods:** GET
