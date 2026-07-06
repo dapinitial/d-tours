@@ -171,6 +171,8 @@ export interface ObjectiveBeta {
     weather_url?: string; mountain_forecast_url?: string; avalanche_url?: string; fire_url?: string; bugs?: string;
     // Auto-refreshed daily by /api/refresh-conditions (Open-Meteo).
     forecast?: { updated_at: string; days: { date: string; code: number; tmax: number; tmin: number; precip: number; precip_prob: number; wind: number }[] };
+    // Auto-refreshed daily by /api/refresh-conditions (avalanche.org zone containing this objective).
+    avalanche?: { zone: string; center: string; center_id: string; danger: string; danger_level: number; off_season: boolean; travel_advice?: string; link?: string; updated_at: string };
     window_alerted?: string; // start-date of the last send-window we emailed about (de-dup)
   };
   nearby?: string[];      // other climbs / points of interest nearby

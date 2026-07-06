@@ -3,6 +3,7 @@ import { getObjectives } from '../../lib/data';
 import { getSupabaseAdmin } from '../../lib/supabase';
 import { getLivePosition, haversineMi, driveHours } from '../../lib/proximity';
 import { sendWindow, windowLabel } from '../../lib/weather';
+import { fetchAvalancheZones, findZone, toAvalancheInfo } from '../../lib/avalanche';
 import { notify } from '../../lib/notifier';
 import { siteUrl } from '../../lib/site';
 
@@ -46,6 +47,7 @@ export const POST: APIRoute = async ({ request, url }) => {
 
   const pos = await getLivePosition();  // for send-window proximity alerts
   const origin = siteUrl(request);      // public base URL (not the internal proxy host)
+  const avyZones = await fetchAvalancheZones(); // one fetch for all objectives; null = leave avalanche data untouched
   const alerts: { name: string; id: string; label: string; hrs: number }[] = [];
   let updated = 0;
 
@@ -56,6 +58,14 @@ export const POST: APIRoute = async ({ request, url }) => {
       if (!f) continue;
       const beta: any = { ...((o as any).beta ?? {}) };
       beta.conditions = { ...(beta.conditions ?? {}), forecast: f };
+
+      // Avalanche zone (avalanche.org): store current state when the objective sits in a
+      // forecast zone, drop it when it doesn't; a failed zones fetch changes nothing.
+      if (avyZones) {
+        const zone = findZone(avyZones, o.lat, o.lng);
+        if (zone) beta.conditions.avalanche = toAvalancheInfo(zone);
+        else delete beta.conditions.avalanche;
+      }
 
       // Send-window alert: a new window + David within ~a day's drive + not already pinged.
       const win = sendWindow(f.days);

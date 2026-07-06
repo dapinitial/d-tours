@@ -66,6 +66,7 @@ const wxEmoji = (c: number): string => {
   return '⛈️';
 };
 const fc = b.conditions?.forecast;
+const avy = b.conditions?.avalanche;
 const fcAge = fc?.updated_at ? Math.round((Date.now() - new Date(fc.updated_at).getTime()) / 3600000) : null;
 const win = sendWindow(fc?.days);
 const dayName = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' });
@@ -341,7 +342,7 @@ const checklist = [
         </section>
       )}
 
-      {b.conditions && (fc || b.conditions.weather_url || b.conditions.mountain_forecast_url || b.conditions.avalanche_url || b.conditions.fire_url || b.conditions.bugs) && (
+      {b.conditions && (fc || b.conditions.avalanche || b.conditions.weather_url || b.conditions.mountain_forecast_url || b.conditions.avalanche_url || b.conditions.fire_url || b.conditions.bugs) && (
         <section class="block">
           <h2>🌤️ Live conditions</h2>
           {fc && fc.days?.length > 0 && (
@@ -361,6 +362,16 @@ const checklist = [
               <p class="wx-note muted tiny">Auto-updated {fcAge != null ? (fcAge < 1 ? 'just now' : `${fcAge}h ago`) : ''} · °F · tap a link for the mountain-specific picture ↓</p>
             </div>
           )}
+          {avy && (avy.danger_level >= 1 ? (
+            <p class="avy">
+              <a class={sev[avy.danger_level >= 4 ? 'high' : avy.danger_level === 3 ? 'med' : 'low']} href={avy.link} target="_blank" rel="noopener" title={avy.travel_advice ?? ''}>
+                🏔️ Avalanche: {avy.danger} ({avy.danger_level}/5)
+              </a>
+              <span class="muted tiny"> · {avy.zone} — {avy.center}</span>
+            </p>
+          ) : (
+            <p class="muted tiny">🏔️ Avalanche zone: {avy.zone} — no rating{avy.off_season ? ' (off-season)' : ''}{avy.link && <> · <a href={avy.link} target="_blank" rel="noopener">forecast page</a></>}</p>
+          ))}
           <div class="cond-links">
             {b.conditions.weather_url && <a class="btn ghost sm" href={b.conditions.weather_url} target="_blank" rel="noopener">🌦️ Weather</a>}
             {b.conditions.mountain_forecast_url && <a class="btn ghost sm" href={b.conditions.mountain_forecast_url} target="_blank" rel="noopener">⛰️ Mountain Forecast</a>}
