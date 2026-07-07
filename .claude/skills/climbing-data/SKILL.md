@@ -40,3 +40,18 @@ API: `https://api.openbeta.io` (GraphQL, no key). Areas are a tree (`pathTokens`
 - NOT OK: importing it from `src/`, calling it from any cron/endpoint, storing its data in tenant-facing fields, shipping anything derived from it to users.
 
 MP route/area IDs come from mountainproject.com URLs (e.g. `/route/105717329-...`).
+
+## Peak research (peakbagger.com & mountaineers.org — research lane)
+
+Peakbagger has **no API**; [dreamiurg/peakbagger-cli](https://github.com/dreamiurg/peakbagger-cli) is a polite scraper (Cloudflare challenge; `pip install 'peakbagger[browser]'` adds a Chrome fallback if you hit 403s). Same lane as MP — **personal dossier research only**:
+
+```bash
+uvx peakbagger peak search "Prusik Peak" --format json
+uvx peakbagger peak show <pid> --format json          # elevation, prominence, routes, lists
+uvx peakbagger peak ascents <pid> --with-gpx --within 2y   # recent successful ascents that carry GPS tracks
+uvx peakbagger trip-reports <pid> --within 1y --min-words 100
+```
+
+Extra caution here: ascent GPX tracks and trip reports are **individual users' content** — studying them to choose/verify a line is fine; republishing them (overlays, downloads, quotes in dossier fields) is not. The publishable route line comes from our own recorded tracks (see `docs/superpowers/specs/2026-07-06-multi-track-gpx-overlay.md`) or OSM.
+
+Related, same author: [mountaineers-mcp](https://github.com/dreamiurg/mountaineers-mcp) (MCP server for mountaineers.org trip reports/routes; one-time Chrome login) and the `route-researcher` skill in [claude-mountaineering-skills](https://github.com/dreamiurg/claude-mountaineering-skills) — a multi-source route-beta compiler worth borrowing ideas from for Shotgun's dossier sweeps.
