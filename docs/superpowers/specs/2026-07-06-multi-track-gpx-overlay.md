@@ -1,6 +1,6 @@
 # Multi-track GPX overlay — design spec
 
-**Status:** proposed (not scheduled). **Origin:** 2026-07-06 peakbagger research — the insight that several successful ascent tracks overlaid on one map beat any single line. **Sibling:** panogram is building a similar feature against its annotation layer; keep the storage convention compatible (see §Schema).
+**Status:** proposed (not scheduled). **Origin:** 2026-07-06 peakbagger research — the insight that several successful ascent tracks overlaid on one map beat any single line. **Sibling:** panogram shipped its version 2026-07-06 (tracks as inline simplified `points jsonb` on posts, no tenancy). Reviewed: the storage shapes are too far apart to share a table convention — don't force it. What *is* shareable is panogram's dependency-free GPX parser/simplifier (`src/lib/gpx.ts`) and, later, a consensus-line lib consuming parsed point arrays; if we adopt the parser, fix its known flattening bugs first (multiple `trkseg` joined across gaps; `rtept` merged with `trkpt` instead of used as fallback).
 
 ## Problem
 
