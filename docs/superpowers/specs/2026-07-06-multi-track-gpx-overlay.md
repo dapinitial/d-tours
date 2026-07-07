@@ -40,6 +40,17 @@ Extend `/api/gpx` (owner-gated, multipart) with optional `label`, `source`, `rec
 
 Dossier page (`src/pages/objectives/[id].astro`): the existing map block draws every track for the objective as distinct-colored polylines with a small legend (label + source + verified badge). Toggleable per track; primary on by default, others off on mobile. Offline packet includes all verified tracks.
 
+## Segments & waypoints → POI markers
+
+Parsing must be **per-`<trkseg>`** (no lines bridging gaps) and must read `<time>` and `<wpt>` elements. Two candidate sources feed one confirmation flow:
+
+- **Segment boundaries**: each gap yields a candidate marker at the pause location, with gap duration when timestamps exist (≥20 min midday → suggest 🥪 break; overnight → suggest ⛺ campsite; short/no-time gaps → suggest nothing, likely signal loss).
+- **`<wpt>` waypoints**: name + `sym` mapped to a type guess (Garmin/Gaia symbols: Campground → ⛺, Water Source/Drinking Water → 💧, Flag/Pin → 🪨 landmark).
+
+Candidates surface in the CMS as "found in your track — keep?" chips; owner confirms, types (⛺💧🥪🪨👀⚠️), and optionally notes. Confirmed markers flow into the structures dossiers already render: `beta.water[]` and `beta.poi[]` on the objective (or the stop's detour list for trip-level tracks) — no new render surface needed, and they inherit the packet/offline path. Store raw candidates on the track row (`waypoints jsonb`) so re-confirmation is possible; confirmed ones live only in beta/POI like hand-entered entries.
+
+Timestamps also populate `recorded_on` automatically.
+
 ## Out of scope (this spec)
 
 Consensus-line computation (averaging tracks), cross-objective track browsing, elevation profiles. Panogram's bearing/triangulation math may eventually feed a shared consensus-line lib — revisit after both sides ship storage.
