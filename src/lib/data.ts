@@ -27,6 +27,13 @@ export interface Tenant {
   contact_email?: string | null;
   contact_phone?: string | null;
   support_links?: SupportLink[] | null;
+  // Notification settings (slice 0039). Owner controls which emails send + when.
+  digest_enabled?: boolean;
+  digest_hour?: number;                 // 0–23, local to digest_tz
+  digest_tz?: string;                   // IANA timezone
+  last_digest_on?: string | null;       // YYYY-MM-DD guard (internal; not user-set)
+  sendwindow_alerts_enabled?: boolean;
+  proximity_alerts_enabled?: boolean;
 }
 
 let _defaultTid: string | null | undefined;

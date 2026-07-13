@@ -24,6 +24,16 @@ export const POST: APIRoute = async ({ request, url }) => {
 
   const hours = Number(url.searchParams.get('hours') ?? 3);
 
+  // Owner toggle: skip cleanly when proximity alerts are off, so nothing is consumed
+  // (no email, no log, no de-dup mark) and re-enabling resumes for pending climbs.
+  {
+    const sbFlag = getSupabaseAdmin();
+    if (sbFlag) {
+      const { data: t } = await sbFlag.from('tenants').select('proximity_alerts_enabled').eq('is_default', true).maybeSingle();
+      if (t && !t.proximity_alerts_enabled) return json({ ok: true, skipped: 'proximity alerts disabled' });
+    }
+  }
+
   // Where is David? Skip if no live GPS (don't fire on the mock position).
   const pos = await getLivePosition();
   if (!pos || pos.mock) return json({ ok: true, skipped: 'no live position', mock: pos?.mock ?? null });

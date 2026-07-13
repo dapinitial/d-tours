@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getSupabaseAdmin } from '../../lib/supabase';
 import { supabaseServer, authConfigured } from '../../lib/supabaseServer';
+import { isValidTz } from '../../lib/notify-schedule';
 
 export const prerender = false;
 
@@ -42,6 +43,12 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       .slice(0, 8)
       .map((l: any) => ({ label: l.label.slice(0, 40).trim(), url: l.url.trim() }));
   }
+  // Notification settings.
+  if (typeof body.digest_enabled === 'boolean') patch.digest_enabled = body.digest_enabled;
+  if (Number.isInteger(body.digest_hour) && body.digest_hour >= 0 && body.digest_hour <= 23) patch.digest_hour = body.digest_hour;
+  if (typeof body.digest_tz === 'string' && isValidTz(body.digest_tz.trim())) patch.digest_tz = body.digest_tz.trim();
+  if (typeof body.sendwindow_alerts_enabled === 'boolean') patch.sendwindow_alerts_enabled = body.sendwindow_alerts_enabled;
+  if (typeof body.proximity_alerts_enabled === 'boolean') patch.proximity_alerts_enabled = body.proximity_alerts_enabled;
   if (!Object.keys(patch).length) return json({ ok: false, error: 'Nothing to update.' }, 400);
 
   const sb = getSupabaseAdmin();

@@ -6,6 +6,21 @@ const t = await getTenant(tid);
 const linksText = (t?.support_links ?? []).map((l) => `${l.label} | ${l.url}`).join('\n');
 const sharing = t?.location_sharing ?? 'approximate';
 const isPublic = t?.visibility === 'public';
+
+// Notification settings.
+const digestEnabled = t?.digest_enabled ?? true;
+const digestHour = t?.digest_hour ?? 4;
+const digestTz = t?.digest_tz ?? 'America/Chicago';
+const sendwindowEnabled = t?.sendwindow_alerts_enabled ?? true;
+const proximityEnabled = t?.proximity_alerts_enabled ?? true;
+const hours = Array.from({ length: 24 }, (_, h) => ({ v: h, label: `${((h + 11) % 12) + 1}:00 ${h < 12 ? 'AM' : 'PM'}` }));
+const zones = [
+  ['America/New_York', 'Eastern'], ['America/Chicago', 'Central'], ['America/Denver', 'Mountain'],
+  ['America/Phoenix', 'Arizona (no DST)'], ['America/Los_Angeles', 'Pacific'], ['America/Vancouver', 'Pacific (BC)'],
+  ['America/Anchorage', 'Alaska'], ['Pacific/Honolulu', 'Hawaii'],
+];
+// Show the current tz even if it's not one of the presets, so nothing is silently dropped.
+if (!zones.some(([z]) => z === digestTz)) zones.unshift([digestTz, digestTz]);
 ---
 <Base title="D-Tours · Trip Settings">
   <section>
@@ -38,6 +53,24 @@ const isPublic = t?.visibility === 'public';
         <h3>💸 Fuel-the-trip links</h3>
         <label>One per line, <code>Label | url</code><textarea id="s-links" rows="4" placeholder={"Venmo | https://venmo.com/u/you\nPayPal | https://paypal.me/you\nText me | sms:+12065551234"}>{linksText}</textarea></label>
 
+        <h3>📬 Notifications</h3>
+        <label class="row"><input type="checkbox" id="s-digest-on" checked={digestEnabled} /> Daily digest email</label>
+        <div class="indent">
+          <label>Send at
+            <select id="s-digest-hour">
+              {hours.map((h) => <option value={h.v} selected={h.v === digestHour}>{h.label}</option>)}
+            </select>
+          </label>
+          <label>Timezone
+            <select id="s-digest-tz">
+              {zones.map(([z, label]) => <option value={z} selected={z === digestTz}>{label}</option>)}
+            </select>
+          </label>
+          <p class="muted tiny">Fixed to this timezone — as you travel, update it so the digest still lands at your local hour.</p>
+        </div>
+        <label class="row"><input type="checkbox" id="s-sendwindow-on" checked={sendwindowEnabled} /> Send-window alerts <span class="muted tiny">— when weather lines up near you</span></label>
+        <label class="row"><input type="checkbox" id="s-proximity-on" checked={proximityEnabled} /> Proximity alerts <span class="muted tiny">— when you roll near a climb</span></label>
+
         <h3>🔒 Visibility</h3>
         <label>Who can see this trip
           <select id="s-vis">
@@ -62,11 +95,17 @@ const isPublic = t?.visibility === 'public';
         .split('\n').map((l) => l.trim()).filter(Boolean)
         .map((l) => { const i = l.indexOf('|'); return i > 0 ? { label: l.slice(0, i).trim(), url: l.slice(i + 1).trim() } : null; })
         .filter(Boolean);
+      const chk = (id) => (document.getElementById(id)).checked;
       const payload = {
         name: v('s-name'), tagline: v('s-tagline'), mapshare_feed_url: v('s-feed'),
         location_sharing: (document.getElementById('s-sharing')).value,
         contact_email: v('s-email'), contact_phone: v('s-phone'),
         support_links, visibility: (document.getElementById('s-vis')).value,
+        digest_enabled: chk('s-digest-on'),
+        digest_hour: Number((document.getElementById('s-digest-hour')).value),
+        digest_tz: (document.getElementById('s-digest-tz')).value,
+        sendwindow_alerts_enabled: chk('s-sendwindow-on'),
+        proximity_alerts_enabled: chk('s-proximity-on'),
       };
       msg.textContent = 'Saving…'; msg.className = 'msg';
       const r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -84,5 +123,9 @@ const isPublic = t?.visibility === 'public';
     .form input, .form textarea, .form select { background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: .6rem .8rem; font: inherit; font-weight: 400; }
     .foot { display: flex; align-items: center; gap: 1rem; margin-top: .4rem; }
     .msg { margin: 0; font-size: .85rem; } .msg.ok { color: var(--green); } .msg.err { color: var(--red); }
+    .form label.row { display: flex; align-items: center; gap: .5rem; font-weight: 600; color: var(--text); }
+    .form label.row input { width: auto; }
+    .indent { display: grid; gap: .6rem; padding-left: 1.6rem; }
+    .tiny { font-size: .78rem; } .muted { color: var(--muted); }
   </style>
 </Base>

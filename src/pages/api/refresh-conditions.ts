@@ -48,6 +48,10 @@ export const POST: APIRoute = async ({ request, url }) => {
   const pos = await getLivePosition();  // for send-window proximity alerts
   const origin = siteUrl(request);      // public base URL (not the internal proxy host)
   const avyZones = await fetchAvalancheZones(); // one fetch for all objectives; null = leave avalanche data untouched
+  // Owner toggle: when send-window alerts are off, keep refreshing forecasts + avalanche
+  // but don't detect/stamp/email windows — so re-enabling can still alert on open windows.
+  const { data: flagTenant } = await sb.from('tenants').select('sendwindow_alerts_enabled').eq('is_default', true).maybeSingle();
+  const sendWindowEnabled = flagTenant ? flagTenant.sendwindow_alerts_enabled !== false : true;
   const alerts: { name: string; id: string; label: string; hrs: number }[] = [];
   let updated = 0;
 
@@ -68,7 +72,7 @@ export const POST: APIRoute = async ({ request, url }) => {
       }
 
       // Send-window alert: a new window + David within ~a day's drive + not already pinged.
-      const win = sendWindow(f.days);
+      const win = sendWindowEnabled ? sendWindow(f.days) : null;
       if (win && pos && !pos.mock) {
         const hrs = driveHours(haversineMi(pos.lat, pos.lng, o.lat as number, o.lng as number));
         if (hrs <= 10 && beta.conditions.window_alerted !== win.start) {
