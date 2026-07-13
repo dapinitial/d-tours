@@ -34,6 +34,7 @@ export interface Tenant {
   last_digest_on?: string | null;       // YYYY-MM-DD guard (internal; not user-set)
   sendwindow_alerts_enabled?: boolean;
   proximity_alerts_enabled?: boolean;
+  trip_start?: string | null;           // YYYY-MM-DD floor for the live map (breadcrumb + dot)
 }
 
 let _defaultTid: string | null | undefined;
