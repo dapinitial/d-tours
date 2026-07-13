@@ -69,7 +69,10 @@ export const GET: APIRoute = async () => {
         position = { lat: comp.last_lat, lng: comp.last_lng, when: relTime(comp.last_seen), live: true };
       }
     }
-    if (!position) {
+    // Approximate mid-route dot ONLY for trips with no known start (legacy). A trip with a
+    // trip_start shows a dot only from a REAL fix at/after that date — before the trip (or
+    // when the inReach is off) we show NO dot rather than implying we're somewhere on route.
+    if (!position && !tenant?.trip_start) {
       const mid = stops[Math.floor((stops.length - 1) * (t.isDefault ? 0.5 : 0.65))];
       position = { lat: mid.lat, lng: mid.lng, when: `near ${mid.name}`, live: false };
     }
