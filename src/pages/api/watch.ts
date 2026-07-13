@@ -5,6 +5,8 @@ import { getLivePosition, haversineMi, driveHours } from '../../lib/proximity';
 import { notify } from '../../lib/notifier';
 import { siteUrl } from '../../lib/site';
 import { smartBrief } from '../../lib/brief';
+import { getDefaultTenant } from '../../lib/data';
+import { harvestTrackPoints } from '../../lib/track';
 
 export const prerender = false;
 
@@ -23,6 +25,15 @@ export const POST: APIRoute = async ({ request, url }) => {
   }
 
   const hours = Number(url.searchParams.get('hours') ?? 3);
+
+  // 🍞 Harvest the GPS breadcrumb every tick — independent of the proximity toggle below,
+  // so the trail keeps growing even when climb alerts are off. Best-effort.
+  {
+    const sbH = getSupabaseAdmin();
+    if (sbH) {
+      try { const t = await getDefaultTenant(); if (t) await harvestTrackPoints(t, sbH); } catch {}
+    }
+  }
 
   // Owner toggle: skip cleanly when proximity alerts are off, so nothing is consumed
   // (no email, no log, no de-dup mark) and re-enabling resumes for pending climbs.
