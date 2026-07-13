@@ -55,6 +55,12 @@ const geoPosts = posts
         trip.ahead.forEach((c) => pts.push(c));
       }
       L.polyline(trip.route, { color: trip.color, weight: 3, opacity: .8, dashArray: '6 7' }).addTo(target);
+      // The REAL path travelled (accumulated GPS breadcrumb): a solid, bright line that
+      // follows the actual roads — distinct from the dashed plan through stops.
+      if (trip.trail && trip.trail.length > 1) {
+        L.polyline(trip.trail, { color: trip.color, weight: 4, opacity: .95, lineJoin: 'round', lineCap: 'round' }).addTo(target);
+        trip.trail.forEach((c) => pts.push(c));
+      }
       for (const s of (trip.stops || [])) {
         L.circleMarker([s.lat, s.lng], { radius: 4, color: trip.color, fillColor: trip.color, fillOpacity: .9, weight: 1 })
           .addTo(target).bindPopup(`${s.emoji} ${s.name} <span style="opacity:.6">· ${trip.name}</span>`);

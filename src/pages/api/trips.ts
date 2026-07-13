@@ -2,6 +2,8 @@ import type { APIRoute } from 'astro';
 import { getStops, getTenantBySlug, getDefaultTenant, getCompanions, getRendezvous } from '../../lib/data';
 import { haversineMi, driveHours } from '../../lib/proximity';
 import { publicPosition } from '../../lib/location';
+import { getSupabaseAdmin } from '../../lib/supabase';
+import { getTrail } from '../../lib/track';
 
 export const prerender = false;
 
@@ -40,6 +42,7 @@ export const GET: APIRoute = async () => {
   // Companions can carry a phone-GPS check-in position (for folks without an inReach).
   const companions = await getCompanions();
   const byName: Record<string, any> = Object.fromEntries(companions.map((c) => [c.name, c]));
+  const admin = getSupabaseAdmin(); // for the accumulated GPS breadcrumb (track_points)
   for (const t of TRIPS) {
     const tenant = t.isDefault ? await getDefaultTenant() : await getTenantBySlug(t.slug!);
     if (!tenant) continue;
@@ -55,6 +58,8 @@ export const GET: APIRoute = async () => {
     const route = reached.map((s) => [s.lat, s.lng]);
     const ahead = stops.filter((s) => !isReached(s)).map((s) => [s.lat, s.lng]);
     if (route.length && ahead.length) ahead.unshift(route[route.length - 1]); // bridge solid→ghost
+    // The actual travelled path (accumulated GPS breadcrumb), floored at trip_start.
+    const trail = admin ? await getTrail(tenant, admin) : [];
     // Current position: the trip's own inReach MapShare feed when set, else a
     // companion's phone-GPS check-in, else approximate at a mid-route stop.
     let position = await mapsharePosition(tenant);          // any trip with an inReach feed
@@ -75,6 +80,7 @@ export const GET: APIRoute = async () => {
       slug: tenant.slug, name: t.name, color: t.color,
       route,
       ahead,
+      trail,
       stops: reached.map((s) => ({ name: s.name, lat: s.lat, lng: s.lng, emoji: s.emoji ?? '📍' })),
       position,
     });
@@ -111,6 +117,13 @@ async function mapsharePosition(tenant: any) {
     const m = [...kml.matchAll(/<coordinates>\s*([-\d.]+),([-\d.]+)/g)].pop();
     if (!m) return null;
     const when = kml.match(/<when>([^<]+)<\/when>/g)?.pop()?.replace(/<\/?when>/g, '');
+    // Floor at trip_start: a fix from before the trip (an old inReach session) is not
+    // "where we are now" — drop it so the map falls back rather than showing a stale dot.
+    if (tenant?.trip_start && when) {
+      const floor = new Date(`${tenant.trip_start}T00:00:00Z`).getTime();
+      const at = new Date(when).getTime();
+      if (!isNaN(floor) && !isNaN(at) && at < floor) return null;
+    }
     return { lat: parseFloat(m[2]), lng: parseFloat(m[1]), when: when ?? 'now', live: true };
   } catch { return null; }
 }
