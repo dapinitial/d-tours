@@ -48,15 +48,17 @@ const geoPosts = posts
     // Draw one trip's route + stops + current position onto a target layer.
     const drawTrip = (trip, target) => {
       const pts = [];
-      // Ghost the road ahead (future + undated) faintly, so the trip's shape is visible
-      // without claiming it's travelled; the reached breadcrumb draws solid on top.
-      if (trip.ahead && trip.ahead.length) {
-        L.polyline(trip.ahead, { color: trip.color, weight: 2, opacity: .2, dashArray: '2 9' }).addTo(target);
-        trip.ahead.forEach((c) => pts.push(c));
+      // The PLANNED route (every stop, reached-by-date or not) draws as one uniform faint
+      // ghost — it's the shape of the trip, NOT a claim about where we've been. "Covered"
+      // is told only by the real GPS breadcrumb below, so nothing looks travelled by
+      // calendar alone (e.g. The Winds shouldn't glow just because its date has passed).
+      const plan = [...(trip.route || []), ...(trip.ahead || [])];
+      if (plan.length) {
+        L.polyline(plan, { color: trip.color, weight: 2, opacity: .22, dashArray: '2 9' }).addTo(target);
+        plan.forEach((c) => pts.push(c));
       }
-      L.polyline(trip.route, { color: trip.color, weight: 3, opacity: .8, dashArray: '6 7' }).addTo(target);
       // The REAL path travelled (accumulated GPS breadcrumb): a solid, bright line that
-      // follows the actual roads — distinct from the dashed plan through stops.
+      // follows the actual roads — the only thing that reads as "covered".
       if (trip.trail && trip.trail.length > 1) {
         L.polyline(trip.trail, { color: trip.color, weight: 4, opacity: .95, lineJoin: 'round', lineCap: 'round' }).addTo(target);
         trip.trail.forEach((c) => pts.push(c));
