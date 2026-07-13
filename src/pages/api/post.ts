@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { getSupabaseAdmin } from '../../lib/supabase';
 import { supabaseServer, authConfigured } from '../../lib/supabaseServer';
 import { getLivePosition } from '../../lib/proximity';
+import { getDefaultTenant } from '../../lib/data';
 
 export const prerender = false;
 
@@ -70,7 +71,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   let lat = typeof p.lat === 'number' ? p.lat : null;
   let lng = typeof p.lng === 'number' ? p.lng : null;
   if (lat == null || lng == null) {
-    try { const pos = await getLivePosition(); if (pos && !pos.mock) { lat = pos.lat; lng = pos.lng; } } catch {}
+    try {
+      const pos = await getLivePosition();
+      if (pos && !pos.mock) {
+        // Only geotag from a fix that's actually from this trip. A stale ping from an old
+        // inReach session (before trip_start) would stamp the post at the wrong place —
+        // this is exactly what put "Touareg Checks" in the North Cascades. Leave it
+        // ungeotagged instead, so a wrong pin never lands on the map.
+        const tenant = await getDefaultTenant();
+        const floor = tenant?.trip_start ? new Date(`${tenant.trip_start}T00:00:00Z`).getTime() : null;
+        const at = pos.when ? new Date(pos.when).getTime() : NaN;
+        if (floor == null || (!isNaN(at) && at >= floor)) { lat = pos.lat; lng = pos.lng; }
+      }
+    } catch {}
   }
 
   const row: any = {
