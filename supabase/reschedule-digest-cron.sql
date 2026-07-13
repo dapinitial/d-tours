@@ -12,22 +12,23 @@ select jobid, jobname, schedule, active, command
 from cron.job
 order by jobid;
 
--- 2) RESCHEDULE the digest job to hourly at :07 (off the :00 stampede). Matches the job
---    by its command hitting /api/digest, so you don't need to hardcode the name.
+-- 2) RESCHEDULE ONLY THE DAILY digest job to hourly at :07 (off the :00 stampede).
+--    Match cadence=daily so the WEEKLY recap (dtours-digest-weekly, cadence=weekly) is
+--    left on its own Sunday schedule — the new dispatcher lets weekly bypass the hour gate.
 do $$
 declare j record;
 begin
-  for j in select jobid, jobname from cron.job where command ilike '%/api/digest%' loop
+  for j in select jobid, jobname from cron.job where command ilike '%/api/digest?cadence=daily%' loop
     perform cron.alter_job(job_id => j.jobid, schedule => '7 * * * *');
     raise notice 'rescheduled % (jobid %) to hourly', j.jobname, j.jobid;
   end loop;
 end $$;
 
--- 3) VERIFY.
-select jobid, jobname, schedule, active from cron.job where command ilike '%/api/digest%';
+-- 3) VERIFY (expect ONLY dtours-digest-daily = '7 * * * *'; weekly unchanged at '0 15 * * 0').
+select jobid, jobname, schedule, active from cron.job where command ilike '%/api/digest%' order by jobid;
 
--- Rollback (back to the old daily 13:30 UTC fire):
+-- Rollback (daily back to the old 13:30 UTC fire):
 --   do $$ declare j record; begin
---     for j in select jobid from cron.job where command ilike '%/api/digest%' loop
+--     for j in select jobid from cron.job where command ilike '%/api/digest?cadence=daily%' loop
 --       perform cron.alter_job(job_id => j.jobid, schedule => '30 13 * * *');
 --     end loop; end $$;

@@ -52,10 +52,13 @@ export const POST: APIRoute = async ({ url, cookies, request }) => {
   const cadence = url.searchParams.get('cadence') ?? undefined;
   const force = url.searchParams.get('force') === '1';
 
-  // Owner-initiated or forced → send now, no schedule gate (matches old behavior).
-  if (who === 'owner' || force) return json(await sendDigest(cadence));
+  // Send now, no daily-schedule gate:
+  //  · owner (CMS "send now") or ?force=1 → manual
+  //  · cadence=weekly → the weekly recap keeps its own cron cadence (fires Sunday);
+  //    only the DAILY digest is governed by digest_hour/digest_enabled.
+  if (who === 'owner' || force || cadence === 'weekly') return json(await sendDigest(cadence));
 
-  // Cron tick: send only if the trip's local hour matches its digest_hour and today's
+  // Daily cron tick: send only if the trip's local hour matches its digest_hour and today's
   // digest hasn't gone out. Gated on the default tenant — whose trip the digest composes.
   const sb = getSupabaseAdmin();
   if (!sb) return json(await sendDigest(cadence)); // mock/no-admin: behave as before
