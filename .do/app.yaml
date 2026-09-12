@@ -1,7 +1,7 @@
 # DigitalOcean App Platform spec for D-Tours.
 # Create the app with:  doctl apps create --spec .do/app.yaml
 # (or in the DO console: Create App → GitHub → dapinitial/d-tours → it reads this)
-name: d-tours
+name: shotgundetour-app
 region: nyc
 services:
   - name: web
