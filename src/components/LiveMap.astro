@@ -36,8 +36,11 @@ const geoPosts = posts
     const el = document.getElementById('dtours-map'); if (!el) return;
     el.innerHTML = '';
     const map = L.map(el, { scrollWheelZoom: false }).setView([44, -106], 4);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19,
+    // OpenStreetMap's own tiles: free, open, no key. (CARTO's basemaps.cartocdn.com
+    // started watermarking keyless requests with "API KEY REQUIRED" in Sept 2026, which
+    // is what blanked the map.) The dark look comes from a CSS filter on the tile pane.
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom: 19,
     }).addTo(map);
 
     let data;
@@ -134,6 +137,9 @@ const geoPosts = posts
      fixes the overlap WITHOUT touching Leaflet's internal pane layering. */
   .map-wrap { position: relative; z-index: 0; isolation: isolate; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
   .map { height: 440px; width: 100%; background: #0b1018; }
+  /* Dark basemap from OSM's light tiles: invert + hue-rotate keeps water blue and
+     land neutral; grayscale/brightness tame the saturation so route lines still pop. */
+  :global(#dtours-map .leaflet-tile-pane) { filter: invert(1) hue-rotate(180deg) saturate(.35) brightness(.72) contrast(1.05); }
   .map-fallback { height: 100%; display: grid; place-content: center; text-align: center; gap: .3rem; padding: 2rem; }
   .map-fallback .big { font-size: 3rem; }
   .map-fallback code { font-family: var(--font-mono); color: var(--green); }
