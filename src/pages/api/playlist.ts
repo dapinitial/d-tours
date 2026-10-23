@@ -1,12 +1,18 @@
 import type { APIRoute } from 'astro';
 import { getSupabaseAdmin } from '../../lib/supabase';
 import { getDefaultTenant } from '../../lib/data';
+import { guard, dailyCap } from '../../lib/ratelimit';
 
 export const prerender = false;
 
 // Co-pilot picks: a follower suggests music or an audiobook for the drive.
 // Mock-safe; owner-moderated before it shows publicly (status pending).
 export const POST: APIRoute = async ({ request }) => {
+  // anonymous inserts into the moderation queue: a few per visitor, and a site-wide daily
+  // ceiling so a botnet rotating addresses can't bury the real picks
+  const limited = guard(request, 'playlist', { capacity: 5, refillPerSec: 1 / 60 });
+  if (limited) return limited;
+  if (!dailyCap('playlist:global', 200).ok) return json({ ok: false, error: 'Lots of picks today. Try again tomorrow.' }, 429);
   let title = '', url = '', kind = 'music', by = '';
   try { ({ title = '', url = '', kind = 'music', by = '' } = await request.json()); } catch {}
   title = String(title).slice(0, 120).trim();

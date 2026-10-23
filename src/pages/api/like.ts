@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getSupabaseAdmin } from '../../lib/supabase';
+import { guard } from '../../lib/ratelimit';
 
 export const prerender = false;
 
@@ -7,6 +8,9 @@ export const prerender = false;
 // gated thing. With no Supabase configured this no-ops successfully so the
 // optimistic UI stays happy in mock mode.
 export const POST: APIRoute = async ({ request }) => {
+  // open to everyone, so a script could inflate any count: a few likes a minute per visitor
+  const limited = guard(request, 'like', { capacity: 10, refillPerSec: 1 / 6 });
+  if (limited) return limited;
   let post: string | undefined;
   try { ({ post } = await request.json()); } catch {}
   if (!post) return json({ ok: false, error: 'missing post' }, 400);

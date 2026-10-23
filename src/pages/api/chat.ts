@@ -104,7 +104,11 @@ STAGING: you can't change the confirmed plan, but you CAN stage an alternative f
 
 If asked something off-topic, gently steer back to the trip.`;
 
-  const model = MODELS[String(body.model)] || DEFAULT_MODEL;
+  let model = MODELS[String(body.model)] || DEFAULT_MODEL;
+  // Anyone can pick the switcher's bigger models, and each call costs many times a Haiku one,
+  // so they get their own, smaller daily ceiling (CHAT_PREMIUM_DAILY_CAP, default 40). Past it the
+  // chat keeps working on the default model.
+  if (model !== DEFAULT_MODEL && !dailyCap('chat:premium', Number(process.env.CHAT_PREMIUM_DAILY_CAP || 40)).ok) model = DEFAULT_MODEL;
   try {
     const client = new Anthropic({ apiKey: key });
     const convo: any[] = [...messages];

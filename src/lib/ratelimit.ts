@@ -15,6 +15,8 @@ export function rateLimit(key: string, opts: LimitOpts = {}): { ok: boolean; ret
   const refillPerSec = opts.refillPerSec ?? 1 / 6;
   const now = opts.now ?? Date.now();
   let b = buckets.get(key);
+  // a botnet brings a new address per request: drop full, idle buckets before the map grows unbounded
+  if (!b && buckets.size > 10_000) for (const [k, v] of buckets) if (now - v.last > 3_600_000) buckets.delete(k);
   if (!b) { b = { tokens: capacity, last: now }; buckets.set(key, b); }
   b.tokens = Math.min(capacity, b.tokens + ((now - b.last) / 1000) * refillPerSec);
   b.last = now;
@@ -32,11 +34,18 @@ export function dailyCap(key: string, max: number, now: number = Date.now()): { 
   return { ok: count <= max, count };
 }
 
-/** Best-effort client IP from proxy headers (DO App Platform sets x-forwarded-for). */
+/** The client's address. DigitalOcean's edge sets do-connecting-ip (and Cloudflare's
+ * cf-connecting-ip) and overwrites any copy a visitor sends, so those come first. The
+ * leftmost x-forwarded-for entry is whatever the visitor wrote: reading it let anyone dodge
+ * every per-address limit with one header (unakin.com saw exactly that, 2026-09-17). Its
+ * second-to-last entry is the client as the edge saw it, the last is the edge hop. */
 export function clientIp(request: Request): string {
-  const xff = request.headers.get('x-forwarded-for');
-  if (xff) return xff.split(',')[0].trim();
-  return request.headers.get('x-real-ip') || 'unknown';
+  const h = request.headers;
+  const direct = h.get('do-connecting-ip')?.trim() || h.get('cf-connecting-ip')?.trim();
+  if (direct) return direct;
+  const parts = (h.get('x-forwarded-for') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (parts.length >= 2) return parts[parts.length - 2];
+  return parts[0] || h.get('x-real-ip') || 'unknown';
 }
 
 /** Guard a public endpoint by IP. Returns a 429 Response when over the limit, else null. */

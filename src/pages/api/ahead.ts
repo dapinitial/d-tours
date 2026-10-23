@@ -1,7 +1,10 @@
 import type { APIRoute } from 'astro';
 import { lookAhead, type PoiCategory } from '../../lib/dtours/overpass';
+import { guard } from '../../lib/ratelimit';
 
 export const prerender = false;
+// Same Overpass budget as /api/dtours (shared bucket), and the same 50 km ceiling.
+const clampRadius = (v: string | null, d: number) => Math.min(50_000, Math.max(1_000, Number(v ?? d) || d));
 
 // The "don't miss out" filter. Drive Mode / the proactive watcher pulls EVERYTHING
 // nearby; this decides what's actually worth INTERRUPTING David for. It scans the
@@ -23,13 +26,15 @@ const TASTE: Partial<Record<PoiCategory, number>> = {
 const TASTE_CATS = Object.keys(TASTE) as PoiCategory[];
 const PING_THRESHOLD = 6; // only interrupt for taste >= this
 
-export const POST: APIRoute = async ({ url }) => {
+export const POST: APIRoute = async ({ url, request }) => {
+  const limited = guard(request, 'overpass', { capacity: 20, refillPerSec: 1 / 10 });
+  if (limited) return limited;
   const lat = Number(url.searchParams.get('lat'));
   const lng = Number(url.searchParams.get('lng'));
   if (Number.isNaN(lat) || Number.isNaN(lng)) {
     return json({ error: 'lat & lng required' }, 400);
   }
-  const radiusM = Number(url.searchParams.get('radius') ?? 20000);
+  const radiusM = clampRadius(url.searchParams.get('radius'), 20000);
   const found = await lookAhead({ lat, lng, radiusM, categories: TASTE_CATS });
 
   const notable = found

@@ -37,8 +37,11 @@ test('dailyCap counts up to max then blocks, resets next day', () => {
   assert.equal(dailyCap('chat', 3, day + 86_400_000).ok, true); // next UTC day resets
 });
 
-test('clientIp prefers x-forwarded-for', () => {
-  const r = new Request('http://x', { headers: { 'x-forwarded-for': '1.2.3.4, 5.6.7.8' } });
-  assert.equal(clientIp(r), '1.2.3.4');
+test('clientIp trusts the edge header, never the forgeable leftmost x-forwarded-for', () => {
+  const edge = new Request('http://x', { headers: { 'do-connecting-ip': '9.9.9.9', 'x-forwarded-for': '6.6.6.6, 9.9.9.9, 10.0.0.1' } });
+  assert.equal(clientIp(edge), '9.9.9.9');
+  // no edge header: the entry before the proxy hop, not the one the visitor wrote
+  const xff = new Request('http://x', { headers: { 'x-forwarded-for': '6.6.6.6, 1.2.3.4, 10.0.0.1' } });
+  assert.equal(clientIp(xff), '1.2.3.4');
   assert.equal(clientIp(new Request('http://x')), 'unknown');
 });
