@@ -19,7 +19,12 @@ export const POST: APIRoute = async ({ request }) => {
   if (!sb) return json({ ok: true, mock: true });
 
   const { error } = await sb.rpc('increment_like', { p_post_id: post });
-  if (error) return json({ ok: false, error: error.message }, 500);
+  if (error) {
+    // an unknown post is the visitor's mistake, not ours; and the database's own words stay in the log
+    if (/not found|does not exist|no rows|foreign key|invalid input syntax/i.test(error.message)) return json({ ok: false, error: 'no such post' }, 404);
+    console.error('[like]', error.message);
+    return json({ ok: false, error: 'could not save that like' }, 500);
+  }
   return json({ ok: true });
 };
 

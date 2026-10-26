@@ -44,7 +44,7 @@ const guardAndHeaders = defineMiddleware(async (ctx, next) => {
     "frame-src 'self'",
     "worker-src 'self' blob:",
     "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'self'",
-    'report-uri /api/csp-report',
+    'report-uri https://portal.unakin.com/api/csp-report?site=shotgundetour.com',   // one table for every site's reports
   ].join('; '));
   const proto = ctx.request.headers.get('x-forwarded-proto') ?? ctx.url.protocol.replace(':', '');
   if (proto === 'https') headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
