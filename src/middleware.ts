@@ -1,6 +1,8 @@
 import { defineMiddleware, sequence } from 'astro:middleware';
 import { supabaseServer, authConfigured } from './lib/supabaseServer';
 import { requestCtx } from './lib/requestContext';
+import { clientIp } from './lib/ratelimit';
+import { Blocklist } from './lib/blocklist.mjs';
 
 // Security headers on every response, and the cross-site guard Astro's own checkOrigin would
 // give us if it read the public host behind the proxy (it doesn't, so it's off in astro.config).
@@ -8,9 +10,14 @@ import { requestCtx } from './lib/requestContext';
 // labelling the fetch cross-site, is refused. Cron and server-to-server callers send neither and
 // pass to their own token checks. No CSP yet: the map tiles, embeds and inline scripts need their
 // own careful pass.
+// The fleet-wide blocklist (site-hardening skill): known-bad ranges built in, the shared JSON
+// re-read hourly. Writes from a blocked range are refused; pages still render.
+const blocklist = new Blocklist({ url: process.env.BLOCKLIST_URL || 'https://raw.githubusercontent.com/dapinitial/site-hardening/main/blocklist.json' });
+
 const guardAndHeaders = defineMiddleware(async (ctx, next) => {
   // the browser posts CSP violation reports with no Origin and from no page of ours
   if (!/^(GET|HEAD|OPTIONS)$/.test(ctx.request.method) && ctx.url.pathname !== '/api/csp-report') {
+    if (blocklist.has(clientIp(ctx.request))) return new Response('Forbidden', { status: 403 });
     const h = ctx.request.headers;
     const ours = [h.get('x-forwarded-host'), h.get('host'), ctx.url.host].filter(Boolean).map((x) => x!.split(',')[0].trim());
     const origin = h.get('origin');
