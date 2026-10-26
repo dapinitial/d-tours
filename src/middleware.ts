@@ -9,7 +9,8 @@ import { requestCtx } from './lib/requestContext';
 // pass to their own token checks. No CSP yet: the map tiles, embeds and inline scripts need their
 // own careful pass.
 const guardAndHeaders = defineMiddleware(async (ctx, next) => {
-  if (!/^(GET|HEAD|OPTIONS)$/.test(ctx.request.method)) {
+  // the browser posts CSP violation reports with no Origin and from no page of ours
+  if (!/^(GET|HEAD|OPTIONS)$/.test(ctx.request.method) && ctx.url.pathname !== '/api/csp-report') {
     const h = ctx.request.headers;
     const ours = [h.get('x-forwarded-host'), h.get('host'), ctx.url.host].filter(Boolean).map((x) => x!.split(',')[0].trim());
     const origin = h.get('origin');
@@ -21,6 +22,23 @@ const guardAndHeaders = defineMiddleware(async (ctx, next) => {
   }
   const res = await next();
   const headers = res.headers;
+  // Content Security Policy, REPORT ONLY (step 1 of 3, see the site-hardening skill's csp.md):
+  // nothing is blocked; the browser reports what would be to /api/csp-report. Leaflet comes from
+  // unpkg and the map tiles from OpenStreetMap; the strict script-src will report the inline
+  // scripts to move into files. Enforce (rename the header) once the reports go quiet.
+  headers.set('Content-Security-Policy-Report-Only', [
+    "default-src 'self'",
+    "script-src 'self' https://unpkg.com",
+    "style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' blob:",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https:",
+    "frame-src 'self'",
+    "worker-src 'self' blob:",
+    "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'self'",
+    'report-uri /api/csp-report',
+  ].join('; '));
   const proto = ctx.request.headers.get('x-forwarded-proto') ?? ctx.url.protocol.replace(':', '');
   if (proto === 'https') headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   headers.set('X-Content-Type-Options', 'nosniff');
